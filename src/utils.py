@@ -129,12 +129,12 @@ def should_plot_metric(
     results: list[dict[str, Any]],
     metric_key: str,
 ) -> bool:
-    """Return True if a metric exists and has at least one non-zero value."""
+    """
+    Return True if a metric exists and has at least one non-zero value.
+    """
 
     values = [result.get(metric_key, 0.0) for result in results]
     return any(value != 0 for value in values)
-
-
 
 def _apply_style() -> None:
     """
@@ -188,32 +188,6 @@ def _result_label(result: dict[str, Any]) -> str:
 
     return f"{workspace}\n{n_evaluations}"
 
-# def _result_label(result: dict[str, Any]) -> str:
-#     """
-#     Create a compact multi-line label for one benchmark result.
-#     """
-
-#     parts = []
-
-#     workspace = result.get("workspace")
-#     if workspace is not None:
-#         workspace_key = str(workspace).replace(".json", "")
-#         parts.append(WORKSPACE_LABELS.get(workspace_key, workspace_key))
-
-#     target = result.get("target")
-#     if target is not None:
-#         parts.append(str(target))
-
-#     mode = result.get("mode")
-#     if mode is not None:
-#         parts.append(str(mode))
-    
-#     n_evaluations = result.get("n_evaluations")
-#     if n_evaluations is not None:
-#         parts.append(f"{n_evaluations} evals")
-
-#     return "\n".join(parts)
-
 def _scaled_metric(
     results: list[dict[str, Any]],
     metric_key: str,
@@ -248,8 +222,6 @@ def _scaled_metric(
 
     return values, errors, metric_label
 
-
-
 def _format_value(value: float, metric_label: str) -> str:
     """
     Format bar labels in readable units.
@@ -276,18 +248,18 @@ def make_bar_plot(
     title: str,
     metric_key: str,
     metric_label: str,
-    error_key: str | None = None,
 ) -> None:
     """
     Create a bar plot for a benchmark metric.
     """
 
     labels = [_result_label(result) for result in results]
-    values = [result[metric_key] for result in results]
 
-    errors = None
-    if error_key is not None:
-        errors = [result.get(error_key, 0.0) for result in results]
+    values, errors, metric_label = _scaled_metric(
+        results,
+        metric_key,
+        metric_label,
+    )
 
     fig_width = max(26, len(labels) * 1.25)
     fig, ax = plt.subplots(figsize=(fig_width, 11))
@@ -372,7 +344,6 @@ def make_bar_plot(
     fig.savefig(output_path)
     plt.close(fig)
 
-
 def load_workspace(workspace_path: Path) -> Workspace:
     """
     Load a workspace from the given path.
@@ -418,7 +389,6 @@ def compile_log_prob(log_prob: TensorVariable) -> JaxifiedGraph:
     """
 
     return jaxify(log_prob)
-
 
 def build_validation_inputs(
     model: Model,
