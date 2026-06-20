@@ -89,7 +89,7 @@ def summarize_timings(timings):
         ),
     }
 
-def get_main_sha() -> str:
+def get_pyhs3_main_sha(pyhs3_repo: Path) -> str:
     """
     Return the short SHA of the pyHS3 main branch used as the benchmark baseline.
     """
@@ -97,6 +97,7 @@ def get_main_sha() -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", "origin/main"],
+            cwd=pyhs3_repo,
             check=True,
             capture_output=True,
             text=True,
