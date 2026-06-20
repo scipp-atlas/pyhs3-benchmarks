@@ -18,6 +18,12 @@ The primary goals of this repository are:
 * support profiling and optimization studies
 * track performance changes across PyHS3 versions
 
+## Benchmark Configuration
+
+pyHS3 baseline branch: `origin/main`
+
+pyHS3 baseline SHA: `326aadd`
+
 ## Benchmark Categories
 
 ### Core PyHS3 Benchmarks

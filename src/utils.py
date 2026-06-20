@@ -106,7 +106,6 @@ def get_pyhs3_main_sha(pyhs3_repo: Path) -> str:
     except subprocess.CalledProcessError:
         return "not_available"
 
-
 def save_json(data, output_path: Path):
     """
     Save the given data as JSON to the specified output path.
