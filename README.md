@@ -63,7 +63,7 @@ Before/after comparisons used to quantify the impact of performance improvements
 ```text
 benchmarking/
 ├── inputs/      # benchmark inputs and generated workspaces
-├── scripts/     # benchmark and validation scripts
+├── src/     # benchmark and validation scripts
 ├── results/     # raw benchmark outputs
 ├── plots/       # generated figures
 └── reports/     # benchmark summaries and reports
