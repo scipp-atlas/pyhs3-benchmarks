@@ -17,3 +17,5 @@ benchmarking/plots/*
 
 benchmarking/reports/*
 !benchmarking/reports/.gitkeep
+
+.vscode/
