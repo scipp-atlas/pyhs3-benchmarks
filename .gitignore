@@ -9,13 +9,13 @@ venv/
 
 .DS_Store
 
-benchmarking/results/*
-!benchmarking/results/.gitkeep
+results/*
+!results/.gitkeep
 
-benchmarking/plots/*
-!benchmarking/plots/.gitkeep
+plots/*
+!plots/.gitkeep
 
-benchmarking/reports/*
-!benchmarking/reports/.gitkeep
+reports/*
+!reports/.gitkeep
 
 .vscode/
