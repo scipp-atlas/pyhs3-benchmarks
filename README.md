@@ -106,11 +106,11 @@ Current coverage:
 
 | Benchmark                    | Status         |
 | ---------------------------- | -------------- |
-| Workspace Loading            | ✅ Implemented  |
-| Model Creation               | ✅ Implemented  |
-| Log Probability Construction | ✅ Implemented  |
-| Log Probability Compilation  | 🚧 In Progress |
-| Compiled Evaluation          | 🚧 In Progress |
+| Workspace Loading            | Implemented |
+| Model Creation               | Implemented |
+| Log Probability Construction | Implemented |
+| Log Probability Compilation  | Implemented |
+| Compiled Evaluation          | Implemented |
 | NLL Scans                    | 📋 Planned     |
 
 ---
@@ -122,6 +122,8 @@ The following benchmarks have been validated and are currently considered stable
 * Workspace Loading
 * Model Creation
 * Log Probability Construction
+* Log Probability Compilation
+* Compiled Evaluation
 
 Each benchmark includes:
 
@@ -494,6 +496,174 @@ This avoids reporting memory accumulation from repeated graph construction as th
 ### Current RSS Delta
 
 ![Log Probability Construction Current RSS Delta](plots/log_prob_construction/log_prob_construction_current_rss_delta.png)
+
+---
+
+# Log Probability Compilation Benchmark
+
+## Purpose
+
+Measures the cost of compiling a symbolic PyTensor log-probability graph into a JAX-executable graph.
+
+This benchmark evaluates:
+
+```text
+jaxify(log_prob)
+```
+
+Workspace loading, model creation, and log-probability construction are treated as setup and are intentionally excluded from the timed section.
+
+---
+
+## Validation Checks
+
+The benchmark verifies that the compiled object:
+
+* is successfully created
+* is a valid `JaxifiedGraph`
+* exposes the expected inputs
+* can be executed successfully
+* returns a finite numerical result
+
+---
+
+## Outputs
+
+Results:
+
+```text
+results/log_prob_compilation/
+└── log_prob_compilation_result.json
+```
+
+Plots:
+
+```text
+plots/log_prob_compilation/
+├── log_prob_compilation_wall_time.png
+├── log_prob_compilation_current_rss_delta.png
+└── log_prob_compilation_peak_rss_delta.png
+```
+
+---
+
+## Generated Metrics
+
+For each workspace/target/mode combination the benchmark records:
+
+* wall time samples
+* mean wall time
+* median wall time
+* wall time standard deviation
+* current RSS memory usage
+* peak RSS memory usage
+* compiled graph type
+* number of compiled inputs
+* compiled input names
+* validation output value
+* finite-result validation status
+
+---
+
+## Memory Measurement Notes
+
+Compilation memory usage includes JAX/XLA initialization overhead and should be interpreted as compilation-time process memory consumption rather than model memory footprint.
+
+---
+
+## Example Plots
+
+### Wall Time
+
+![Log Probability Compilation Wall Time](plots/log_prob_compilation/log_prob_compilation_wall_time.png)
+
+### Current RSS Delta
+
+![Log Probability Compilation Current RSS Delta](plots/log_prob_compilation/log_prob_compilation_current_rss_delta.png)
+
+---
+
+# Compiled Evaluation Benchmark
+
+## Purpose
+
+Measures the execution cost of evaluating an already-compiled JAX graph.
+
+This benchmark evaluates:
+
+```text
+compiled(...)
+```
+
+Workspace loading, model creation, graph construction, and graph compilation are treated as setup and are intentionally excluded from the timed section.
+
+---
+
+## Validation Checks
+
+The benchmark verifies that:
+
+* evaluation succeeds
+* outputs are finite
+* repeated evaluations are numerically stable
+* repeated evaluations produce consistent results
+
+---
+
+## Outputs
+
+Results:
+
+```text
+results/compiled_evaluation/
+└── compiled_evaluation_result.json
+```
+
+Plots:
+
+```text
+plots/compiled_evaluation/
+├── compiled_evaluation_average_time.png
+└── compiled_evaluation_throughput.png
+```
+
+---
+
+## Generated Metrics
+
+For each workspace/target/mode/evaluation-count combination the benchmark records:
+
+* total wall time
+* average wall time per evaluation
+* throughput (evaluations per second)
+* current RSS memory usage
+* peak RSS memory usage
+* number of evaluations
+* output stability metrics
+* maximum absolute deviation
+* finite-result validation status
+
+---
+
+## Memory Measurement Notes
+
+Memory measurements are performed separately from timing measurements.
+
+Memory is evaluated using a single compiled graph execution to avoid reporting accumulated memory from repeated evaluations.
+
+For most small validation workspaces, memory deltas are expected to be close to zero.
+
+---
+
+## Example Plots
+
+### Average Runtime Per Evaluation
+
+![Compiled Evaluation Average Runtime](plots/compiled_evaluation/compiled_evaluation_average_time.png)
+
+### Throughput
+
+![Compiled Evaluation Throughput](plots/compiled_evaluation/compiled_evaluation_throughput.png)
 
 ---
 
