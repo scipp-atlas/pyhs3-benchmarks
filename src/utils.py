@@ -89,22 +89,6 @@ def summarize_timings(timings):
         ),
     }
 
-def get_pyhs3_main_sha(pyhs3_repo: Path) -> str:
-    """
-    Return the short SHA of the pyHS3 main branch used as the benchmark baseline.
-    """
-
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--short", "origin/main"],
-            cwd=pyhs3_repo,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        return "not_available"
 
 def save_json(data, output_path: Path):
     """
@@ -253,6 +237,8 @@ def make_bar_plot(
     Create a bar plot for a benchmark metric.
     """
 
+    _apply_style()
+
     labels = [_result_label(result) for result in results]
 
     values, errors, metric_label = _scaled_metric(
@@ -261,8 +247,8 @@ def make_bar_plot(
         metric_label,
     )
 
-    fig_width = max(26, len(labels) * 1.25)
-    fig, ax = plt.subplots(figsize=(fig_width, 11))
+    fig_width = max(14, len(labels) * 2.2)
+    fig, ax = plt.subplots(figsize=(fig_width, 9))
 
     bars = ax.bar(
         range(len(values)),
@@ -271,13 +257,22 @@ def make_bar_plot(
         capsize=6 if errors is not None else 0,
     )
 
-    ax.set_title(title, fontsize=18)
-    ax.set_ylabel(metric_label)
+    ax.set_title(
+        title,
+        fontsize=24,
+        pad=20,
+        weight="bold",
+    )
+    ax.set_ylabel(
+        metric_label,
+        fontsize=18,
+    )
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(
         labels,
-        rotation=55,
+        rotation=30,
         ha="right",
+        fontsize=14,
     )
 
     ax.grid(axis="y", alpha=0.3)
@@ -298,7 +293,7 @@ def make_bar_plot(
 
     ax.set_ylim(
         ymin - 0.08 * span,
-        ymax + 0.25 * span,
+        ymax + 0.35 * span,
     )
 
     for index, (bar, value) in enumerate(zip(bars, values, strict=False)):
@@ -331,7 +326,8 @@ def make_bar_plot(
             label,
             ha="center",
             va=va,
-            fontsize=11,
+            fontsize=14,
+            fontweight="bold",
         )
 
     fig.tight_layout()
