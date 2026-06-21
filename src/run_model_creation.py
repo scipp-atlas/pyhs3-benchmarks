@@ -2,128 +2,198 @@ from __future__ import annotations
 
 import argparse
 import gc
+import time
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
 
+from pyhs3.model import Model
 from pyhs3.workspace import Workspace
 
 from config import (
+    DEFAULT_MODE,
     DEFAULT_N_RUNS,
+    DEFAULT_TARGET,
     DEFAULT_WORKSPACE,
     PLOTS_DIR,
     RESULTS_DIR,
 )
 from utils import (
+    create_model,
     get_current_rss_mb,
     get_peak_rss_mb,
     load_workspace,
     make_bar_plot,
-    run_repeated_timing,
     save_json,
     summarize_timings,
 )
 
 
-BENCHMARK_NAME = "workspace_loading"
+BENCHMARK_NAME = "model_creation"
 
 DEFAULT_OUTPUT_DIR = RESULTS_DIR / BENCHMARK_NAME
-DEFAULT_OUTPUT_NAME = "workspace_loading_result.json"
+DEFAULT_OUTPUT_NAME = "model_creation_result.json"
 
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
-DEFAULT_PLOT_NAME = "workspace_loading_wall_time.png"
+DEFAULT_PLOT_NAME = "model_creation_wall_time.png"
 
 
-def validate_workspace(workspace: Workspace) -> dict[str, int | str]:
+def validate_model(model: Model) -> dict[str, Any]:
     """
-    Validate that the loaded workspace contains expected top-level content.
+    Validate that the created model exposes expected interfaces.
     """
 
-    if workspace.distributions is None or len(workspace.distributions) == 0:
-        raise ValueError("Workspace does not contain distributions")
+    if model is None:
+        raise ValueError("Model creation returned None")
 
-    if workspace.likelihoods is None or len(workspace.likelihoods) == 0:
-        raise ValueError("Workspace does not contain likelihoods")
+    if not hasattr(model, "log_prob"):
+        raise ValueError("Model does not expose log_prob")
 
-    if workspace.data is None or len(workspace.data) == 0:
-        raise ValueError("Workspace does not contain data")
+    if not hasattr(model, "data"):
+        raise ValueError("Model does not expose data")
+
+    if not hasattr(model, "free_params"):
+        raise ValueError("Model does not expose free_params")
 
     return {
-        "metadata_hs3_version": workspace.metadata.hs3_version,
-        "n_distributions": len(workspace.distributions),
-        "n_likelihoods": len(workspace.likelihoods),
-        "n_data": len(workspace.data),
-        "n_domains": len(workspace.domains) if workspace.domains is not None else 0,
-        "n_parameter_points": (
-            len(workspace.parameter_points)
-            if workspace.parameter_points is not None
+        "model_type": type(model).__name__,
+        "has_log_prob": hasattr(model, "log_prob"),
+        "has_data": hasattr(model, "data"),
+        "has_free_params": hasattr(model, "free_params"),
+        "n_free_params": (
+            len(model.free_params)
+            if getattr(model, "free_params", None) is not None
             else 0
         ),
     }
 
 
-def measure_single_load_memory(workspace_path: Path) -> dict[str, Any]:
+def measure_model_creation_memory(
+    workspace: Workspace,
+    target: str,
+    mode: str,
+) -> tuple[Model, dict[str, float]]:
     """
-    Measure memory change for one clean workspace load.
+    Measure memory change for a single model creation.
 
-    This is intentionally separate from repeated timing runs, because repeated
-    loading can change RSS through allocator behavior and retained objects.
+    This is intentionally separate from repeated timing runs to avoid reporting
+    memory accumulation across many created PyTensor graphs as the memory cost of
+    one ws.model(...) call.
     """
 
+    gc.collect()
+
+    warmup_model = create_model(
+        workspace=workspace,
+        target=target,
+        mode=mode,
+    )
+
+    del warmup_model
     gc.collect()
 
     current_rss_before_mb = get_current_rss_mb()
     peak_rss_before_mb = get_peak_rss_mb()
 
-    workspace = load_workspace(workspace_path)
+    model = create_model(
+        workspace=workspace,
+        target=target,
+        mode=mode,
+    )
 
     current_rss_after_mb = get_current_rss_mb()
     peak_rss_after_mb = get_peak_rss_mb()
 
-    validation_summary = validate_workspace(workspace)
-
-    return {
+    return model, {
+        "memory_n_runs": 1,
         "current_rss_before_mb": current_rss_before_mb,
         "current_rss_after_mb": current_rss_after_mb,
         "current_rss_delta_mb": current_rss_after_mb - current_rss_before_mb,
         "peak_rss_before_mb": peak_rss_before_mb,
         "peak_rss_after_mb": peak_rss_after_mb,
         "peak_rss_delta_mb": peak_rss_after_mb - peak_rss_before_mb,
-        **validation_summary,
     }
+
+
+def measure_model_creation_timing(
+    workspace: Workspace,
+    target: str,
+    mode: str,
+    n_runs: int,
+) -> list[float]:
+    """
+    Measure repeated ws.model(...) wall times.
+
+    Created models are discarded after each run. Memory is measured separately
+    using a single model creation.
+    """
+
+    timings: list[float] = []
+
+    for _ in range(n_runs):
+        start = time.perf_counter()
+        model = create_model(
+            workspace=workspace,
+            target=target,
+            mode=mode,
+        )
+        end = time.perf_counter()
+
+        timings.append(end - start)
+
+        del model
+        gc.collect()
+
+    return timings
 
 
 def run_single_benchmark(
     workspace_path: Path,
+    target: str,
+    mode: str,
     n_runs: int,
 ) -> dict[str, Any]:
     """
-    Run workspace loading benchmark for one workspace.
+    Run model creation benchmark for one workspace, target, and mode.
 
-    Memory is measured from a single load.
-    Timing is measured separately using repeated loads.
+    Workspace loading is setup only and is intentionally excluded from timing.
+
+    Timing measures repeated ws.model(...) calls.
+    Memory measures one isolated ws.model(...) call.
     """
 
-    memory_summary = measure_single_load_memory(workspace_path)
+    workspace = load_workspace(workspace_path)
 
+    model, memory_summary = measure_model_creation_memory(
+        workspace=workspace,
+        target=target,
+        mode=mode,
+    )
+    validation_summary = validate_model(model)
+
+    del model
     gc.collect()
 
-    workspace, timings = run_repeated_timing(
-        lambda: load_workspace(workspace_path),
+    timings = measure_model_creation_timing(
+        workspace=workspace,
+        target=target,
+        mode=mode,
         n_runs=n_runs,
     )
-
     timing_summary = summarize_timings(timings)
 
     return {
         "benchmark": BENCHMARK_NAME,
         "workspace": workspace_path.name,
         "workspace_path": str(workspace_path),
+        "target": target,
+        "mode": mode,
         "n_runs": n_runs,
         "wall_time_seconds_samples": timings,
         **timing_summary,
         **memory_summary,
         "status": "success",
+        **validation_summary,
     }
 
 
@@ -134,9 +204,11 @@ def print_result(result: dict[str, Any]) -> None:
 
     print()
     print("=" * 72)
-    print("Workspace loading benchmark")
+    print("Model creation benchmark")
     print("=" * 72)
     print(f"Workspace: {result['workspace']}")
+    print(f"Target:    {result['target']}")
+    print(f"Mode:      {result['mode']}")
     print(f"Runs:      {result['n_runs']}")
     print(f"Status:    {result['status']}")
 
@@ -148,7 +220,7 @@ def print_result(result: dict[str, Any]) -> None:
 
     print()
     print("Memory")
-    print("  measured from a single workspace load")
+    print(f"  memory runs:        {result['memory_n_runs']}")
     print(f"  current RSS before: {result['current_rss_before_mb']:.3f} MB")
     print(f"  current RSS after:  {result['current_rss_after_mb']:.3f} MB")
     print(f"  current RSS delta:  {result['current_rss_delta_mb']:.3f} MB")
@@ -158,17 +230,16 @@ def print_result(result: dict[str, Any]) -> None:
 
     print()
     print("Validation")
-    print(f"  HS3 version:      {result['metadata_hs3_version']}")
-    print(f"  distributions:    {result['n_distributions']}")
-    print(f"  likelihoods:      {result['n_likelihoods']}")
-    print(f"  data:             {result['n_data']}")
-    print(f"  domains:          {result['n_domains']}")
-    print(f"  parameter points: {result['n_parameter_points']}")
+    print(f"  model type:       {result['model_type']}")
+    print(f"  has log_prob:     {result['has_log_prob']}")
+    print(f"  has data:         {result['has_data']}")
+    print(f"  has free_params:  {result['has_free_params']}")
+    print(f"  free parameters:  {result['n_free_params']}")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Benchmark HS3 workspace loading into pyHS3 Workspace objects."
+        description="Benchmark pyHS3 Model creation from already-loaded Workspaces."
     )
 
     parser.add_argument(
@@ -179,10 +250,22 @@ def parse_args() -> argparse.Namespace:
         help="Workspace JSON files to benchmark.",
     )
     parser.add_argument(
+        "--targets",
+        nargs="+",
+        default=[DEFAULT_TARGET],
+        help="Workspace model targets, such as analysis or likelihood names.",
+    )
+    parser.add_argument(
+        "--modes",
+        nargs="+",
+        default=[DEFAULT_MODE],
+        help="PyTensor compilation modes passed to workspace.model(...).",
+    )
+    parser.add_argument(
         "--n-runs",
         type=int,
         default=DEFAULT_N_RUNS,
-        help="Number of repeated timing runs per workspace.",
+        help="Number of repeated timing runs per workspace/target/mode.",
     )
     parser.add_argument(
         "--output-dir",
@@ -198,7 +281,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--plot",
         action="store_true",
-        help="Create comparison plots when multiple workspaces are benchmarked.",
+        help="Create comparison plots when multiple result entries are available.",
     )
     parser.add_argument(
         "--plot-dir",
@@ -221,7 +304,7 @@ def make_plots(
     wall_time_plot_name: str,
 ) -> None:
     """
-    Create standard plots for the workspace loading benchmark.
+    Create standard plots for the model creation benchmark.
     """
 
     plot_dir.mkdir(parents=True, exist_ok=True)
@@ -230,31 +313,31 @@ def make_plots(
     make_bar_plot(
         results=results,
         output_path=wall_time_plot_path,
-        title="Workspace loading wall time",
+        title="Model creation wall time",
         metric_key="wall_time_seconds_mean",
         metric_label="Mean wall time [s]",
     )
     print(f"Saved plot to {wall_time_plot_path}")
 
-    peak_rss_plot_path = plot_dir / "workspace_loading_peak_rss_delta.png"
-    make_bar_plot(
-        results=results,
-        output_path=peak_rss_plot_path,
-        title="Workspace loading peak RSS delta",
-        metric_key="peak_rss_delta_mb",
-        metric_label="Peak RSS delta [MB]",
-    )
-    print(f"Saved plot to {peak_rss_plot_path}")
-
-    current_rss_plot_path = plot_dir / "workspace_loading_current_rss_delta.png"
+    current_rss_plot_path = plot_dir / "model_creation_current_rss_delta.png"
     make_bar_plot(
         results=results,
         output_path=current_rss_plot_path,
-        title="Workspace loading current RSS delta",
+        title="Model creation current RSS delta",
         metric_key="current_rss_delta_mb",
         metric_label="Current RSS delta [MB]",
     )
     print(f"Saved plot to {current_rss_plot_path}")
+
+    peak_rss_plot_path = plot_dir / "model_creation_peak_rss_delta.png"
+    make_bar_plot(
+        results=results,
+        output_path=peak_rss_plot_path,
+        title="Model creation peak RSS delta",
+        metric_key="peak_rss_delta_mb",
+        metric_label="Peak RSS delta [MB]",
+    )
+    print(f"Saved plot to {peak_rss_plot_path}")
 
 
 def main() -> None:
@@ -268,18 +351,20 @@ def main() -> None:
     ctx = get_context("spawn")
 
     for workspace_path in args.workspaces:
-        with ctx.Pool(processes=1) as pool:
-            result = pool.apply(
-                run_single_benchmark,
-                args=(workspace_path, args.n_runs),
-            )
+        for target in args.targets:
+            for mode in args.modes:
+                with ctx.Pool(processes=1) as pool:
+                    result = pool.apply(
+                        run_single_benchmark,
+                        args=(workspace_path, target, mode, args.n_runs),
+                    )
 
-        results.append(result)
-        print_result(result)
+                results.append(result)
+                print_result(result)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
-        "n_workspaces": len(results),
+        "n_results": len(results),
         "results": results,
     }
 
@@ -291,7 +376,7 @@ def main() -> None:
 
     if args.plot:
         if len(results) < 2:
-            print("Skipping plots: at least two workspaces are needed.")
+            print("Skipping plots: at least two result entries are needed.")
         else:
             make_plots(
                 results=results,
