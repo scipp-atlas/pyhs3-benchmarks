@@ -11,6 +11,9 @@ venv/
 
 results/*
 !results/.gitkeep
+!results/scalene/
+
+results/scalene/*.html
 
 plots/*
 !plots/.gitkeep
