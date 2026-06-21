@@ -1,26 +1,20 @@
 """
-This file contains utility functions for benchmarking pyHS3, 
+This file contains utility functions for benchmarking pyHS3,
 including memory usage tracking, timing, plotting, and workspace/model handling.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import resource
 import statistics
 import time
-import psutil
-import matplotlib.pyplot as plt
-import math
-import subprocess
-
-from matplotlib.ticker import (
-    AutoMinorLocator,
-    MaxNLocator,
-)
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
+import psutil
 from pyhs3 import jaxify
 from pyhs3.model import Model
 from pyhs3.transpile import JaxifiedGraph
@@ -28,6 +22,7 @@ from pyhs3.workspace import Workspace
 from pytensor.tensor.variable import TensorVariable
 
 from config import WORKSPACE_LABELS
+
 
 def get_current_rss_mb() -> float:
     """
@@ -51,17 +46,21 @@ def get_peak_rss_mb() -> float:
     return rss_kb / 1024.0
 
 
-def run_repeated_timing(func, n_runs: int = 5, warmup_runs: int = 1) -> tuple[Any, list[float]]:
+def run_repeated_timing(
+    func,
+    n_runs: int = 5,
+    warmup_runs: int = 1,
+) -> tuple[Any, list[float]]:
     """
-    Run the given function multiple times and return 
-    the result of the last run along with the list of timings for each run.
+    Run the given function multiple times and return
+    the result of the last run along with the list of timings.
     """
 
     timings = []
 
     for _ in range(warmup_runs):
         func()
-    
+
     result = None
 
     for _ in range(n_runs):
@@ -74,9 +73,9 @@ def run_repeated_timing(func, n_runs: int = 5, warmup_runs: int = 1) -> tuple[An
     return result, timings
 
 
-def summarize_timings(timings):
+def summarize_timings(timings: list[float]) -> dict[str, float]:
     """
-    Summarize the list of timings by calculating the mean and standard deviation.
+    Summarize the list of timings.
     """
 
     return {
@@ -90,10 +89,9 @@ def summarize_timings(timings):
     }
 
 
-def save_json(data, output_path: Path):
+def save_json(data: dict[str, Any], output_path: Path) -> None:
     """
     Save the given data as JSON to the specified output path.
-    Creates parent directories if they do not exist.
     """
 
     output_path.parent.mkdir(
@@ -109,6 +107,7 @@ def save_json(data, output_path: Path):
             sort_keys=True,
         )
 
+
 def should_plot_metric(
     results: list[dict[str, Any]],
     metric_key: str,
@@ -118,11 +117,13 @@ def should_plot_metric(
     """
 
     values = [result.get(metric_key, 0.0) for result in results]
+
     return any(value != 0 for value in values)
+
 
 def _apply_style() -> None:
     """
-    Apply a  matplotlib style.
+    Apply matplotlib style for benchmark plots.
     """
 
     plt.rcParams.update(
@@ -133,30 +134,25 @@ def _apply_style() -> None:
             "axes.linewidth": 1.5,
             "axes.titlesize": 24,
             "axes.labelsize": 18,
-            "xtick.labelsize": 15,
-            "ytick.labelsize": 15,
+            "xtick.labelsize": 14,
+            "ytick.labelsize": 14,
             "xtick.direction": "in",
             "ytick.direction": "in",
             "xtick.major.size": 8,
             "ytick.major.size": 8,
-            "xtick.minor.size": 4,
-            "ytick.minor.size": 4,
             "xtick.major.width": 1.5,
             "ytick.major.width": 1.5,
-            "xtick.minor.width": 1.0,
-            "ytick.minor.width": 1.0,
             "grid.color": "0.55",
             "grid.linewidth": 0.8,
             "grid.alpha": 0.35,
-            "legend.frameon": True,
-            "legend.fontsize": 14,
             "savefig.dpi": 300,
         }
     )
 
+
 def _result_label(result: dict[str, Any]) -> str:
     """
-    Create a compact multi-line label for one benchmark result.
+    Create a compact label for one benchmark result.
     """
 
     if "plot_label" in result:
@@ -172,6 +168,7 @@ def _result_label(result: dict[str, Any]) -> str:
 
     return f"{workspace}\n{n_evaluations}"
 
+
 def _scaled_metric(
     results: list[dict[str, Any]],
     metric_key: str,
@@ -180,15 +177,16 @@ def _scaled_metric(
     """
     Return values, optional errors, and an updated y-axis label.
 
-    Timing means are stored in seconds but are usually easier to read in ms.
-    If a matching *_std field exists, it is used as an error bar.
+    Timing means are stored in seconds but plotted in ms.
     """
 
     values = [float(result[metric_key]) for result in results]
 
     std_key = None
+
     if metric_key.endswith("_mean"):
         candidate = metric_key.removesuffix("_mean") + "_std"
+
         if any(candidate in result for result in results):
             std_key = candidate
 
@@ -200,11 +198,14 @@ def _scaled_metric(
 
     if metric_key == "wall_time_seconds_mean":
         values = [value * 1000.0 for value in values]
+
         if errors is not None:
             errors = [error * 1000.0 for error in errors]
+
         metric_label = "Mean wall time [ms]"
 
     return values, errors, metric_label
+
 
 def _format_value(value: float, metric_label: str) -> str:
     """
@@ -216,15 +217,15 @@ def _format_value(value: float, metric_label: str) -> str:
 
     if "[ms]" in metric_label:
         return f"{value:.3f}"
+
     if "[MB]" in metric_label:
         return f"{value:.3f}"
+
     if abs(value) >= 100:
         return f"{value:.0f}"
-    if abs(value) >= 10:
-        return f"{value:.3f}"
-    if abs(value) >= 1:
-        return f"{value:.3f}"
+
     return f"{value:.3f}"
+
 
 def make_bar_plot(
     results: list[dict[str, Any]],
@@ -263,10 +264,12 @@ def make_bar_plot(
         pad=20,
         weight="bold",
     )
+
     ax.set_ylabel(
         metric_label,
         fontsize=18,
     )
+
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(
         labels,
@@ -275,6 +278,7 @@ def make_bar_plot(
         fontsize=14,
     )
 
+    ax.tick_params(axis="y", labelsize=14)
     ax.grid(axis="y", alpha=0.3)
 
     ymin = min(0.0, min(values))
@@ -296,11 +300,13 @@ def make_bar_plot(
         ymax + 0.35 * span,
     )
 
-    for index, (bar, value) in enumerate(zip(bars, values, strict=False)):
-        error = 0.0
-        if errors is not None:
-            error = errors[index]
+    has_nonzero_errors = (
+        errors is not None
+        and any(error_value != 0 for error_value in errors)
+    )
 
+    for index, (bar, value) in enumerate(zip(bars, values, strict=False)):
+        error = errors[index] if errors is not None else 0.0
         offset = 0.035 * span
 
         if value >= 0:
@@ -310,9 +316,7 @@ def make_bar_plot(
             y = value - error - offset
             va = "top"
 
-        if errors is not None and any(
-            error_value != 0 for error_value in errors
-        ):
+        if has_nonzero_errors:
             label = (
                 f"{_format_value(value, metric_label)} ± "
                 f"{_format_value(error, metric_label)}"
@@ -340,12 +344,14 @@ def make_bar_plot(
     fig.savefig(output_path)
     plt.close(fig)
 
+
 def load_workspace(workspace_path: Path) -> Workspace:
     """
     Load a workspace from the given path.
     """
 
     return Workspace.load(workspace_path)
+
 
 def create_model(
     workspace: Workspace,
@@ -362,6 +368,7 @@ def create_model(
         mode=mode,
     )
 
+
 def build_log_prob(
     workspace_path: Path,
     target: str,
@@ -372,12 +379,15 @@ def build_log_prob(
     """
 
     workspace = load_workspace(workspace_path)
+
     model = create_model(
         workspace=workspace,
         target=target,
         mode=mode,
     )
+
     return model, model.log_prob
+
 
 def compile_log_prob(log_prob: TensorVariable) -> JaxifiedGraph:
     """
@@ -385,6 +395,7 @@ def compile_log_prob(log_prob: TensorVariable) -> JaxifiedGraph:
     """
 
     return jaxify(log_prob)
+
 
 def build_validation_inputs(
     model: Model,

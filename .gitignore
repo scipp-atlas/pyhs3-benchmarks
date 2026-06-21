@@ -14,6 +14,8 @@ results/*
 
 plots/*
 !plots/.gitkeep
+!plots/workspace_loading/workspace_loading_wall_time.png
+!plots/workspace_loading/workspace_loading_current_rss_delta.png
 
 reports/*
 !reports/.gitkeep

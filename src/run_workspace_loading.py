@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -60,26 +61,59 @@ def validate_workspace(workspace: Workspace) -> dict[str, int | str]:
         ),
     }
 
+
+def measure_single_load_memory(workspace_path: Path) -> dict[str, Any]:
+    """
+    Measure memory change for one clean workspace load.
+
+    This is intentionally separate from repeated timing runs, because repeated
+    loading can change RSS through allocator behavior and retained objects.
+    """
+
+    gc.collect()
+
+    current_rss_before_mb = get_current_rss_mb()
+    peak_rss_before_mb = get_peak_rss_mb()
+
+    workspace = load_workspace(workspace_path)
+
+    current_rss_after_mb = get_current_rss_mb()
+    peak_rss_after_mb = get_peak_rss_mb()
+
+    validation_summary = validate_workspace(workspace)
+
+    return {
+        "current_rss_before_mb": current_rss_before_mb,
+        "current_rss_after_mb": current_rss_after_mb,
+        "current_rss_delta_mb": current_rss_after_mb - current_rss_before_mb,
+        "peak_rss_before_mb": peak_rss_before_mb,
+        "peak_rss_after_mb": peak_rss_after_mb,
+        "peak_rss_delta_mb": peak_rss_after_mb - peak_rss_before_mb,
+        **validation_summary,
+    }
+
+
 def run_single_benchmark(
     workspace_path: Path,
     n_runs: int,
 ) -> dict[str, Any]:
     """
     Run workspace loading benchmark for one workspace.
+
+    Memory is measured from a single load.
+    Timing is measured separately using repeated loads.
     """
 
-    current_rss_before_mb = get_current_rss_mb()
-    peak_rss_before_mb = get_peak_rss_mb()
+    memory_summary = measure_single_load_memory(workspace_path)
+
+    gc.collect()
 
     workspace, timings = run_repeated_timing(
         lambda: load_workspace(workspace_path),
         n_runs=n_runs,
     )
 
-    current_rss_after_mb = get_current_rss_mb()
-    peak_rss_after_mb = get_peak_rss_mb()
-
-    validation_summary = validate_workspace(workspace)
+    timing_validation_summary = validate_workspace(workspace)
     timing_summary = summarize_timings(timings)
 
     return {
@@ -89,14 +123,9 @@ def run_single_benchmark(
         "n_runs": n_runs,
         "wall_time_seconds_samples": timings,
         **timing_summary,
-        "current_rss_before_mb": current_rss_before_mb,
-        "current_rss_after_mb": current_rss_after_mb,
-        "current_rss_delta_mb": current_rss_after_mb - current_rss_before_mb,
-        "peak_rss_before_mb": peak_rss_before_mb,
-        "peak_rss_after_mb": peak_rss_after_mb,
-        "peak_rss_delta_mb": peak_rss_after_mb - peak_rss_before_mb,
+        **memory_summary,
         "status": "success",
-        **validation_summary,
+        "timing_validation": timing_validation_summary,
     }
 
 
@@ -121,6 +150,7 @@ def print_result(result: dict[str, Any]) -> None:
 
     print()
     print("Memory")
+    print("  measured from a single workspace load")
     print(f"  current RSS before: {result['current_rss_before_mb']:.3f} MB")
     print(f"  current RSS after:  {result['current_rss_after_mb']:.3f} MB")
     print(f"  current RSS delta:  {result['current_rss_delta_mb']:.3f} MB")
@@ -154,7 +184,7 @@ def parse_args() -> argparse.Namespace:
         "--n-runs",
         type=int,
         default=DEFAULT_N_RUNS,
-        help="Number of repeated runs per workspace.",
+        help="Number of repeated timing runs per workspace.",
     )
     parser.add_argument(
         "--output-dir",
