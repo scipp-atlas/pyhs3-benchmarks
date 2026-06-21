@@ -32,6 +32,12 @@ plots/model_creation/model_creation_peak_rss_delta.png
 
 plots/log_prob_construction/log_prob_construction_peak_rss_delta.png
 
+!plots/log_prob_compilation/
+!plots/log_prob_compilation/log_prob_compilation_wall_time.png
+!plots/log_prob_compilation/log_prob_compilation_current_rss_delta.png
+
+plots/log_prob_compilation/log_prob_compilation_peak_rss_delta.png
+
 reports/*
 !reports/.gitkeep
 
