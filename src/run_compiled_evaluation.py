@@ -44,6 +44,13 @@ DEFAULT_N_EVALUATIONS = [
 ]
 
 def extract_scalar_output(result) -> float:
+    """
+    Extract a scalar float from the compiled log_prob output.
+    The compiled log_prob output is expected to be a tuple of tuples, 
+    where the first element is a 1x1 array containing the scalar value.
+    The scalar is the log probability of the model given the validation inputs.
+    """
+
     if not isinstance(result, tuple):
         raise TypeError(
             f"Expected compiled result to be a tuple, got {type(result).__name__}"
@@ -84,6 +91,10 @@ def evaluate_compiled_graph(
     validation_inputs,
     n_evaluations: int,
 ) -> list[float]:
+    """
+    Evaluate the compiled log_prob graph multiple times and return the outputs.
+    """
+
     outputs = []
 
     for _ in range(n_evaluations):

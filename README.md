@@ -179,6 +179,13 @@ Examples:
 
 Before/after comparisons used to quantify the impact of performance improvements and code optimizations.
 
+Future optimization studies may include:
+
+* runtime improvements
+* memory reductions
+* compilation-time reductions
+* scaling improvements
+
 Metrics include:
 
 * wall time
@@ -699,18 +706,35 @@ Typical outputs:
 
 ---
 
-# Profiling Roadmap
+## Scalene Profiling
 
-Profiling is intentionally postponed until the benchmark suite is complete.
+Scalene is used to profile benchmark scripts and generate detailed line-by-line CPU and memory reports.
 
-Planned profiling work:
+Example:
 
-* Scalene integration
-* hotspot identification
-* memory profiling
-* optimization candidate analysis
+```bash
+scalene \
+  --outfile results/scalene/model_creation.html \
+  src/run_model_creation.py
+```
 
-Profiling results will be added after the benchmark migration phase is complete.
+Profiling reports are stored under:
+
+```text
+results/scalene/
+```
+
+The generated reports are self-contained HTML files that can be opened directly in a web browser.
+
+Current benchmark scripts that can be profiled:
+
+* `src/run_workspace_loading.py`
+* `src/run_model_creation.py`
+* `src/run_log_prob_construction.py`
+* `src/run_log_prob_compilation.py`
+* `src/run_compiled_evaluation.py`
+
+Scalene profiling reports are intended for manual performance investigation and are not committed to the repository.
 
 ---
 
@@ -718,13 +742,15 @@ Profiling results will be added after the benchmark migration phase is complete.
 
 Planned work includes:
 
-* complete benchmark migration into this repository
-* benchmark orchestration through `run_all_benchmarks.py`
-* Scalene profiling integration
-* before/after optimization comparisons
-* automated regression detection
-* GitHub Actions smoke tests
+* additional scaling benchmarks
+* workspace complexity studies
+* cross-framework comparisons
+* NLL scan benchmarks
+* automated benchmark orchestration
+* performance regression detection
+* GitHub Actions integration
 * performance tracking across PyHS3 releases
+* optimization and bottleneck studies informed by profiling results
 
 ---
 
@@ -732,15 +758,17 @@ Planned work includes:
 
 This repository is under active development.
 
-Current milestone:
+Current focus areas:
 
-* migrate benchmark infrastructure into a dedicated repository
-* validate benchmark correctness
-* complete benchmark suite implementation by the end of June 2026
+* maintaining the core benchmark suite
+* expanding benchmark coverage
+* developing scaling benchmarks
+* integrating profiling workflows
+* preparing cross-framework comparisons
 
-After benchmarking is complete, the focus will shift to:
+Future work will focus on:
 
-* Scalene profiling
 * bottleneck identification
-* PyHS3 optimization studies
+* optimization studies
 * performance regression tracking
+* long-term benchmark automation
