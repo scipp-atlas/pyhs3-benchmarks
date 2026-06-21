@@ -31,6 +31,8 @@ PyHS3 branch: main
 PyHS3 commit: 326aadd
 ```
 
+Benchmark numbers should always be interpreted relative to the PyHS3 version used during benchmark execution.
+
 ---
 
 # Environment Setup
@@ -95,21 +97,39 @@ Workspace.model()
     ↓
 model.log_prob
     ↓
-graph compilation
+jaxify(...)
     ↓
 compiled evaluation
 ```
 
 Current coverage:
 
-| Benchmark                    | Status      |
-| ---------------------------- | ----------- |
-| Workspace Loading            | Implemented |
-| Model Creation               | Implemented |
-| Log Probability Construction | In Progress |
-| Log Probability Compilation  | In Progress |
-| Compiled Evaluation          | In Progress |
-| NLL Scans                    | Planned     |
+| Benchmark                    | Status         |
+| ---------------------------- | -------------- |
+| Workspace Loading            | ✅ Implemented  |
+| Model Creation               | ✅ Implemented  |
+| Log Probability Construction | ✅ Implemented  |
+| Log Probability Compilation  | 🚧 In Progress |
+| Compiled Evaluation          | 🚧 In Progress |
+| NLL Scans                    | 📋 Planned     |
+
+---
+
+## Stable Benchmarks
+
+The following benchmarks have been validated and are currently considered stable:
+
+* Workspace Loading
+* Model Creation
+* Log Probability Construction
+
+Each benchmark includes:
+
+* timing measurements
+* memory measurements
+* validation checks
+* JSON outputs
+* automated plots
 
 ---
 
@@ -165,7 +185,7 @@ Metrics include:
 
 ---
 
-## Benchmark Defaults
+# Benchmark Defaults
 
 Shared benchmark defaults are defined in `src/config.py`.
 
@@ -207,8 +227,6 @@ The benchmark verifies that:
 * likelihoods are present
 * data objects are present
 
-Unsupported or malformed inputs are expected to fail validation.
-
 ---
 
 ## Supported Inputs
@@ -223,74 +241,16 @@ Validated HS3 workspaces:
 
 ---
 
-## Command Examples
-
-Run the default workspace:
-
-```bash
-python src/run_workspace_loading.py
-```
-
-Run a specific workspace:
-
-```bash
-python src/run_workspace_loading.py \
-    --workspaces inputs/simple_workspace.json
-```
-
-Run multiple workspaces:
-
-```bash
-python src/run_workspace_loading.py \
-    --workspaces \
-        inputs/simple_workspace.json \
-        inputs/simple_workspace_nonp.json \
-        inputs/simple_workspace_generic.json
-```
-
-Generate plots:
-
-```bash
-python src/run_workspace_loading.py \
-    --n-runs 5 \
-    --plot
-```
-
-Run with custom output location:
-
-```bash
-python src/run_workspace_loading.py \
-    --n-runs 10 \
-    --output-dir results/workspace_loading \
-    --output-name workspace_loading_custom.json
-```
-
----
-
-## Arguments
-
-| Argument        | Type        | Default                           | Description                                           |
-| --------------- | ----------- | --------------------------------- | ----------------------------------------------------- |
-| `--workspaces`  | `Path` list | `DEFAULT_WORKSPACE`               | One or more HS3 workspace JSON files to benchmark.    |
-| `--n-runs`      | `int`       | `DEFAULT_N_RUNS`                  | Number of repeated timing measurements per workspace. |
-| `--output-dir`  | `Path`      | `results/workspace_loading`       | Directory where benchmark JSON results are saved.     |
-| `--output-name` | `str`       | `workspace_loading_result.json`   | Name of the JSON output file.                         |
-| `--plot`        | flag        | `False`                           | Create comparison plots.                              |
-| `--plot-dir`    | `Path`      | `plots/workspace_loading`         | Directory where generated plots are saved.            |
-| `--plot-name`   | `str`       | `workspace_loading_wall_time.png` | Name of the wall-time plot output file.               |
-
----
-
 ## Outputs
 
-The workspace loading benchmark writes results to:
+Results:
 
 ```text
 results/workspace_loading/
 └── workspace_loading_result.json
 ```
 
-Generated plots are written to:
+Plots:
 
 ```text
 plots/workspace_loading/
@@ -309,10 +269,8 @@ For each workspace the benchmark records:
 * mean wall time
 * median wall time
 * wall time standard deviation
-* current RSS memory usage before and after loading
-* current RSS delta
-* peak RSS memory usage before and after loading
-* peak RSS delta
+* current RSS memory usage
+* peak RSS memory usage
 * number of distributions
 * number of likelihoods
 * number of data objects
@@ -329,7 +287,7 @@ Memory metrics are measured in a fresh subprocess for each workspace.
 * `current_rss_delta_mb` reports the process RSS increase after a single workspace load.
 * `peak_rss_delta_mb` reports the increase in maximum RSS observed during that subprocess.
 
-These metrics are process-level measurements and should be interpreted as approximations of memory usage rather than exact object-level memory consumption.
+These metrics are process-level measurements and should be interpreted as approximations rather than exact object-level memory consumption.
 
 ---
 
@@ -373,104 +331,16 @@ The benchmark verifies that the created model:
 
 ---
 
-## Supported Inputs
-
-Validated HS3 workspaces:
-
-* `simple_workspace.json`
-* `simple_workspace_nonp.json`
-* `simple_workspace_generic.json`
-* `simple_workspace_generic_nonp.json`
-
-The default target for these workspaces is:
-
-```text
-L_ch0
-```
-
----
-
-## Command Examples
-
-Run the default workspace, target, and mode:
-
-```bash
-python src/run_model_creation.py
-```
-
-Run a specific workspace:
-
-```bash
-python src/run_model_creation.py \
-    --workspaces inputs/simple_workspace.json
-```
-
-Run multiple workspaces:
-
-```bash
-python src/run_model_creation.py \
-    --workspaces \
-        inputs/simple_workspace_nonp.json \
-        inputs/simple_workspace.json \
-        inputs/simple_workspace_generic_nonp.json \
-        inputs/simple_workspace_generic.json \
-    --targets L_ch0 \
-    --modes FAST_RUN \
-    --n-runs 5
-```
-
-Generate plots:
-
-```bash
-python src/run_model_creation.py \
-    --workspaces \
-        inputs/simple_workspace_nonp.json \
-        inputs/simple_workspace.json \
-        inputs/simple_workspace_generic_nonp.json \
-        inputs/simple_workspace_generic.json \
-    --targets L_ch0 \
-    --modes FAST_RUN \
-    --n-runs 5 \
-    --plot
-```
-
-Run with custom output location:
-
-```bash
-python src/run_model_creation.py \
-    --n-runs 10 \
-    --output-dir results/model_creation \
-    --output-name model_creation_custom.json
-```
-
----
-
-## Arguments
-
-| Argument        | Type        | Default                        | Description                                                                |
-| --------------- | ----------- | ------------------------------ | -------------------------------------------------------------------------- |
-| `--workspaces`  | `Path` list | `DEFAULT_WORKSPACE`            | One or more HS3 workspace JSON files to benchmark.                         |
-| `--targets`     | `str` list  | `DEFAULT_TARGET`               | One or more workspace model targets, such as analysis or likelihood names. |
-| `--modes`       | `str` list  | `DEFAULT_MODE`                 | One or more PyTensor compilation modes passed to `workspace.model(...)`.   |
-| `--n-runs`      | `int`       | `DEFAULT_N_RUNS`               | Number of repeated timing runs per workspace/target/mode.                  |
-| `--output-dir`  | `Path`      | `results/model_creation`       | Directory where benchmark JSON results are saved.                          |
-| `--output-name` | `str`       | `model_creation_result.json`   | Name of the JSON output file.                                              |
-| `--plot`        | flag        | `False`                        | Create comparison plots when multiple result entries are available.        |
-| `--plot-dir`    | `Path`      | `plots/model_creation`         | Directory where generated plots are saved.                                 |
-| `--plot-name`   | `str`       | `model_creation_wall_time.png` | Name of the wall-time plot output file.                                    |
-
----
-
 ## Outputs
 
-The model creation benchmark writes results to:
+Results:
 
 ```text
 results/model_creation/
 └── model_creation_result.json
 ```
 
-Generated plots are written to:
+Plots:
 
 ```text
 plots/model_creation/
@@ -489,14 +359,12 @@ For each workspace/target/mode combination the benchmark records:
 * mean wall time
 * median wall time
 * wall time standard deviation
-* current RSS memory usage before and after model creation
-* current RSS delta
-* peak RSS memory usage before and after model creation
-* peak RSS delta
+* current RSS memory usage
+* peak RSS memory usage
 * model type
-* whether the model exposes `log_prob`
-* whether the model exposes `data`
-* whether the model exposes `free_params`
+* availability of `log_prob`
+* availability of `data`
+* availability of `free_params`
 * number of free parameters
 
 ---
@@ -510,12 +378,7 @@ Timing and memory are measured separately:
 * timing uses repeated `Workspace.model(...)` calls
 * memory uses one isolated `Workspace.model(...)` call
 
-This avoids reporting memory accumulation across repeated PyTensor graph construction as the memory cost of a single model creation.
-
-* `current_rss_delta_mb` reports the process RSS increase after one model creation.
-* `peak_rss_delta_mb` reports the increase in maximum RSS observed during the subprocess.
-
-These metrics are process-level measurements and should be interpreted as approximations rather than exact object-level memory consumption.
+This avoids reporting memory accumulation from repeated graph creation as the memory cost of a single model construction.
 
 ---
 
@@ -528,6 +391,109 @@ These metrics are process-level measurements and should be interpreted as approx
 ### Current RSS Delta
 
 ![Model Creation Current RSS Delta](plots/model_creation/model_creation_current_rss_delta.png)
+
+---
+
+# Log Probability Construction Benchmark
+
+## Purpose
+
+Measures the cost of constructing the symbolic PyTensor log-probability graph from an already-created PyHS3 model.
+
+This benchmark evaluates:
+
+```text
+model.log_prob
+```
+
+Workspace loading and model creation are treated as setup and are intentionally excluded from the timed section.
+
+This benchmark measures symbolic graph construction only.
+
+The benchmark does not include:
+
+* workspace loading
+* model creation
+* graph compilation
+* numerical evaluation
+
+These stages are benchmarked separately.
+
+---
+
+## Validation Checks
+
+The benchmark verifies that the constructed log-probability object:
+
+* is successfully created
+* is a valid PyTensor `TensorVariable`
+* has a valid name
+* has a valid dtype
+* has a valid dimensionality
+* can be used in subsequent compilation benchmarks
+
+---
+
+## Outputs
+
+Results:
+
+```text
+results/log_prob_construction/
+└── log_prob_construction_result.json
+```
+
+Plots:
+
+```text
+plots/log_prob_construction/
+├── log_prob_construction_wall_time.png
+├── log_prob_construction_current_rss_delta.png
+└── log_prob_construction_peak_rss_delta.png
+```
+
+---
+
+## Generated Metrics
+
+For each workspace/target/mode combination the benchmark records:
+
+* wall time samples
+* mean wall time
+* median wall time
+* wall time standard deviation
+* current RSS memory usage
+* peak RSS memory usage
+* log-probability object type
+* log-probability object name
+* log-probability dtype
+* log-probability dimensionality
+* compilation readiness flag
+
+---
+
+## Memory Measurement Notes
+
+Memory metrics are measured in a fresh subprocess for each workspace/target/mode combination.
+
+Timing and memory are measured separately:
+
+* timing uses repeated `model.log_prob` construction
+* memory uses one isolated `model.log_prob` construction
+
+This avoids reporting memory accumulation from repeated graph construction as the memory cost of a single log-probability graph creation.
+
+---
+
+## Example Plots
+
+### Wall Time
+
+![Log Probability Construction Wall Time](plots/log_prob_construction/log_prob_construction_wall_time.png)
+
+### Current RSS Delta
+
+![Log Probability Construction Current RSS Delta](plots/log_prob_construction/log_prob_construction_current_rss_delta.png)
 
 ---
 
@@ -560,6 +526,21 @@ Typical outputs:
 * scaling curves
 * memory usage trends
 * validation summaries
+
+---
+
+# Profiling Roadmap
+
+Profiling is intentionally postponed until the benchmark suite is complete.
+
+Planned profiling work:
+
+* Scalene integration
+* hotspot identification
+* memory profiling
+* optimization candidate analysis
+
+Profiling results will be added after the benchmark migration phase is complete.
 
 ---
 

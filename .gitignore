@@ -26,6 +26,12 @@ plots/workspace_loading/workspace_loading_peak_rss_delta.png
 
 plots/model_creation/model_creation_peak_rss_delta.png
 
+!plots/log_prob_construction/
+!plots/log_prob_construction/log_prob_construction_wall_time.png
+!plots/log_prob_construction/log_prob_construction_current_rss_delta.png
+
+plots/log_prob_construction/log_prob_construction_peak_rss_delta.png
+
 reports/*
 !reports/.gitkeep
 
