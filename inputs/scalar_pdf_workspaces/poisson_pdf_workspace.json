@@ -1,0 +1,80 @@
+{
+  "analyses": [
+    {
+      "domains": [
+        "domain_x"
+      ],
+      "init": "init",
+      "likelihood": "likelihood",
+      "name": "analysis",
+      "parameters_of_interest": [
+        "x"
+      ]
+    }
+  ],
+  "data": [
+    {
+      "name": "data_x",
+      "type": "point",
+      "value": 5.0
+    }
+  ],
+  "distributions": [
+    {
+      "mean": "mean",
+      "name": "pdf",
+      "type": "poisson_dist",
+      "x": "x"
+    }
+  ],
+  "domains": [
+    {
+      "axes": [
+        {
+          "max": 30.0,
+          "min": 0.0,
+          "name": "x"
+        }
+      ],
+      "name": "domain_x",
+      "type": "product_domain"
+    }
+  ],
+  "functions": [],
+  "likelihoods": [
+    {
+      "data": [
+        "data_x"
+      ],
+      "distributions": [
+        "pdf"
+      ],
+      "name": "likelihood"
+    }
+  ],
+  "metadata": {
+    "authors": [
+      "pyHS3 benchmark"
+    ],
+    "description": "Minimal scalar PDF workspace for poisson.",
+    "hs3_version": "0.2"
+  },
+  "misc": {},
+  "parameter_points": [
+    {
+      "name": "init",
+      "parameters": [
+        {
+          "const": false,
+          "name": "x",
+          "value": 5.0
+        },
+        {
+          "const": true,
+          "name": "mean",
+          "value": 5.0
+        }
+      ]
+    }
+  ]
+}
