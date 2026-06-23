@@ -919,6 +919,159 @@ python src/run_pdf_evaluation.py \
 
 ---
 
+# NLL Scan Benchmark
+
+## Purpose
+
+Measures the execution cost of evaluating a negative log-likelihood scan over a parameter grid.
+
+This benchmark evaluates:
+
+```text
+compiled log_prob
+    ↓
+NLL = -log_prob
+    ↓
+parameter scan
+```
+
+Workspace loading, model creation, log-probability construction, and graph compilation are treated as setup and are intentionally excluded from the timed scan section.
+
+---
+
+## Validation Checks
+
+The benchmark verifies that:
+
+* the scan parameter exists in the compiled graph inputs
+* all NLL values are finite
+* the scan grid is non-empty
+* the number of scan values matches the number of NLL outputs
+* the minimum NLL value and corresponding scan point can be identified
+
+---
+
+## Outputs
+
+Results:
+
+```text
+results/nll_scan/
+└── nll_scan_result.json
+```
+
+Plots:
+
+```text
+plots/nll_scan/
+├── nll_scan_total_runtime.png
+├── nll_scan_runtime_per_point.png
+├── nll_scan_current_rss_delta.png
+└── nll_scan_peak_rss_delta.png
+```
+
+---
+
+## Generated Metrics
+
+For each workspace/target/mode/scan-parameter/scan-size combination the benchmark records:
+
+* total scan wall time
+* runtime per scan point
+* throughput (scan points per second)
+* current RSS memory usage
+* peak RSS memory usage
+* scan values
+* NLL values
+* minimum NLL value
+* scan value at the minimum
+* NLL range
+* finite-result validation status
+
+---
+
+## Memory Measurement Notes
+
+Memory measurements are performed separately from timing measurements.
+
+Memory is evaluated across a full warm NLL scan and reported as process-level RSS deltas.
+
+For larger scan grids, memory usage may increase because the benchmark stores the full list of scan values and NLL values in the JSON output.
+
+---
+
+## Supported Inputs
+
+This benchmark is intended for likelihood/model workspaces with a free scan parameter.
+
+Example reference workspaces:
+
+```text
+inputs/
+├── simple_workspace.json
+├── simple_workspace_nonp.json
+├── simple_workspace_generic.json
+└── simple_workspace_generic_nonp.json
+```
+
+The default scan parameter for these workspaces is:
+
+```text
+mu_sig
+```
+
+Scalar PDF workspaces are not used for this benchmark because their log-probability graphs may compile to constants without scan inputs.
+
+---
+
+## Example Commands
+
+Smoke test:
+
+```bash
+python src/run_nll_scan.py --n-scan-points 11
+```
+
+Reference workspace scan:
+
+```bash
+python src/run_nll_scan.py \
+  --workspaces inputs/simple_workspace_nonp.json \
+  --targets L_ch0 \
+  --scan-parameter mu_sig \
+  --n-scan-points 11
+```
+
+Full reference workspace scan with plots:
+
+```bash
+python src/run_nll_scan.py \
+  --workspaces \
+    inputs/simple_workspace.json \
+    inputs/simple_workspace_nonp.json \
+    inputs/simple_workspace_generic.json \
+    inputs/simple_workspace_generic_nonp.json \
+  --targets L_ch0 \
+  --scan-parameter mu_sig \
+  --n-scan-points 11 51 101 501 1001 \
+  --plot
+```
+
+---
+
+## Example Plots
+
+### Total Runtime
+
+![NLL Scan Total Runtime](plots/nll_scan/nll_scan_total_runtime.png)
+
+### Runtime Per Scan Point
+
+![NLL Scan Runtime Per Point](plots/nll_scan/nll_scan_runtime_per_point.png)
+
+
+---
+
 # Benchmark Outputs
 
 Each benchmark may generate:

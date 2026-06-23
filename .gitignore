@@ -51,6 +51,11 @@ plots/compiled_evaluation/compiled_evaluation_peak_rss_delta.png
 
 plots/pdf_evaluation/scalar_pdf_workspace/
 
+!plots/nll_scan/
+
+plots/nll_scan/nll_scan_current_rss_delta.png
+plots/nll_scan/nll_scan_peak_rss_delta.png
+
 reports/*
 !reports/.gitkeep
 
