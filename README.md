@@ -768,6 +768,157 @@ For most small validation workspaces, memory deltas are expected to be close to 
 
 ---
 
+# PDF Evaluation Benchmark
+
+## Purpose
+
+Measures the execution cost of evaluating a PyHS3 probability density function (PDF).
+
+This benchmark evaluates:
+
+```text
+model.pdf(...)
+```
+
+Workspace loading and model creation are treated as setup and are intentionally excluded from the timed section.
+
+The benchmark measures both cold-start and warm evaluation performance.
+
+---
+
+## Validation Checks
+
+The benchmark verifies that:
+
+* evaluation succeeds
+* outputs are finite
+* repeated evaluations are numerically stable
+* repeated evaluations produce consistent results
+* the benchmarked distribution exists in the model
+
+---
+
+## Outputs
+
+Results:
+
+```text
+results/pdf_evaluation/
+└── pdf_evaluation_result.json
+```
+
+Plots:
+
+```text
+plots/pdf_evaluation/
+├── pdf_evaluation_average_time.png
+├── pdf_evaluation_throughput.png
+├── pdf_evaluation_cold_start_time.png
+├── pdf_evaluation_current_rss_delta.png
+└── pdf_evaluation_peak_rss_delta.png
+```
+
+---
+
+## Generated Metrics
+
+For each workspace/target/mode/distribution/evaluation-count combination the benchmark records:
+
+* cold-start execution time
+* cold-start output value
+* total wall time
+* average wall time per evaluation
+* throughput (evaluations per second)
+* current RSS memory usage
+* peak RSS memory usage
+* number of evaluations
+* output stability metrics
+* maximum absolute deviation
+* finite-result validation status
+
+---
+
+## Memory Measurement Notes
+
+Memory measurements are performed separately from timing measurements.
+
+Memory is evaluated using repeated warm PDF evaluations and reported as process-level RSS deltas.
+
+For small benchmark workspaces, memory deltas are often expected to be close to zero because PDF evaluation typically reuses already-allocated graph structures and runtime caches.
+
+---
+
+## Supported Inputs
+
+Example scalar PDF benchmark inputs:
+
+```text
+inputs/scalar_pdf_workspaces/
+├── normal_pdf_workspace.json
+├── poisson_pdf_workspace.json
+└── exponential_pdf_workspace.json
+```
+
+Example reference workspaces:
+
+```text
+inputs/
+├── simple_workspace.json
+├── simple_workspace_nonp.json
+├── simple_workspace_generic.json
+└── simple_workspace_generic_nonp.json
+```
+
+---
+
+## Example Commands
+
+Smoke test:
+
+```bash
+python src/run_pdf_evaluation.py --n-evaluations 1
+```
+
+Scalar PDF workspaces:
+
+```bash
+python src/run_pdf_evaluation.py \
+  --workspaces \
+    inputs/scalar_pdf_workspaces/normal_pdf_workspace.json \
+    inputs/scalar_pdf_workspaces/poisson_pdf_workspace.json \
+    inputs/scalar_pdf_workspaces/exponential_pdf_workspace.json \
+  --targets analysis \
+  --distributions pdf \
+  --n-evaluations 1 10 100 1000
+```
+
+Generate plots:
+
+```bash
+python src/run_pdf_evaluation.py \
+  --plot \
+  --n-evaluations 1 10 100 1000
+```
+
+---
+
+## Example Plots
+
+### Average Runtime Per Evaluation
+
+![PDF Evaluation Average Runtime](plots/pdf_evaluation/pdf_evaluation_average_time.png)
+
+### Throughput
+
+![PDF Evaluation Throughput](plots/pdf_evaluation/pdf_evaluation_throughput.png)
+
+### Cold-Start Runtime
+
+![PDF Evaluation Cold Start Runtime](plots/pdf_evaluation/pdf_evaluation_cold_start_time.png)
+
+
+---
+
 # Benchmark Outputs
 
 Each benchmark may generate:

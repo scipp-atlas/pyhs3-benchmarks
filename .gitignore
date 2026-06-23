@@ -47,6 +47,10 @@ plots/log_prob_compilation/log_prob_compilation_peak_rss_delta.png
 
 plots/compiled_evaluation/compiled_evaluation_peak_rss_delta.png
 
+!plots/pdf_evaluation/
+
+plots/pdf_evaluation/scalar_pdf_workspace/
+
 reports/*
 !reports/.gitkeep
 
