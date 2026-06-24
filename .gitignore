@@ -62,6 +62,8 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/graph_canonicalization_simple/
 
+!plots/graph_optimization_simple/
+
 reports/*
 !reports/.gitkeep
 

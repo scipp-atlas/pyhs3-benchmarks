@@ -1673,6 +1673,153 @@ python src/run_graph_canonicalization.py \
 
 ![Graph Canonicalization Peak RSS Delta](plots/graph_canonicalization_simple/graph_canonicalization_peak_rss_delta.png)
 
+---
+
+# Graph Optimization Benchmark
+
+## Purpose
+
+Measures the cost of applying PyTensor/JAX graph optimization rewrites to PyHS3 log-probability graphs.
+
+This benchmark evaluates:
+
+```text
+model.log_prob
+    ↓
+FunctionGraph(...)
+    ↓
+JAX optimizer rewrites
+```
+
+Workspace loading, model creation, and log-probability construction are treated as setup and are intentionally excluded from the timed optimization section.
+
+---
+
+## Validation Checks
+
+The benchmark verifies that:
+
+* the optimized graph has one output
+* the optimized graph contains apply nodes
+* graph inputs are detected
+* the number of apply nodes before and after optimization is recorded
+* optimization successfully transforms the graph
+
+---
+
+## Outputs
+
+Results:
+
+```text
+results/graph_optimization/
+└── graph_optimization_result.json
+```
+
+Plots:
+
+```text
+plots/graph_optimization/
+├── graph_optimization_wall_time.png
+├── graph_optimization_current_rss_delta.png
+└── graph_optimization_peak_rss_delta.png
+```
+
+---
+
+## Generated Metrics
+
+For each workspace/target/mode combination the benchmark records:
+
+* optimization wall time samples
+* mean optimization time
+* median optimization time
+* wall time standard deviation
+* current RSS memory usage
+* peak RSS memory usage
+* number of graph inputs
+* number of graph outputs
+* number of apply nodes before optimization
+* number of apply nodes after optimization
+* apply node delta
+
+---
+
+## Memory Measurement Notes
+
+Memory is measured separately from timing.
+
+The benchmark builds a fresh PyTensor `FunctionGraph`, applies the JAX optimizer rewrites, and records process-level RSS deltas.
+
+Memory measurements should be interpreted as approximate process-level costs of graph optimization, not exact object-level graph memory.
+
+---
+
+## Supported Inputs
+
+This benchmark is intended for PyHS3 log-probability graphs with non-trivial PyTensor apply nodes.
+
+Validated reference workspaces:
+
+```text
+inputs/
+├── simple_workspace.json
+├── simple_workspace_nonp.json
+├── simple_workspace_generic.json
+└── simple_workspace_generic_nonp.json
+```
+
+Binned likelihood workspaces may optimize to graphs without apply nodes or require different targets, so they are not used for this benchmark.
+
+---
+
+## Example Commands
+
+Smoke test:
+
+```bash
+python src/run_graph_optimization.py \
+  --n-runs 1
+```
+
+Reference workspace smoke test:
+
+```bash
+python src/run_graph_optimization.py \
+  --workspaces inputs/simple_workspace_nonp.json \
+  --targets L_ch0 \
+  --n-runs 1
+```
+
+Full reference workspace benchmark:
+
+```bash
+python src/run_graph_optimization.py \
+  --workspaces \
+    inputs/simple_workspace.json \
+    inputs/simple_workspace_nonp.json \
+    inputs/simple_workspace_generic.json \
+    inputs/simple_workspace_generic_nonp.json \
+  --targets L_ch0 \
+  --n-runs 200 \
+  --plot
+```
+
+---
+
+## Example Plots
+
+### Wall Time
+
+![Graph Optimization Wall Time](plots/graph_optimization_simple/graph_optimization_wall_time.png)
+
+### Current RSS Delta
+
+![Graph Optimization Current RSS Delta](plots/graph_optimization_simple/graph_optimization_current_rss_delta.png)
+
+### Peak RSS Delta
+
+![Graph Optimization Peak RSS Delta](plots/graph_optimization_simple/graph_optimization_peak_rss_delta.png)
 
 ---
 
