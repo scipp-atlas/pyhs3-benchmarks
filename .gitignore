@@ -60,6 +60,8 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/model_complexity_all_stages/
 
+!plots/graph_canonicalization_simple/
+
 reports/*
 !reports/.gitkeep
 

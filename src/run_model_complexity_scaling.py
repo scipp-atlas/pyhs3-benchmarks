@@ -4,7 +4,7 @@ import argparse
 import csv
 from multiprocessing import get_context
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from config import (
     DEFAULT_MODE,
@@ -15,13 +15,17 @@ from config import (
     REPORTS_DIR,
     RESULTS_DIR,
 )
-from run_compiled_evaluation import run_single_benchmark as run_compiled_evaluation
-from run_log_prob_compilation import run_single_benchmark as run_log_prob_compilation
-from run_log_prob_construction import run_single_benchmark as run_log_prob_construction
-from run_model_creation import run_single_benchmark as run_model_creation
-from run_nll_scan import run_single_benchmark as run_nll_scan
-from run_pdf_evaluation import run_single_benchmark as run_pdf_evaluation
-from run_workspace_loading import run_single_benchmark as run_workspace_loading
+from benchmark_stages import (
+    DEFAULT_DISTRIBUTION,
+    DEFAULT_N_EVALUATIONS,
+    DEFAULT_N_SCAN_POINTS,
+    DEFAULT_SCAN_MAX,
+    DEFAULT_SCAN_MIN,
+    DEFAULT_SCAN_PARAMETER,
+    WORKFLOW_STAGES,
+    build_stage_specs,
+    resolve_stages,
+)
 from utils import (
     make_bar_plot,
     save_json,
@@ -36,51 +40,12 @@ DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 DEFAULT_REPORT_DIR = REPORTS_DIR / BENCHMARK_NAME
 DEFAULT_CSV_NAME = "model_complexity_scaling_summary.csv"
 
-DEFAULT_N_EVALUATIONS = 100
-DEFAULT_DISTRIBUTION = "sig_ch0"
-
-DEFAULT_SCAN_PARAMETER = "mu_sig"
-DEFAULT_SCAN_MIN = 0.0
-DEFAULT_SCAN_MAX = 5.0
-DEFAULT_N_SCAN_POINTS = 101
-
-AVAILABLE_STAGES = [
-    "workspace_loading",
-    "model_creation",
-    "log_prob_construction",
-    "log_prob_compilation",
-    "compiled_evaluation",
-    "pdf_evaluation",
-    "nll_scan",
-]
-
 SETUP_STAGES = [
     "workspace_loading",
     "model_creation",
     "log_prob_construction",
     "log_prob_compilation",
 ]
-
-
-def resolve_stages(stages: list[str]) -> list[str]:
-    if "all" in stages:
-        if len(stages) > 1:
-            raise ValueError("--stages all cannot be combined with other stages")
-        return AVAILABLE_STAGES
-
-    unknown_stages = [
-        stage
-        for stage in stages
-        if stage not in AVAILABLE_STAGES
-    ]
-
-    if unknown_stages:
-        raise ValueError(
-            f"Unknown stages: {unknown_stages}. "
-            f"Available stages: {AVAILABLE_STAGES}"
-        )
-
-    return stages
 
 
 def summarize_stage(
@@ -134,68 +99,6 @@ def summarize_stage(
         ]
 
     return summary
-
-
-def build_stage_specs(
-    selected_stages: list[str],
-    workspace_path: Path,
-    target: str,
-    mode: str,
-    n_runs: int,
-    n_evaluations: int,
-    distribution: str,
-    scan_parameter: str,
-    scan_min: float,
-    scan_max: float,
-    n_scan_points: int,
-) -> list[tuple[str, Callable[..., dict[str, Any]], tuple[Any, ...]]]:
-    stage_specs = {
-        "workspace_loading": (
-            run_workspace_loading,
-            (workspace_path, n_runs),
-        ),
-        "model_creation": (
-            run_model_creation,
-            (workspace_path, target, mode, n_runs),
-        ),
-        "log_prob_construction": (
-            run_log_prob_construction,
-            (workspace_path, target, mode, n_runs),
-        ),
-        "log_prob_compilation": (
-            run_log_prob_compilation,
-            (workspace_path, target, mode, n_runs),
-        ),
-        "compiled_evaluation": (
-            run_compiled_evaluation,
-            (workspace_path, target, mode, n_evaluations),
-        ),
-        "pdf_evaluation": (
-            run_pdf_evaluation,
-            (workspace_path, target, mode, distribution, n_evaluations),
-        ),
-        "nll_scan": (
-            run_nll_scan,
-            (
-                workspace_path,
-                target,
-                mode,
-                scan_parameter,
-                scan_min,
-                scan_max,
-                n_scan_points,
-            ),
-        ),
-    }
-
-    return [
-        (
-            stage,
-            stage_specs[stage][0],
-            stage_specs[stage][1],
-        )
-        for stage in selected_stages
-    ]
 
 
 def run_single_scaling_benchmark(
@@ -467,7 +370,7 @@ def parse_args() -> argparse.Namespace:
         "--stages",
         nargs="+",
         default=["all"],
-        choices=["all", *AVAILABLE_STAGES],
+        choices=["all", *WORKFLOW_STAGES],
     )
     parser.add_argument(
         "--n-runs",
@@ -677,7 +580,7 @@ def main() -> None:
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
-        "available_stages": AVAILABLE_STAGES,
+        "available_stages": WORKFLOW_STAGES,
         "selected_stages": selected_stages,
         "n_results": len(results),
         "results": results,
