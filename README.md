@@ -1298,6 +1298,236 @@ python src/run_memory_scaling.py \
 
 ---
 
+# Model Complexity Scaling Benchmark
+
+## Purpose
+
+Measures how PyHS3 runtime and memory usage change across workspaces with different model complexity.
+
+This benchmark can run selected PyHS3 workflow stages:
+
+```text
+workspace loading
+model creation
+log-probability construction
+log-probability compilation
+compiled evaluation
+PDF evaluation
+NLL scan
+```
+
+The benchmark records a compact per-workspace summary and writes both JSON and CSV outputs for easier comparison.
+
+---
+
+## Validation Checks
+
+The benchmark verifies that:
+
+* all selected stages execute successfully
+* compiled evaluation outputs are finite
+* NLL scan values are finite when the `nll_scan` stage is selected
+* stage-level timing and memory metrics are collected
+* workspace size is recorded for each benchmarked input
+
+---
+
+## Outputs
+
+Results:
+
+```text
+results/model_complexity_scaling/
+└── model_complexity_scaling_result.json
+```
+
+CSV summary:
+
+```text
+reports/model_complexity_scaling/
+└── model_complexity_scaling_summary.csv
+```
+
+Plots:
+
+```text
+plots/model_complexity_scaling/
+├── model_complexity_total_setup_time.png
+├── model_complexity_compiled_evaluation_time.png
+├── model_complexity_pdf_evaluation_time.png
+├── model_complexity_nll_scan_time.png
+└── model_complexity_peak_rss_delta.png
+```
+
+---
+
+## Generated Metrics
+
+For each workspace/target/mode combination the benchmark records:
+
+* workspace size in bytes
+* selected benchmark stages
+* workspace loading time
+* model creation time
+* log-probability construction time
+* log-probability compilation time
+* total setup time
+* compiled evaluation time per evaluation
+* PDF evaluation time per evaluation
+* NLL scan time per scan point
+* current RSS memory deltas
+* peak RSS memory deltas
+* finite-output validation status
+* NLL minimum location when applicable
+
+---
+
+## Supported Stages
+
+Available stages:
+
+```text
+workspace_loading
+model_creation
+log_prob_construction
+log_prob_compilation
+compiled_evaluation
+pdf_evaluation
+nll_scan
+```
+
+The default benchmark executes all stages.
+
+Individual stages can be selected using:
+
+```bash
+--stages
+```
+
+---
+
+## Memory Measurement Notes
+
+The benchmark reports stage-level RSS deltas collected by the underlying benchmark stages.
+
+The `total_peak_rss_delta_mb` value is computed as an aggregate over selected stage deltas. It should be interpreted as an overall stage-cost summary, not as the peak memory usage of a single continuously running process.
+
+Log-probability compilation is often the dominant memory contributor because JAX/XLA compilation can allocate substantial temporary memory.
+
+---
+
+## Supported Inputs
+
+Reference workspaces:
+
+```text
+inputs/
+├── simple_workspace.json
+├── simple_workspace_nonp.json
+├── simple_workspace_generic.json
+└── simple_workspace_generic_nonp.json
+```
+
+Scalar PDF workspaces:
+
+```text
+inputs/scalar_pdf_workspaces/
+├── normal_pdf_workspace.json
+├── poisson_pdf_workspace.json
+└── exponential_pdf_workspace.json
+```
+
+Scalar PDF workspaces are intended only for the `pdf_evaluation` stage.
+
+---
+
+## Example Commands
+
+Smoke test:
+
+```bash
+python src/run_model_complexity_scaling.py \
+  --n-runs 1 \
+  --n-evaluations 1 \
+  --n-scan-points 11
+```
+
+Full model complexity benchmark:
+
+```bash
+python src/run_model_complexity_scaling.py \
+  --workspaces \
+    inputs/simple_workspace.json \
+    inputs/simple_workspace_nonp.json \
+    inputs/simple_workspace_generic.json \
+    inputs/simple_workspace_generic_nonp.json \
+  --targets L_ch0 \
+  --stages all \
+  --distribution sig_ch0 \
+  --scan-parameter mu_sig \
+  --n-runs 5 \
+  --n-evaluations 1000 \
+  --n-scan-points 1001 \
+  --plot
+```
+
+Core workflow only:
+
+```bash
+python src/run_model_complexity_scaling.py \
+  --stages \
+    workspace_loading \
+    model_creation \
+    log_prob_construction \
+    log_prob_compilation \
+    compiled_evaluation
+```
+
+PDF evaluation only:
+
+```bash
+python src/run_model_complexity_scaling.py \
+  --stages pdf_evaluation \
+  --distribution sig_ch0 \
+  --n-evaluations 10000
+```
+
+NLL scan only:
+
+```bash
+python src/run_model_complexity_scaling.py \
+  --stages nll_scan \
+  --scan-parameter mu_sig \
+  --n-scan-points 5001
+```
+
+---
+
+## Example Plots
+
+### Total Setup Time
+
+![Model Complexity Total Setup Time](plots/model_complexity_all_stages/model_complexity_total_setup_time.png)
+
+### Compiled Evaluation Time
+
+![Model Complexity Compiled Evaluation Time](plots/model_complexity_all_stages/model_complexity_compiled_evaluation_time.png)
+
+### PDF Evaluation Time
+
+![Model Complexity PDF Evaluation Time](plots/model_complexity_all_stages/model_complexity_pdf_evaluation_time.png)
+
+### NLL Scan Time
+
+![Model Complexity NLL Scan Time](plots/model_complexity_all_stages/model_complexity_nll_scan_time.png)
+
+### Peak RSS Delta
+
+![Model Complexity Peak RSS Delta](plots/model_complexity_all_stages/model_complexity_peak_rss_delta.png)
+
+
+---
+
 # Benchmark Outputs
 
 Each benchmark may generate:

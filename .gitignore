@@ -58,6 +58,7 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/memory_scaling/
 
+!plots/model_complexity_all_stages/
 
 reports/*
 !reports/.gitkeep
