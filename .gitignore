@@ -56,6 +56,9 @@ plots/pdf_evaluation/scalar_pdf_workspace/
 plots/nll_scan/nll_scan_current_rss_delta.png
 plots/nll_scan/nll_scan_peak_rss_delta.png
 
+!plots/memory_scaling/
+
+
 reports/*
 !reports/.gitkeep
 

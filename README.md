@@ -205,7 +205,7 @@ Current coverage:
 | Log Probability Construction | Implemented |
 | Log Probability Compilation  | Implemented |
 | Compiled Evaluation          | Implemented |
-| NLL Scans                    | 📋 Planned     |
+| NLL Scans                    | Implemented |
 
 ---
 
@@ -233,9 +233,10 @@ Each benchmark includes:
 
 Benchmarks studying performance as problem size increases.
 
+* memory scaling
+
 Planned:
 
-* memory scaling
 * model complexity scaling
 * workspace size scaling
 
@@ -1069,6 +1070,231 @@ python src/run_nll_scan.py \
 
 ![NLL Scan Runtime Per Point](plots/nll_scan/nll_scan_runtime_per_point.png)
 
+---
+
+# Memory Scaling Benchmark
+
+## Purpose
+
+Measures memory usage across multiple stages of the PyHS3 workflow.
+
+This benchmark evaluates memory consumption for:
+
+```text
+Workspace.load(...)
+    ↓
+Workspace.model(...)
+    ↓
+model.log_prob
+    ↓
+jaxify(...)
+    ↓
+compiled(...)
+    ↓
+model.pdf(...)
+    ↓
+NLL scan
+```
+
+Each stage is executed in an isolated subprocess to avoid contamination from memory allocations performed by previous stages.
+
+---
+
+## Validation Checks
+
+The benchmark verifies that:
+
+* all selected stages execute successfully
+* all RSS metrics are available
+* memory measurements are collected for every stage
+* stage-level benchmark outputs are valid
+
+---
+
+## Outputs
+
+Results:
+
+```text
+results/memory_scaling/
+└── memory_scaling_result.json
+```
+
+Plots:
+
+```text
+plots/memory_scaling/
+├── memory_scaling_current_rss_delta.png
+├── memory_scaling_peak_rss_delta.png
+└── memory_scaling_peak_rss_after.png
+```
+
+---
+
+## Generated Metrics
+
+For each workspace/target/mode combination the benchmark records:
+
+* current RSS before stage execution
+* current RSS after stage execution
+* current RSS delta
+* peak RSS before stage execution
+* peak RSS after stage execution
+* peak RSS delta
+* stage status
+* stage-specific benchmark outputs
+
+In addition, the benchmark records:
+
+* total current RSS delta across stages
+* total peak RSS delta across stages
+* maximum peak RSS observed across all stages
+* stage validation summary
+
+---
+
+## Memory Measurement Notes
+
+Each workflow stage is executed in a fresh subprocess using the Python multiprocessing spawn context.
+
+This design prevents memory allocations from earlier stages from affecting later measurements.
+
+Stage RSS deltas should be interpreted as independent stage costs.
+
+Summed RSS deltas:
+
+```text
+total_current_rss_delta_mb
+total_peak_rss_delta_mb
+```
+
+represent aggregate stage costs and should not be interpreted as the peak memory usage of a single process.
+
+In practice, log-probability compilation is often the dominant memory consumer because JAX/XLA compilation may allocate substantial temporary memory.
+
+---
+
+## Supported Stages
+
+Available stages:
+
+```text
+workspace_loading
+model_creation
+log_prob_construction
+log_prob_compilation
+compiled_evaluation
+pdf_evaluation
+nll_scan
+```
+
+The default benchmark executes all stages.
+
+Individual stages can be selected using:
+
+```bash
+--stages
+```
+
+---
+
+## Supported Inputs
+
+Reference workspaces:
+
+```text
+inputs/
+├── simple_workspace.json
+├── simple_workspace_nonp.json
+├── simple_workspace_generic.json
+└── simple_workspace_generic_nonp.json
+```
+
+Scalar PDF workspaces:
+
+```text
+inputs/scalar_pdf_workspaces/
+├── normal_pdf_workspace.json
+├── poisson_pdf_workspace.json
+└── exponential_pdf_workspace.json
+```
+
+Scalar PDF workspaces are intended only for the `pdf_evaluation` stage.
+
+---
+
+## Example Commands
+
+Smoke test:
+
+```bash
+python src/run_memory_scaling.py \
+  --n-runs 1 \
+  --n-evaluations 1 \
+  --n-scan-points 11
+```
+
+Full workflow benchmark:
+
+```bash
+python src/run_memory_scaling.py \
+  --workspaces \
+    inputs/simple_workspace.json \
+    inputs/simple_workspace_nonp.json \
+    inputs/simple_workspace_generic.json \
+    inputs/simple_workspace_generic_nonp.json \
+  --targets L_ch0 \
+  --n-runs 5 \
+  --n-evaluations 1000 \
+  --n-scan-points 1001 \
+  --plot
+```
+
+Core workflow only:
+
+```bash
+python src/run_memory_scaling.py \
+  --stages \
+    workspace_loading \
+    model_creation \
+    log_prob_construction \
+    log_prob_compilation \
+    compiled_evaluation
+```
+
+PDF evaluation only:
+
+```bash
+python src/run_memory_scaling.py \
+  --stages pdf_evaluation \
+  --distribution sig_ch0 \
+  --n-evaluations 10000
+```
+
+NLL scan only:
+
+```bash
+python src/run_memory_scaling.py \
+  --stages nll_scan \
+  --scan-parameter mu_sig \
+  --n-scan-points 5001
+```
+
+---
+
+## Example Plots
+
+### Current RSS Delta
+
+![Memory Scaling Current RSS Delta](plots/memory_scaling/memory_scaling_current_rss_delta.png)
+
+### Peak RSS Delta
+
+![Memory Scaling Peak RSS Delta](plots/memory_scaling/memory_scaling_peak_rss_delta.png)
+
+### Peak RSS After Stage
+
+![Memory Scaling Peak RSS After Stage](plots/memory_scaling/memory_scaling_peak_rss_after.png)
 
 ---
 
