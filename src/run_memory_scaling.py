@@ -64,6 +64,10 @@ RSS_KEYS = [
 
 
 def resolve_stages(stages: list[str]) -> list[str]:
+    """
+    Resolve the list of stages to run.
+    """
+
     if "all" in stages:
         if len(stages) > 1:
             raise ValueError("--stages all cannot be combined with other stages")
@@ -210,6 +214,11 @@ def build_stage_specs(
     scan_max: float,
     n_scan_points: int,
 ) -> list[tuple[str, Callable[..., dict[str, Any]], tuple[Any, ...]]]:
+    """
+    Build a list of stage specifications for the selected stages.
+    Each stage specification is a tuple of (stage_name, function, args).
+    """
+
     stage_specs = {
         "workspace_loading": (
             run_workspace_loading,
@@ -338,6 +347,17 @@ def run_single_benchmark(
 def make_plot_records(
     results: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """
+    Make a list of records for plotting from the benchmark results.
+    Each record is a dictionary with keys:
+        - plot_label: str
+        - workspace: str
+        - stage: str
+        - current_rss_delta_mb: float
+        - peak_rss_delta_mb: float
+        - peak_rss_after_mb: float
+    """
+
     records = []
 
     for result in results:
@@ -363,6 +383,10 @@ def make_plots(
     results: list[dict[str, Any]],
     plot_dir: Path,
 ) -> None:
+    """
+    Make plots for the benchmark results.
+    """
+
     plot_dir.mkdir(parents=True, exist_ok=True)
 
     records = make_plot_records(results)
