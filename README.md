@@ -1823,6 +1823,170 @@ python src/run_graph_optimization.py \
 
 ---
 
+# Benchmark Orchestration
+
+## Purpose
+
+Provides a single entry point for running the complete PyHS3 benchmark suite.
+
+The orchestration script automatically executes all supported benchmark scripts using consistent benchmark parameters and produces a complete set of benchmark results and plots.
+
+---
+
+## Included Benchmarks
+
+The benchmark suite includes:
+
+```text
+workspace_loading
+model_creation
+log_prob_construction
+log_prob_compilation
+compiled_evaluation
+pdf_evaluation_simple
+pdf_evaluation_scalar
+nll_scan
+memory_scaling
+model_complexity_scaling
+graph_canonicalization
+graph_optimization
+```
+
+Each benchmark is executed independently.
+
+Failures are reported individually and do not affect the implementation of other benchmark scripts.
+
+---
+
+## Default Inputs
+
+Reference workspaces:
+
+```text
+inputs/
+├── simple_workspace.json
+├── simple_workspace_nonp.json
+├── simple_workspace_generic.json
+└── simple_workspace_generic_nonp.json
+```
+
+Scalar PDF workspaces:
+
+```text
+inputs/scalar_pdf_workspaces/
+├── normal_pdf_workspace.json
+├── poisson_pdf_workspace.json
+└── exponential_pdf_workspace.json
+```
+
+The orchestration script automatically selects appropriate inputs for each benchmark.
+
+For example:
+
+* scalar PDF workspaces are used only for `pdf_evaluation_scalar`
+* NLL scans use the reference likelihood workspaces
+* graph benchmarks operate on the reference workspaces only
+
+---
+
+## Outputs
+
+Benchmark results:
+
+```text
+results/
+```
+
+Plots:
+
+```text
+plots/
+```
+
+Each benchmark stores its own JSON results and plot directory.
+
+The orchestration script does not overwrite plots produced by other benchmark stages.
+
+---
+
+## Example Commands
+
+Lightweight smoke test:
+
+```bash
+python src/run_all_benchmarks.py \
+  --n-runs 1 \
+  --n-evaluations 1 \
+  --n-scan-points 11 \
+  --no-plot
+```
+
+Lightweight benchmark with plots:
+
+```bash
+python src/run_all_benchmarks.py \
+  --n-runs 1 \
+  --n-evaluations 1 \
+  --n-scan-points 11
+```
+
+Standard benchmark suite:
+
+```bash
+python src/run_all_benchmarks.py \
+  --n-runs 20 \
+  --n-evaluations 1000 \
+  --n-scan-points 1001
+```
+
+High-precision benchmark suite:
+
+```bash
+python src/run_all_benchmarks.py \
+  --n-runs 200 \
+  --n-evaluations 10000 \
+  --n-scan-points 5001
+```
+
+Run selected benchmarks only:
+
+```bash
+python src/run_all_benchmarks.py \
+  --benchmarks \
+    graph_canonicalization \
+    graph_optimization \
+  --n-runs 200
+```
+
+Preview benchmark commands without executing them:
+
+```bash
+python src/run_all_benchmarks.py \
+  --dry-run
+```
+
+Continue executing remaining benchmarks after a failure:
+
+```bash
+python src/run_all_benchmarks.py \
+  --continue-on-failure
+```
+
+---
+
+## Benchmark Presets
+
+Typical benchmark configurations are:
+
+| Preset         | Runs | Evaluations | Scan points | Purpose                                         |
+| -------------- | ---: | ----------: | ----------: | ----------------------------------------------- |
+| Smoke          |    1 |           1 |          11 | Verify benchmark functionality                  |
+| Standard       |   20 |        1000 |        1001 | Routine benchmarking                            |
+| High Precision |  200 |       10000 |        5001 | Stable performance measurements for comparisons |
+
+
+---
+
 # Benchmark Outputs
 
 Each benchmark may generate:
