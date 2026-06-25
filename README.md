@@ -1984,6 +1984,173 @@ Typical benchmark configurations are:
 | Standard       |   20 |        1000 |        1001 | Routine benchmarking                            |
 | High Precision |  200 |       10000 |        5001 | Stable performance measurements for comparisons |
 
+---
+
+# Benchmark Overview Plots
+
+## Purpose
+
+Creates high-level overview plots from benchmark result JSON files.
+
+This script collects benchmark outputs from:
+
+```text
+results/
+```
+
+and creates summary plots under:
+
+```text
+plots/benchmark_overview/
+```
+
+It can generate overview plots for timing, memory, benchmark status, and stacked per-stage runtime/memory breakdowns.
+
+---
+
+## Inputs
+
+The script scans benchmark result files matching:
+
+```text
+results/*/*_result.json
+```
+
+Each result file is expected to contain a top-level `benchmark` field and a list of benchmark `results`.
+
+---
+
+## Available Plots
+
+Available plot types:
+
+```text
+status
+wall_time
+evaluation_time
+scan_time
+setup_time
+peak_rss
+total_peak_rss
+stage_timing
+stage_memory
+```
+
+The default is:
+
+```text
+all
+```
+
+---
+
+## Filtering
+
+Overview plots can be filtered by:
+
+```text
+--benchmarks
+--workspaces
+--targets
+--modes
+--n-runs
+--n-evaluations
+--n-scan-points
+```
+
+Example:
+
+```bash
+python src/plot_benchmark_overview.py \
+  --benchmarks model_complexity_scaling \
+  --plots stage_timing stage_memory
+```
+
+---
+
+## Example Commands
+
+Generate all overview plots:
+
+```bash
+python src/plot_benchmark_overview.py
+```
+
+Generate timing overview plots:
+
+```bash
+python src/plot_benchmark_overview.py \
+  --plots \
+    wall_time \
+    evaluation_time \
+    scan_time \
+    setup_time \
+    stage_timing \
+  --plot-dir plots/benchmark_overview_timing
+```
+
+Generate memory overview plots:
+
+```bash
+python src/plot_benchmark_overview.py \
+  --plots \
+    peak_rss \
+    total_peak_rss \
+    stage_memory \
+  --plot-dir plots/benchmark_overview_memory
+```
+
+Generate overview plots for smoke benchmark results:
+
+```bash
+python src/plot_benchmark_overview.py \
+  --n-runs 1 \
+  --n-evaluations 1 \
+  --n-scan-points 11 \
+  --plots all \
+  --plot-dir plots/benchmark_overview_smoke
+```
+
+---
+
+## Example Plots
+
+### Benchmark Status
+
+![Benchmark Overview Status](plots/benchmark_overview/benchmark_overview_status.png)
+
+### Wall Time
+
+![Benchmark Overview Wall Time](plots/benchmark_overview/benchmark_overview_wall_time.png)
+
+### Average Evaluation Time
+
+![Benchmark Overview Average Evaluation Time](plots/benchmark_overview/benchmark_overview_average_evaluation_time.png)
+
+### NLL Scan Time
+
+![Benchmark Overview Scan Time](plots/benchmark_overview/benchmark_overview_scan_time.png)
+
+### Setup Time
+
+![Benchmark Overview Setup Time](plots/benchmark_overview/benchmark_overview_setup_time.png)
+
+### Peak RSS Delta
+
+![Benchmark Overview Peak RSS Delta](plots/benchmark_overview/benchmark_overview_peak_rss_delta.png)
+
+### Total Peak RSS Delta
+
+![Benchmark Overview Total Peak RSS Delta](plots/benchmark_overview/benchmark_overview_total_peak_rss_delta.png)
+
+### Stage Timing Breakdown
+
+![Benchmark Overview Stage Timing](plots/benchmark_overview/benchmark_overview_stage_timing.png)
+
+### Stage Memory Breakdown
+
+![Benchmark Overview Stage Memory](plots/benchmark_overview/benchmark_overview_stage_memory.png)
+
 
 ---
 

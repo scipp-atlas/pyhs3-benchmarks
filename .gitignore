@@ -64,6 +64,8 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/graph_optimization_simple/
 
+!plots/benchmark_overview/
+
 reports/*
 !reports/.gitkeep
 
