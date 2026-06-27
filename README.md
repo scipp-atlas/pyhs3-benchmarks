@@ -314,10 +314,6 @@ The reported RSS values correspond to a single workspace load and are intended a
 
 ![Workspace Loading Current RSS Delta](plots/workspace_loading/workspace_loading_current_rss_delta.png)
 
-### Peak RSS Delta
-
-![Workspace Loading Peak RSS Delta](plots/workspace_loading/workspace_loading_peak_rss_delta.png)
-
 ---
 
 # Model Creation Benchmark
@@ -422,10 +418,6 @@ Memory measurements execute a single isolated model construction to avoid measur
 
 ![Model Creation Current RSS Delta](plots/model_creation/model_creation_current_rss_delta.png)
 
-### Peak RSS Delta
-
-![Model Creation Peak RSS Delta](plots/model_creation/model_creation_peak_rss_delta.png)
-
 ---
 
 # Log Probability Construction Benchmark
@@ -528,10 +520,6 @@ Repeated timing runs create fresh models to ensure every timing sample measures 
 ### Current RSS Delta
 
 ![Log Probability Construction Current RSS Delta](plots/log_prob_construction/log_prob_construction_current_rss_delta.png)
-
-### Peak RSS Delta
-
-![Log Probability Construction Peak RSS Delta](plots/log_prob_construction/log_prob_construction_peak_rss_delta.png)
 
 ---
 
@@ -639,10 +627,6 @@ Repeated timing measurements execute independent compilations to avoid measuring
 
 ![Log Probability Compilation Current RSS Delta](plots/log_prob_compilation/log_prob_compilation_current_rss_delta.png)
 
-### Peak RSS Delta
-
-![Log Probability Compilation Peak RSS Delta](plots/log_prob_compilation/log_prob_compilation_peak_rss_delta.png)
-
 ---
 
 # Compiled Evaluation Benchmark
@@ -734,21 +718,13 @@ Timing reflects only repeated execution of the compiled graph.
 
 ## Example Plots
 
-### Average Runtime
+### Average Runtime Per Evaluation
 
-![Compiled Evaluation Runtime](plots/compiled_evaluation/compiled_evaluation_average_runtime_seconds_per_evaluation.png)
+![Compiled Evaluation Average Runtime](plots/compiled_evaluation/compiled_evaluation_average_time.png)
 
 ### Throughput
 
-![Compiled Evaluation Throughput](plots/compiled_evaluation/compiled_evaluation_throughput_evaluations_per_second.png)
-
-### Current RSS Delta
-
-![Compiled Evaluation Current RSS](plots/compiled_evaluation/compiled_evaluation_current_rss_delta.png)
-
-### Peak RSS Delta
-
-![Compiled Evaluation Peak RSS](plots/compiled_evaluation/compiled_evaluation_peak_rss_delta.png)
+![Compiled Evaluation Throughput](plots/compiled_evaluation/compiled_evaluation_throughput.png)
 
 ---
 
@@ -858,10 +834,6 @@ Memory measurements are collected independently from timing measurements.
 ### Current RSS Delta
 
 ![Current RSS](plots/pdf_evaluation/pdf_evaluation_current_rss_delta.png)
-
-### Peak RSS Delta
-
-![Peak RSS](plots/pdf_evaluation/pdf_evaluation_peak_rss_delta.png)
 
 ---
 
