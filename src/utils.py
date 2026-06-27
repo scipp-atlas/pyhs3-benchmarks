@@ -57,19 +57,31 @@ def run_repeated_timing(
     the result of the last run along with the list of timings.
     """
 
+    if n_runs < 1:
+        raise ValueError("n_runs must be at least 1")
+
+    if warmup_runs < 0:
+        raise ValueError("warmup_runs must be non-negative")
+
     timings = []
 
-    for _ in range(warmup_runs):
-        func()
+    try:
+        for _ in range(warmup_runs):
+            func()
 
-    result = None
+        result = None
 
-    for _ in range(n_runs):
-        start = time.perf_counter()
-        result = func()
-        end = time.perf_counter()
+        for _ in range(n_runs):
+            start = time.perf_counter()
+            result = func()
+            end = time.perf_counter()
 
-        timings.append(end - start)
+            timings.append(end - start)
+
+    except Exception as exc:
+        raise RuntimeError(
+            "Repeated timing failed while executing the benchmarked function"
+        ) from exc
 
     return result, timings
 
@@ -78,6 +90,21 @@ def summarize_timings(timings: list[float]) -> dict[str, float]:
     """
     Summarize the list of timings.
     """
+
+    if len(timings) == 0:
+        raise ValueError("Cannot summarize an empty timing list")
+
+    invalid_timings = [
+        timing
+        for timing in timings
+        if not math.isfinite(timing) or timing <= 0
+    ]
+
+    if invalid_timings:
+        raise ValueError(
+            "Timing samples must be positive finite values. "
+            f"Invalid samples: {invalid_timings}"
+        )
 
     return {
         "wall_time_seconds_mean": statistics.mean(timings),
@@ -95,18 +122,31 @@ def save_json(data: dict[str, Any], output_path: Path) -> None:
     Save the given data as JSON to the specified output path.
     """
 
-    output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    output_path = Path(output_path)
 
-    with output_path.open("w") as f:
-        json.dump(
-            data,
-            f,
-            indent=2,
-            sort_keys=True,
+    try:
+        output_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
         )
+
+        with output_path.open("w") as f:
+            json.dump(
+                data,
+                f,
+                indent=2,
+                sort_keys=True,
+            )
+
+    except TypeError as exc:
+        raise TypeError(
+            f"Benchmark output is not JSON serializable: {output_path}"
+        ) from exc
+
+    except OSError as exc:
+        raise OSError(
+            f"Failed to write benchmark JSON output to {output_path}"
+        ) from exc
 
 
 def should_plot_metric(
@@ -117,7 +157,24 @@ def should_plot_metric(
     Return True if a metric exists and has at least one non-zero value.
     """
 
-    values = [result.get(metric_key, 0.0) for result in results]
+    values = []
+
+    for result in results:
+        if result.get("status") == "failed":
+            continue
+
+        value = result.get(metric_key)
+
+        if value is None:
+            continue
+
+        try:
+            value_float = float(value)
+        except (TypeError, ValueError):
+            continue
+
+        if math.isfinite(value_float):
+            values.append(value_float)
 
     return any(value != 0 for value in values)
 
@@ -181,7 +238,27 @@ def _scaled_metric(
     Timing means are stored in seconds but plotted in ms.
     """
 
-    values = [float(result[metric_key]) for result in results]
+    if len(results) == 0:
+        raise ValueError("Cannot plot an empty result list")
+
+    missing_results = [
+        result.get("workspace", "<unknown>")
+        for result in results
+        if metric_key not in result
+    ]
+
+    if missing_results:
+        raise KeyError(
+            f"Metric '{metric_key}' is missing for results: {missing_results}"
+        )
+
+    try:
+        values = [float(result[metric_key]) for result in results]
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Metric '{metric_key}' contains non-numeric values") from exc
+
+    if any(not math.isfinite(value) for value in values):
+        raise ValueError(f"Metric '{metric_key}' contains non-finite values")
 
     std_key = None
 
@@ -238,6 +315,15 @@ def make_bar_plot(
     """
     Create a bar plot for a benchmark metric.
     """
+
+    results = [
+        result
+        for result in results
+        if result.get("status") != "failed"
+    ]
+
+    if len(results) == 0:
+        raise ValueError("Cannot create a plot without successful benchmark results")
 
     _apply_style()
 
@@ -337,13 +423,18 @@ def make_bar_plot(
 
     fig.tight_layout()
 
-    output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    output_path = Path(output_path)
 
-    fig.savefig(output_path)
-    plt.close(fig)
+    try:
+        output_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+        fig.savefig(output_path)
+    except OSError as exc:
+        raise OSError(f"Failed to save plot to {output_path}") from exc
+    finally:
+        plt.close(fig)
 
 
 
@@ -370,6 +461,15 @@ def make_grouped_bar_plot(
     Create a grouped bar plot where workspaces are groups and n_evaluations
     values are bars inside each group.
     """
+
+    results = [
+        result
+        for result in results
+        if result.get("status") != "failed"
+    ]
+
+    if len(results) == 0:
+        raise ValueError("Cannot create a plot without successful benchmark results")
 
     _apply_style()
 
@@ -464,9 +564,15 @@ def make_grouped_bar_plot(
     ax.set_ylim(ymin - 0.08 * span, ymax + 0.30 * span)
 
     fig.tight_layout()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path)
-    plt.close(fig)
+    output_path = Path(output_path)
+
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(output_path)
+    except OSError as exc:
+        raise OSError(f"Failed to save plot to {output_path}") from exc
+    finally:
+        plt.close(fig)
 
 
 def make_line_plot_by_evaluations(
@@ -482,6 +588,15 @@ def make_line_plot_by_evaluations(
     Create a line plot with n_evaluations on the x-axis and one line per
     workspace.
     """
+
+    results = [
+        result
+        for result in results
+        if result.get("status") != "failed"
+    ]
+
+    if len(results) == 0:
+        raise ValueError("Cannot create a plot without successful benchmark results")
 
     _apply_style()
 
@@ -508,6 +623,9 @@ def make_line_plot_by_evaluations(
     for result in enriched_results:
         if result["workspace_label"] not in workspace_labels:
             workspace_labels.append(result["workspace_label"])
+
+    if len(enriched_results) == 0:
+        raise ValueError("Line plot requires at least one n_evaluations value")
 
     fig, ax = plt.subplots(figsize=(12, 8))
 
@@ -554,9 +672,15 @@ def make_line_plot_by_evaluations(
     ax.set_ylim(ymin - 0.08 * span, ymax + 0.22 * span)
 
     fig.tight_layout()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path)
-    plt.close(fig)
+    output_path = Path(output_path)
+
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(output_path)
+    except OSError as exc:
+        raise OSError(f"Failed to save plot to {output_path}") from exc
+    finally:
+        plt.close(fig)
 
 
 def load_workspace(workspace_path: Path) -> Workspace:
@@ -564,7 +688,18 @@ def load_workspace(workspace_path: Path) -> Workspace:
     Load a workspace from the given path.
     """
 
-    return Workspace.load(workspace_path)
+    workspace_path = Path(workspace_path)
+
+    if not workspace_path.exists():
+        raise FileNotFoundError(f"Workspace file does not exist: {workspace_path}")
+
+    if not workspace_path.is_file():
+        raise FileNotFoundError(f"Workspace path is not a file: {workspace_path}")
+
+    try:
+        return Workspace.load(workspace_path)
+    except Exception as exc:
+        raise RuntimeError(f"Failed to load workspace from {workspace_path}") from exc
 
 
 def create_model(
@@ -576,11 +711,25 @@ def create_model(
     Create a model from the given workspace, target, and mode.
     """
 
-    return workspace.model(
-        target,
-        progress=False,
-        mode=mode,
-    )
+    if workspace is None:
+        raise ValueError("workspace must not be None")
+
+    if not target:
+        raise ValueError("target must be a non-empty string")
+
+    if not mode:
+        raise ValueError("mode must be a non-empty string")
+
+    try:
+        return workspace.model(
+            target,
+            progress=False,
+            mode=mode,
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to create model for target='{target}', mode='{mode}'"
+        ) from exc
 
 
 def build_log_prob(
@@ -600,7 +749,21 @@ def build_log_prob(
         mode=mode,
     )
 
-    return model, model.log_prob
+    try:
+        log_prob = model.log_prob
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to build log_prob for {workspace_path}, "
+            f"target='{target}', mode='{mode}'"
+        ) from exc
+
+    if log_prob is None:
+        raise ValueError(
+            f"log_prob construction returned None for {workspace_path}, "
+            f"target='{target}', mode='{mode}'"
+        )
+
+    return model, log_prob
 
 
 def compile_log_prob(log_prob: TensorVariable) -> JaxifiedGraph:
@@ -608,7 +771,18 @@ def compile_log_prob(log_prob: TensorVariable) -> JaxifiedGraph:
     Compile a log_prob graph to a JaxifiedGraph.
     """
 
-    return jaxify(log_prob)
+    if log_prob is None:
+        raise ValueError("log_prob must not be None")
+
+    try:
+        compiled = jaxify(log_prob)
+    except Exception as exc:
+        raise RuntimeError("Failed to compile log_prob graph with jaxify") from exc
+
+    if compiled is None:
+        raise ValueError("jaxify returned None")
+
+    return compiled
 
 
 def build_validation_inputs(
@@ -619,10 +793,28 @@ def build_validation_inputs(
     Build validation inputs for the compiled graph.
     """
 
+    if model is None:
+        raise ValueError("model must not be None")
+
+    if compiled is None:
+        raise ValueError("compiled graph must not be None")
+
     available_inputs = {
         **model.data,
         **model.free_params,
     }
+
+    missing_inputs = [
+        name
+        for name in compiled.input_names
+        if name not in available_inputs
+    ]
+
+    if missing_inputs:
+        raise KeyError(
+            "Compiled graph inputs are missing from model data/free parameters: "
+            f"{missing_inputs}. Available inputs: {list(available_inputs.keys())}"
+        )
 
     return {
         name: available_inputs[name]

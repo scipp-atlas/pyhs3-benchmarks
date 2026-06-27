@@ -64,6 +64,39 @@ def script_path(script_name: str) -> str:
     return str(SRC_DIR / script_name)
 
 
+
+
+def validate_positive_int(value: int, name: str, minimum: int = 1) -> None:
+    """Validate that an integer CLI/configuration value is at least a minimum."""
+
+    if value < minimum:
+        raise ValueError(f"{name} must be at least {minimum}")
+
+
+def validate_target_and_mode(target: str, mode: str) -> None:
+    """Validate common target and mode options."""
+
+    if not isinstance(target, str) or not target.strip():
+        raise ValueError("--target must be a non-empty string")
+
+    if not isinstance(mode, str) or not mode.strip():
+        raise ValueError("--mode must be a non-empty string")
+
+
+def validate_benchmark_config(n_runs: int, n_evaluations: int, n_scan_points: int, target: str, mode: str) -> None:
+    """Validate top-level benchmark-suite configuration."""
+
+    validate_positive_int(n_runs, "--n-runs")
+    validate_positive_int(n_evaluations, "--n-evaluations")
+    validate_positive_int(n_scan_points, "--n-scan-points", minimum=2)
+    validate_target_and_mode(target, mode)
+
+
+def command_has_plot_flag(command: list[str]) -> bool:
+    """Return whether a generated command includes --plot."""
+
+    return "--plot" in command
+
 def run_command(
     benchmark: BenchmarkCommand,
     dry_run: bool,
@@ -506,14 +539,13 @@ def main() -> None:
     if args.n_scan_points is None:
         args.n_scan_points = 1001
 
-    if args.n_runs < 1:
-        raise ValueError("--n-runs must be at least 1")
-
-    if args.n_evaluations < 1:
-        raise ValueError("--n-evaluations must be at least 1")
-
-    if args.n_scan_points < 2:
-        raise ValueError("--n-scan-points must be at least 2")
+    validate_benchmark_config(
+        n_runs=args.n_runs,
+        n_evaluations=args.n_evaluations,
+        n_scan_points=args.n_scan_points,
+        target=args.target,
+        mode=args.mode,
+    )
 
     plot = not args.no_plot
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import json
+import runpy
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -272,8 +273,11 @@ def test_run_single_benchmark_success(
 
 
 def test_run_single_benchmark_rejects_invalid_n_runs(workspace_path: Path) -> None:
-    with pytest.raises(ValueError, match="n_runs must be at least 1"):
-        benchmark.run_single_benchmark(workspace_path, n_runs=0)
+    result = benchmark.run_single_benchmark(workspace_path, n_runs=0)
+
+    assert result["status"] == "failed"
+    assert result["error_type"] == "ValueError"
+    assert "n_runs must be at least 1" in result["error_message"]
 
 
 def test_run_single_benchmark_rejects_empty_timings(
@@ -287,8 +291,11 @@ def test_run_single_benchmark_rejects_empty_timings(
         lambda func, n_runs: (object(), []),
     )
 
-    with pytest.raises(ValueError, match="Timing samples are empty"):
-        benchmark.run_single_benchmark(workspace_path, n_runs=3)
+    result = benchmark.run_single_benchmark(workspace_path, n_runs=3)
+
+    assert result["status"] == "failed"
+    assert result["error_type"] == "ValueError"
+    assert "Timing samples are empty" in result["error_message"]
 
 
 def test_run_single_benchmark_rejects_non_positive_timings(
@@ -302,8 +309,11 @@ def test_run_single_benchmark_rejects_non_positive_timings(
         lambda func, n_runs: (object(), [0.1, 0.0]),
     )
 
-    with pytest.raises(ValueError, match="All timing samples must be positive"):
-        benchmark.run_single_benchmark(workspace_path, n_runs=3)
+    result = benchmark.run_single_benchmark(workspace_path, n_runs=3)
+
+    assert result["status"] == "failed"
+    assert result["error_type"] == "ValueError"
+    assert "All timing samples must be positive" in result["error_message"]
 
 
 def test_run_single_benchmark_propagates_timing_error(
@@ -316,8 +326,11 @@ def test_run_single_benchmark_propagates_timing_error(
     monkeypatch.setattr(benchmark, "measure_single_load_memory", lambda path: {})
     monkeypatch.setattr(benchmark, "run_repeated_timing", failing_run_repeated_timing)
 
-    with pytest.raises(RuntimeError, match="timing failed"):
-        benchmark.run_single_benchmark(workspace_path, n_runs=3)
+    result = benchmark.run_single_benchmark(workspace_path, n_runs=3)
+
+    assert result["status"] == "failed"
+    assert result["error_type"] == "RuntimeError"
+    assert "timing failed" in result["error_message"]
 
 
 def test_print_result_outputs_summary(
@@ -393,8 +406,10 @@ def test_make_plots_calls_make_bar_plot_three_times(
 
     monkeypatch.setattr(benchmark, "make_bar_plot", fake_make_bar_plot)
 
+    second_result = {**valid_result, "workspace": "workspace_2.json"}
+
     benchmark.make_plots(
-        results=[valid_result],
+        results=[valid_result, second_result],
         plot_dir=tmp_path,
         wall_time_plot_name="wall_time.png",
     )
@@ -474,6 +489,8 @@ def test_main_saves_json_and_verifies_output(
         {
             "benchmark": "workspace_loading",
             "n_workspaces": 1,
+            "n_successful_workspaces": 1,
+            "n_failed_workspaces": 0,
             "results": [valid_result],
         }
     ]
@@ -500,17 +517,42 @@ def test_main_rejects_invalid_n_runs(
         benchmark.main()
 
 
-def test_main_rejects_missing_workspace(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_main_records_missing_workspace_as_failed_result(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     missing_workspace = tmp_path / "missing.json"
+    output_dir = tmp_path / "results"
+    saved_payloads = []
 
     monkeypatch.setattr(
         sys,
         "argv",
-        ["run_workspace_loading.py", "--workspaces", str(missing_workspace)],
+        [
+            "run_workspace_loading.py",
+            "--workspaces",
+            str(missing_workspace),
+            "--output-dir",
+            str(output_dir),
+        ],
     )
 
-    with pytest.raises(FileNotFoundError, match="Workspace file does not exist"):
-        benchmark.main()
+    def fake_save_json(payload: dict[str, Any], output_path: Path) -> None:
+        saved_payloads.append(payload)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("{}")
+
+    monkeypatch.setattr(benchmark, "save_json", fake_save_json)
+    monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
+
+    benchmark.main()
+
+    assert saved_payloads[0]["n_workspaces"] == 1
+    assert saved_payloads[0]["n_successful_workspaces"] == 0
+    assert saved_payloads[0]["n_failed_workspaces"] == 1
+    assert saved_payloads[0]["results"][0]["status"] == "failed"
+    assert saved_payloads[0]["results"][0]["error_type"] == "FileNotFoundError"
+    assert "Workspace file does not exist" in saved_payloads[0]["results"][0]["error_message"]
 
 
 def test_main_skips_plots_for_single_workspace(
@@ -546,7 +588,7 @@ def test_main_skips_plots_for_single_workspace(
 
     benchmark.main()
 
-    assert make_plots_calls == []
+    assert len(make_plots_calls) == 1
 
 
 def test_main_creates_plots_for_multiple_workspaces(
@@ -594,6 +636,7 @@ def test_main_creates_plots_for_multiple_workspaces(
 
     assert len(make_plots_calls) == 1
     assert len(make_plots_calls[0][0]) == 2
+
 
 def test_run_single_benchmark_real_workspace() -> None:
     workspace_path = Path("inputs/simple_workspace.json")
@@ -657,8 +700,10 @@ def test_make_plots_real_png_files_created(
     tmp_path: Path,
     valid_result: dict[str, Any],
 ) -> None:
+    second_result = {**valid_result, "workspace": "workspace_2.json"}
+
     benchmark.make_plots(
-        results=[valid_result],
+        results=[valid_result, second_result],
         plot_dir=tmp_path,
         wall_time_plot_name="workspace_loading_wall_time.png",
     )
@@ -666,3 +711,180 @@ def test_make_plots_real_png_files_created(
     assert (tmp_path / "workspace_loading_wall_time.png").exists()
     assert (tmp_path / "workspace_loading_peak_rss_delta.png").exists()
     assert (tmp_path / "workspace_loading_current_rss_delta.png").exists()
+
+
+
+def test_validate_workspace_rejects_none_workspace() -> None:
+    with pytest.raises(ValueError, match="Workspace loading returned None"):
+        benchmark.validate_workspace(None)
+
+
+def test_validate_workspace_rejects_missing_metadata(
+    valid_workspace: SimpleNamespace,
+) -> None:
+    valid_workspace.metadata = None
+
+    with pytest.raises(ValueError, match="Workspace does not contain metadata"):
+        benchmark.validate_workspace(valid_workspace)
+
+
+def test_make_plots_skips_when_less_than_two_successful_results(
+    tmp_path: Path,
+    valid_result: dict[str, Any],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    benchmark.make_plots(
+        results=[valid_result],
+        plot_dir=tmp_path,
+        wall_time_plot_name="wall_time.png",
+    )
+
+    output = capsys.readouterr().out
+
+    assert "Skipping plots" in output
+    assert not (tmp_path / "wall_time.png").exists()
+
+
+class RaisingContext:
+    def Pool(self, processes: int) -> None:
+        assert processes == 1
+        raise RuntimeError("pool failed")
+
+
+def test_main_records_pool_error_as_failed_result(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    workspace_path: Path,
+) -> None:
+    output_dir = tmp_path / "results"
+    saved_payloads = []
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_workspace_loading.py",
+            "--workspaces",
+            str(workspace_path),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    monkeypatch.setattr(benchmark, "get_context", lambda method: RaisingContext())
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
+
+    def fake_save_json(payload: dict[str, Any], output_path: Path) -> None:
+        saved_payloads.append(payload)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("{}")
+
+    monkeypatch.setattr(benchmark, "save_json", fake_save_json)
+    monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
+
+    benchmark.main()
+
+    result = saved_payloads[0]["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_type"] == "RuntimeError"
+    assert "pool failed" in result["error_message"]
+
+
+def test_main_wraps_json_write_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
+) -> None:
+    output_dir = tmp_path / "results"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_workspace_loading.py",
+            "--workspaces",
+            str(workspace_path),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
+    monkeypatch.setattr(
+        benchmark,
+        "save_json",
+        lambda payload, output_path: (_ for _ in ()).throw(OSError("write failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to write benchmark result JSON"):
+        benchmark.main()
+
+
+def test_main_wraps_plot_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
+) -> None:
+    output_dir = tmp_path / "results"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_workspace_loading.py",
+            "--workspaces",
+            str(workspace_path),
+            "--output-dir",
+            str(output_dir),
+            "--plot",
+        ],
+    )
+    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
+    monkeypatch.setattr(
+        benchmark,
+        "save_json",
+        lambda payload, output_path: output_path.parent.mkdir(parents=True, exist_ok=True)
+        or output_path.write_text("{}"),
+    )
+    monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
+    monkeypatch.setattr(
+        benchmark,
+        "make_plots",
+        lambda results, plot_dir, wall_time_plot_name: (_ for _ in ()).throw(
+            OSError("plot failed")
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to create workspace loading plots"):
+        benchmark.main()
+
+
+def test_module_runs_as_script(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "script_results"
+    output_name = "script_result.json"
+    output_path = output_dir / output_name
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_workspace_loading.py",
+            "--workspaces",
+            "inputs/simple_workspace.json",
+            "--n-runs",
+            "1",
+            "--output-dir",
+            str(output_dir),
+            "--output-name",
+            output_name,
+        ],
+    )
+
+    runpy.run_module("src.run_workspace_loading", run_name="__main__")
+
+    assert output_path.exists()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import gc
-import json
+import traceback
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -83,10 +83,37 @@ def verify_output_file(output_path: Path) -> None:
         )
 
 
+def make_error_result(
+    workspace_path: Path,
+    n_runs: int,
+    exc: BaseException,
+) -> dict[str, Any]:
+    """
+    Convert an exception raised by one workspace benchmark into a JSON-safe result.
+    """
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": Path(workspace_path).name,
+        "workspace_path": str(workspace_path),
+        "n_runs": n_runs,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": traceback.format_exc(),
+    }
+
+
 def validate_workspace(workspace: Workspace) -> dict[str, int | str]:
     """
     Validate that the loaded workspace contains expected top-level content.
     """
+
+    if workspace is None:
+        raise ValueError("Workspace loading returned None")
+
+    if workspace.metadata is None:
+        raise ValueError("Workspace does not contain metadata")
 
     if workspace.distributions is None or len(workspace.distributions) == 0:
         raise ValueError("Workspace does not contain distributions")
@@ -155,33 +182,40 @@ def run_single_benchmark(
     Timing is measured separately using repeated loads.
     """
 
-    if n_runs < 1:
-        raise ValueError("n_runs must be at least 1")
+    try:
+        if n_runs < 1:
+            raise ValueError("n_runs must be at least 1")
 
-    workspace_path = validate_workspace_path(workspace_path)
+        workspace_path = validate_workspace_path(workspace_path)
 
-    memory_summary = measure_single_load_memory(workspace_path)
+        memory_summary = measure_single_load_memory(workspace_path)
 
-    gc.collect()
+        gc.collect()
 
-    _, timings = run_repeated_timing(
-        lambda: load_workspace(workspace_path),
-        n_runs=n_runs,
-    )
-    validate_timings(timings)
+        _, timings = run_repeated_timing(
+            lambda: load_workspace(workspace_path),
+            n_runs=n_runs,
+        )
+        validate_timings(timings)
 
-    timing_summary = summarize_timings(timings)
+        timing_summary = summarize_timings(timings)
 
-    return {
-        "benchmark": BENCHMARK_NAME,
-        "workspace": workspace_path.name,
-        "workspace_path": str(workspace_path),
-        "n_runs": n_runs,
-        "wall_time_seconds_samples": timings,
-        **timing_summary,
-        **memory_summary,
-        "status": "success",
-    }
+        return {
+            "benchmark": BENCHMARK_NAME,
+            "workspace": workspace_path.name,
+            "workspace_path": str(workspace_path),
+            "n_runs": n_runs,
+            "wall_time_seconds_samples": timings,
+            **timing_summary,
+            **memory_summary,
+            "status": "success",
+        }
+    except Exception as exc:
+        return make_error_result(
+            workspace_path=workspace_path,
+            n_runs=n_runs,
+            exc=exc,
+        )
 
 
 def print_result(result: dict[str, Any]) -> None:
@@ -196,6 +230,13 @@ def print_result(result: dict[str, Any]) -> None:
     print(f"Workspace: {result['workspace']}")
     print(f"Runs:      {result['n_runs']}")
     print(f"Status:    {result['status']}")
+
+    if result["status"] != "success":
+        print()
+        print("Error")
+        print(f"  type:    {result.get('error_type', 'unknown')}")
+        print(f"  message: {result.get('error_message', '')}")
+        return
 
     print()
     print("Timing")
@@ -278,14 +319,20 @@ def make_plots(
     wall_time_plot_name: str,
 ) -> None:
     """
-    Create standard plots for the workspace loading benchmark.
+    Create standard plots for the successful workspace loading benchmark results.
     """
+
+    successful_results = [result for result in results if result["status"] == "success"]
+
+    if len(successful_results) < 2:
+        print("Skipping plots: at least two successful workspace results are needed.")
+        return
 
     plot_dir.mkdir(parents=True, exist_ok=True)
 
     wall_time_plot_path = plot_dir / wall_time_plot_name
     make_bar_plot(
-        results=results,
+        results=successful_results,
         output_path=wall_time_plot_path,
         title="Workspace loading wall time",
         metric_key="wall_time_seconds_mean",
@@ -295,7 +342,7 @@ def make_plots(
 
     peak_rss_plot_path = plot_dir / "workspace_loading_peak_rss_delta.png"
     make_bar_plot(
-        results=results,
+        results=successful_results,
         output_path=peak_rss_plot_path,
         title="Workspace loading peak RSS delta",
         metric_key="peak_rss_delta_mb",
@@ -305,7 +352,7 @@ def make_plots(
 
     current_rss_plot_path = plot_dir / "workspace_loading_current_rss_delta.png"
     make_bar_plot(
-        results=results,
+        results=successful_results,
         output_path=current_rss_plot_path,
         title="Workspace loading current RSS delta",
         metric_key="current_rss_delta_mb",
@@ -320,16 +367,21 @@ def main() -> None:
     if args.n_runs < 1:
         raise ValueError("--n-runs must be at least 1")
 
-    workspace_paths = [validate_workspace_path(path) for path in args.workspaces]
     results = []
-
     ctx = get_context("spawn")
 
-    for workspace_path in workspace_paths:
-        with ctx.Pool(processes=1) as pool:
-            result = pool.apply(
-                run_single_benchmark,
-                args=(workspace_path, args.n_runs),
+    for workspace_path in args.workspaces:
+        try:
+            with ctx.Pool(processes=1) as pool:
+                result = pool.apply(
+                    run_single_benchmark,
+                    args=(workspace_path, args.n_runs),
+                )
+        except Exception as exc:
+            result = make_error_result(
+                workspace_path=workspace_path,
+                n_runs=args.n_runs,
+                exc=exc,
             )
 
         results.append(result)
@@ -338,25 +390,41 @@ def main() -> None:
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
         "n_workspaces": len(results),
+        "n_successful_workspaces": sum(
+            result["status"] == "success"
+            for result in results
+        ),
+        "n_failed_workspaces": sum(
+            result["status"] == "failed"
+            for result in results
+        ),
         "results": results,
     }
 
     output_path = args.output_dir / args.output_name
-    save_json(output_data, output_path)
-    verify_output_file(output_path)
+
+    try:
+        save_json(output_data, output_path)
+        verify_output_file(output_path)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to write benchmark result JSON to {output_path}"
+        ) from exc
 
     print()
     print(f"Saved result to {output_path}")
 
     if args.plot:
-        if len(results) < 2:
-            print("Skipping plots: at least two workspaces are needed.")
-        else:
+        try:
             make_plots(
                 results=results,
                 plot_dir=args.plot_dir,
                 wall_time_plot_name=args.plot_name,
             )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to create workspace loading plots in {args.plot_dir}"
+            ) from exc
 
 
 if __name__ == "__main__":

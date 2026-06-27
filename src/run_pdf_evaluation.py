@@ -4,6 +4,7 @@ import argparse
 import gc
 import math
 import time
+import traceback
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -430,6 +431,50 @@ def print_result(result: dict[str, Any]) -> None:
     print(f"  stable outputs:     {result['outputs_stable']}")
 
 
+def make_error_result(
+    workspace_path: Path,
+    target: str,
+    mode: str,
+    distribution: str,
+    n_evaluations: int,
+    exc: Exception,
+) -> dict[str, Any]:
+    """
+    Build a structured benchmark result for a failed PDF evaluation run.
+    """
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": workspace_path.name,
+        "workspace_path": str(workspace_path),
+        "target": target,
+        "mode": mode,
+        "distribution": distribution,
+        "n_evaluations": n_evaluations,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": traceback.format_exc(),
+    }
+
+
+def print_error_result(result: dict[str, Any]) -> None:
+    """
+    Print a readable summary for a failed PDF evaluation run.
+    """
+
+    print()
+    print("=" * 72)
+    print("PDF evaluation benchmark FAILED")
+    print("=" * 72)
+    print(f"Workspace:     {result['workspace']}")
+    print(f"Target:        {result['target']}")
+    print(f"Mode:          {result['mode']}")
+    print(f"Distribution:  {result['distribution']}")
+    print(f"Evaluations:   {result['n_evaluations']}")
+    print(f"Error:         {result['error_type']}: {result['error_message']}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark repeated pyHS3 model.pdf(...) evaluation."
@@ -486,11 +531,18 @@ def parse_args() -> argparse.Namespace:
 
 def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
     """
-    Create plots for the PDF evaluation benchmark.
+    Create plots for successful PDF evaluation benchmark results.
 
     Plot labels are shortened by removing target and mode from the plot-only
-    result dictionaries.
+    result dictionaries. Failed results are skipped because they intentionally
+    do not contain timing and memory metrics.
     """
+
+    results = [result for result in results if result.get("status") == "success"]
+
+    if len(results) < 2:
+        print("Skipping plots: at least two successful result entries are needed.")
+        return
 
     plot_dir.mkdir(parents=True, exist_ok=True)
 
@@ -561,25 +613,6 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
 def main() -> None:
     args = parse_args()
 
-    for workspace_path in args.workspaces:
-        validate_workspace_path(workspace_path)
-
-    for target in args.targets:
-        if not target:
-            raise ValueError("--targets must contain only non-empty strings")
-
-    for mode in args.modes:
-        if not mode:
-            raise ValueError("--modes must contain only non-empty strings")
-
-    for distribution in args.distributions:
-        if not distribution:
-            raise ValueError("--distributions must contain only non-empty strings")
-
-    for n_evaluations in args.n_evaluations:
-        if n_evaluations < 1:
-            raise ValueError("--n-evaluations values must be at least 1")
-
     results = []
     ctx = get_context("spawn")
 
@@ -597,24 +630,44 @@ def main() -> None:
                             flush=True,
                         )
 
-                        with ctx.Pool(processes=1) as pool:
-                            result = pool.apply(
-                                run_single_benchmark,
-                                args=(
-                                    workspace_path,
-                                    target,
-                                    mode,
-                                    distribution,
-                                    n_evaluations,
-                                ),
+                        try:
+                            with ctx.Pool(processes=1) as pool:
+                                result = pool.apply(
+                                    run_single_benchmark,
+                                    args=(
+                                        workspace_path,
+                                        target,
+                                        mode,
+                                        distribution,
+                                        n_evaluations,
+                                    ),
+                                )
+                        except Exception as exc:
+                            result = make_error_result(
+                                workspace_path=workspace_path,
+                                target=target,
+                                mode=mode,
+                                distribution=distribution,
+                                n_evaluations=n_evaluations,
+                                exc=exc,
                             )
 
                         results.append(result)
-                        print_result(result)
+
+                        if result["status"] == "success":
+                            print_result(result)
+                        else:
+                            print_error_result(result)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
         "n_results": len(results),
+        "n_successful_results": sum(
+            result.get("status") == "success" for result in results
+        ),
+        "n_failed_results": sum(
+            result.get("status") == "failed" for result in results
+        ),
         "results": results,
     }
 
@@ -626,10 +679,8 @@ def main() -> None:
     print(f"Saved result to {output_path}")
 
     if args.plot:
-        if len(results) < 2:
-            print("Skipping plots: at least two result entries are needed.")
-        else:
-            make_plots(results=results, plot_dir=args.plot_dir)
+        make_plots(results=results, plot_dir=args.plot_dir)
+        if any(result.get("status") == "success" for result in results):
             print(f"Saved plots to {args.plot_dir}")
 
 
