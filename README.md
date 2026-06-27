@@ -1525,10 +1525,6 @@ benchmark_stage_memory.png
 
 ## Example Plots
 
-### Benchmark Status
-
-![Benchmark Overview Status](plots/benchmark_overview/benchmark_overview_status.png)
-
 ### Wall Time
 
 ![Benchmark Overview Wall Time](plots/benchmark_overview/benchmark_overview_wall_time.png)
