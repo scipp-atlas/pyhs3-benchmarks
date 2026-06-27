@@ -468,8 +468,11 @@ def test_make_plots_calls_make_bar_plot_three_times(
 
     monkeypatch.setattr(benchmark, "make_bar_plot", fake_make_bar_plot)
 
+    second_result = valid_result.copy()
+    second_result["workspace"] = "workspace_2.json"
+
     benchmark.make_plots(
-        results=[valid_result],
+        results=[valid_result, second_result],
         plot_dir=tmp_path,
         wall_time_plot_name="wall_time.png",
     )
@@ -624,12 +627,15 @@ def test_main_skips_plots_for_single_result(
     monkeypatch.setattr(
         benchmark,
         "make_plots",
-        lambda *args, **kwargs: make_plots_calls.append(args),
+        lambda *args, **kwargs: make_plots_calls.append(kwargs),
     )
 
     benchmark.main()
 
-    assert make_plots_calls == []
+    assert len(make_plots_calls) == 1
+    assert len(make_plots_calls[0]["results"]) == 1
+    assert make_plots_calls[0]["plot_dir"] == benchmark.DEFAULT_PLOT_DIR
+    assert make_plots_calls[0]["wall_time_plot_name"] == benchmark.DEFAULT_PLOT_NAME
 
 
 def test_main_creates_plots_for_multiple_results(
@@ -677,6 +683,241 @@ def test_main_creates_plots_for_multiple_results(
     assert len(make_plots_calls) == 1
     assert len(make_plots_calls[0][0]) == 2
 
+
+
+
+def test_make_plots_skips_with_less_than_two_successes(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    valid_result: dict[str, Any],
+) -> None:
+    failed_result = valid_result.copy()
+    failed_result["status"] = "failed"
+
+    benchmark.make_plots(
+        results=[valid_result, failed_result],
+        plot_dir=tmp_path,
+        wall_time_plot_name="wall_time.png",
+    )
+
+    assert "Skipping plots" in capsys.readouterr().out
+    assert not (tmp_path / "wall_time.png").exists()
+
+
+def test_make_plots_filters_failed_results(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    valid_result: dict[str, Any],
+) -> None:
+    calls = []
+    second_result = valid_result.copy()
+    second_result["workspace"] = "workspace_2.json"
+    failed_result = valid_result.copy()
+    failed_result["workspace"] = "failed.json"
+    failed_result["status"] = "failed"
+
+    monkeypatch.setattr(benchmark, "make_bar_plot", lambda **kwargs: calls.append(kwargs))
+
+    benchmark.make_plots(
+        results=[valid_result, second_result, failed_result],
+        plot_dir=tmp_path,
+        wall_time_plot_name="wall_time.png",
+    )
+
+    assert len(calls) == 3
+    assert all(len(call["results"]) == 2 for call in calls)
+    assert all(result["status"] == "success" for result in calls[0]["results"])
+
+
+def test_make_error_result_contains_traceback(workspace_path: Path) -> None:
+    try:
+        raise RuntimeError("boom")
+    except RuntimeError as exc:
+        result = benchmark.make_error_result(
+            workspace_path=workspace_path,
+            target="analysis",
+            mode="FAST_RUN",
+            n_runs=3,
+            exc=exc,
+        )
+
+    assert result["benchmark"] == "model_creation"
+    assert result["workspace"] == "workspace.json"
+    assert result["status"] == "failed"
+    assert result["error_type"] == "RuntimeError"
+    assert result["error_message"] == "boom"
+    assert any("RuntimeError: boom" in line for line in result["traceback"])
+
+
+def test_print_error_result_outputs_summary(
+    capsys: pytest.CaptureFixture[str],
+    workspace_path: Path,
+) -> None:
+    result = benchmark.make_error_result(
+        workspace_path=workspace_path,
+        target="analysis",
+        mode="FAST_RUN",
+        n_runs=3,
+        exc=RuntimeError("boom"),
+    )
+
+    benchmark.print_error_result(result)
+
+    output = capsys.readouterr().out
+    assert "Model creation benchmark FAILED" in output
+    assert "RuntimeError: boom" in output
+    assert "workspace.json" in output
+
+
+def test_main_rejects_empty_target(monkeypatch: pytest.MonkeyPatch, workspace_path: Path) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_model_creation.py",
+            "--workspaces",
+            str(workspace_path),
+            "--targets",
+            "",
+        ],
+    )
+
+    with pytest.raises(ValueError, match="--targets must contain only non-empty strings"):
+        benchmark.main()
+
+
+def test_main_rejects_empty_mode(monkeypatch: pytest.MonkeyPatch, workspace_path: Path) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_model_creation.py",
+            "--workspaces",
+            str(workspace_path),
+            "--modes",
+            "",
+        ],
+    )
+
+    with pytest.raises(ValueError, match="--modes must contain only non-empty strings"):
+        benchmark.main()
+
+
+def test_main_records_pool_error_as_failed_result(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    workspace_path: Path,
+) -> None:
+    output_dir = tmp_path / "results"
+    saved_payloads = []
+
+    class FailingPool:
+        def __enter__(self) -> "FailingPool":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+            return None
+
+        def apply(self, func: Any, args: tuple[Any, ...]) -> dict[str, Any]:
+            raise RuntimeError("pool failed")
+
+    class FailingContext:
+        def Pool(self, processes: int) -> FailingPool:
+            assert processes == 1
+            return FailingPool()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_model_creation.py",
+            "--workspaces",
+            str(workspace_path),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    monkeypatch.setattr(benchmark, "get_context", lambda method: FailingContext())
+    monkeypatch.setattr(benchmark, "print_error_result", lambda result: None)
+
+    def fake_save_json(payload: dict[str, Any], output_path: Path) -> None:
+        saved_payloads.append(payload)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("{}")
+
+    monkeypatch.setattr(benchmark, "save_json", fake_save_json)
+    monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
+
+    benchmark.main()
+
+    result = saved_payloads[0]["results"][0]
+    assert result["status"] == "failed"
+    assert result["error_type"] == "RuntimeError"
+    assert result["error_message"] == "pool failed"
+
+
+def test_main_propagates_save_json_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_model_creation.py",
+            "--workspaces",
+            str(workspace_path),
+            "--output-dir",
+            str(tmp_path / "results"),
+        ],
+    )
+    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
+    monkeypatch.setattr(
+        benchmark,
+        "save_json",
+        lambda payload, output_path: (_ for _ in ()).throw(OSError("save failed")),
+    )
+
+    with pytest.raises(OSError, match="save failed"):
+        benchmark.main()
+
+
+def test_main_propagates_verify_output_file_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_model_creation.py",
+            "--workspaces",
+            str(workspace_path),
+            "--output-dir",
+            str(tmp_path / "results"),
+        ],
+    )
+    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
+    monkeypatch.setattr(
+        benchmark,
+        "save_json",
+        lambda payload, output_path: output_path.parent.mkdir(parents=True, exist_ok=True)
+        or output_path.write_text("{}"),
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "verify_output_file",
+        lambda output_path: (_ for _ in ()).throw(FileNotFoundError("verify failed")),
+    )
+
+    with pytest.raises(FileNotFoundError, match="verify failed"):
+        benchmark.main()
 
 def test_run_single_benchmark_real_workspace() -> None:
     workspace_path = Path("inputs/simple_workspace.json")
@@ -748,8 +989,11 @@ def test_make_plots_real_png_files_created(
     tmp_path: Path,
     valid_result: dict[str, Any],
 ) -> None:
+    second_result = valid_result.copy()
+    second_result["workspace"] = "workspace_2.json"
+
     benchmark.make_plots(
-        results=[valid_result],
+        results=[valid_result, second_result],
         plot_dir=tmp_path,
         wall_time_plot_name="model_creation_wall_time.png",
     )

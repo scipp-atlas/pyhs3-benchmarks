@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import gc
 import time
+import traceback
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -89,6 +90,7 @@ def verify_output_file(output_path: Path) -> None:
 
     if not output_path.is_file():
         raise FileNotFoundError(f"Benchmark output path is not a file: {output_path}")
+
 
 def validate_model(model: Model) -> dict[str, Any]:
     """
@@ -275,6 +277,52 @@ def print_result(result: dict[str, Any]) -> None:
     print("Validation")
     print(f"  model type:       {result['model_type']}")
 
+
+def make_error_result(
+    workspace_path: Path,
+    target: str,
+    mode: str,
+    n_runs: int,
+    exc: Exception,
+) -> dict[str, Any]:
+    """
+    Build a structured benchmark result for failed model creation runs.
+    """
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": workspace_path.name,
+        "workspace_path": str(workspace_path),
+        "target": target,
+        "mode": mode,
+        "n_runs": n_runs,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": traceback.format_exception(
+            type(exc),
+            exc,
+            exc.__traceback__,
+        ),
+    }
+
+
+def print_error_result(result: dict[str, Any]) -> None:
+    """
+    Print a readable summary for a failed benchmark result.
+    """
+
+    print()
+    print("=" * 72)
+    print("Model creation benchmark FAILED")
+    print("=" * 72)
+    print(f"Workspace: {result['workspace']}")
+    print(f"Target:    {result['target']}")
+    print(f"Mode:      {result['mode']}")
+    print(f"Runs:      {result['n_runs']}")
+    print(f"Error:     {result['error_type']}: {result['error_message']}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark pyHS3 Model creation from already-loaded Workspaces."
@@ -342,8 +390,14 @@ def make_plots(
     wall_time_plot_name: str,
 ) -> None:
     """
-    Create standard plots for the model creation benchmark.
+    Create standard plots for the successful model creation benchmark results.
     """
+
+    results = [result for result in results if result.get("status") == "success"]
+
+    if len(results) < 2:
+        print("Skipping plots: at least two successful result entries are needed.")
+        return
 
     plot_dir.mkdir(parents=True, exist_ok=True)
 
@@ -402,14 +456,35 @@ def main() -> None:
     for workspace_path in args.workspaces:
         for target in args.targets:
             for mode in args.modes:
-                with ctx.Pool(processes=1) as pool:
-                    result = pool.apply(
-                        run_single_benchmark,
-                        args=(workspace_path, target, mode, args.n_runs),
+                print(
+                    f"Running {workspace_path.name}, "
+                    f"target={target}, "
+                    f"mode={mode}, "
+                    f"n_runs={args.n_runs}",
+                    flush=True,
+                )
+
+                try:
+                    with ctx.Pool(processes=1) as pool:
+                        result = pool.apply(
+                            run_single_benchmark,
+                            args=(workspace_path, target, mode, args.n_runs),
+                        )
+                except Exception as exc:
+                    result = make_error_result(
+                        workspace_path=workspace_path,
+                        target=target,
+                        mode=mode,
+                        n_runs=args.n_runs,
+                        exc=exc,
                     )
 
                 results.append(result)
-                print_result(result)
+
+                if result["status"] == "success":
+                    print_result(result)
+                else:
+                    print_error_result(result)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
@@ -425,14 +500,11 @@ def main() -> None:
     print(f"Saved result to {output_path}")
 
     if args.plot:
-        if len(results) < 2:
-            print("Skipping plots: at least two result entries are needed.")
-        else:
-            make_plots(
-                results=results,
-                plot_dir=args.plot_dir,
-                wall_time_plot_name=args.plot_name,
-            )
+        make_plots(
+            results=results,
+            plot_dir=args.plot_dir,
+            wall_time_plot_name=args.plot_name,
+        )
 
 
 if __name__ == "__main__":

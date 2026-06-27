@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import traceback
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -113,6 +114,89 @@ def verify_output_file(output_path: Path) -> None:
 
     if not output_path.is_file():
         raise FileNotFoundError(f"Output path is not a file: {output_path}")
+
+
+def make_stage_error_result(
+    stage_name: str,
+    exc: Exception,
+) -> dict[str, Any]:
+    """Build a structured failed result for one workflow stage."""
+
+    return {
+        "benchmark": stage_name,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": traceback.format_exc(),
+    }
+
+
+def make_error_result(
+    workspace_path: Path,
+    target: str,
+    mode: str,
+    n_runs: int,
+    n_evaluations: int,
+    stages: list[str],
+    distribution: str,
+    scan_parameter: str,
+    scan_min: float,
+    scan_max: float,
+    n_scan_points: int,
+    exc: Exception,
+) -> dict[str, Any]:
+    """Build a structured failed result for one scaling configuration."""
+
+    workspace_path = Path(workspace_path)
+
+    workspace_size_bytes: int | None
+    try:
+        workspace_size_bytes = workspace_path.stat().st_size
+    except OSError:
+        workspace_size_bytes = None
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": workspace_path.name,
+        "workspace_path": str(workspace_path),
+        "workspace_size_bytes": workspace_size_bytes,
+        "target": target,
+        "mode": mode,
+        "n_runs": n_runs,
+        "n_evaluations": n_evaluations,
+        "distribution": distribution,
+        "scan_parameter": scan_parameter,
+        "scan_min": scan_min,
+        "scan_max": scan_max,
+        "n_scan_points": n_scan_points,
+        "selected_stages": stages,
+        "stage_results": {},
+        "total_setup_time_seconds": 0.0,
+        "total_peak_rss_delta_mb": 0.0,
+        "quickfit_reference_available": False,
+        "quickfit_validation_status": "not_run",
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": traceback.format_exc(),
+    }
+
+
+def print_failed_result(result: dict[str, Any]) -> None:
+    """Print a readable summary for a failed scaling row."""
+
+    print()
+    print("=" * 72)
+    print("Model complexity scaling benchmark FAILED")
+    print("=" * 72)
+    print(f"Workspace: {result.get('workspace')}")
+    print(f"Target:    {result.get('target')}")
+    print(f"Mode:      {result.get('mode')}")
+    print(
+        "Reason:    "
+        f"{result.get('error_type', 'UnknownError')}: "
+        f"{result.get('error_message', '')}"
+    )
 
 
 def summarize_stage(
@@ -236,7 +320,14 @@ def run_single_scaling_benchmark(
     stage_results: dict[str, dict[str, Any]] = {}
 
     for stage_name, function, args in stage_specs:
-        result = function(*args)
+        try:
+            result = function(*args)
+        except Exception as exc:
+            result = make_stage_error_result(
+                stage_name=stage_name,
+                exc=exc,
+            )
+
         stage_results[stage_name] = result
         row.update(
             summarize_stage(
@@ -245,7 +336,7 @@ def run_single_scaling_benchmark(
             )
         )
 
-        if stage_name == "compiled_evaluation":
+        if stage_name == "compiled_evaluation" and result.get("status") == "success":
             row["compiled_evaluation_reference_output"] = result[
                 "reference_output"
             ]
@@ -524,6 +615,16 @@ def make_plots(
     Create scaling plots.
     """
 
+    successful_results = [
+        result
+        for result in results
+        if result.get("status") == "success"
+    ]
+
+    if len(successful_results) < 2:
+        print("Skipping plots: at least two successful result entries are needed.")
+        return
+
     plot_dir.mkdir(
         parents=True,
         exist_ok=True,
@@ -531,7 +632,7 @@ def make_plots(
 
     plot_results = []
 
-    for result in results:
+    for result in successful_results:
         plot_result = dict(result)
 
         plot_result["workspace_size_kb"] = (
@@ -660,26 +761,46 @@ def main() -> None:
                     flush=True,
                 )
 
-                with ctx.Pool(processes=1) as pool:
-                    result = pool.apply(
-                        run_single_scaling_benchmark,
-                        args=(
-                            workspace_path,
-                            target,
-                            mode,
-                            args.n_runs,
-                            args.n_evaluations,
-                            selected_stages,
-                            args.distribution,
-                            args.scan_parameter,
-                            args.scan_min,
-                            args.scan_max,
-                            args.n_scan_points,
-                        ),
+                try:
+                    with ctx.Pool(processes=1) as pool:
+                        result = pool.apply(
+                            run_single_scaling_benchmark,
+                            args=(
+                                workspace_path,
+                                target,
+                                mode,
+                                args.n_runs,
+                                args.n_evaluations,
+                                selected_stages,
+                                args.distribution,
+                                args.scan_parameter,
+                                args.scan_min,
+                                args.scan_max,
+                                args.n_scan_points,
+                            ),
+                        )
+                except Exception as exc:
+                    result = make_error_result(
+                        workspace_path=workspace_path,
+                        target=target,
+                        mode=mode,
+                        n_runs=args.n_runs,
+                        n_evaluations=args.n_evaluations,
+                        stages=selected_stages,
+                        distribution=args.distribution,
+                        scan_parameter=args.scan_parameter,
+                        scan_min=args.scan_min,
+                        scan_max=args.scan_max,
+                        n_scan_points=args.n_scan_points,
+                        exc=exc,
                     )
 
                 results.append(result)
-                print_result(result)
+
+                if result.get("status") == "success":
+                    print_result(result)
+                else:
+                    print_failed_result(result)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
@@ -708,13 +829,11 @@ def main() -> None:
     print(f"Saved CSV summary to {csv_path}")
 
     if args.plot:
-        if len(results) < 2:
-            print("Skipping plots: at least two result entries are needed.")
-        else:
-            make_plots(
-                results=results,
-                plot_dir=args.plot_dir,
-            )
+        make_plots(
+            results=results,
+            plot_dir=args.plot_dir,
+        )
+        if len([result for result in results if result.get("status") == "success"]) >= 2:
             print(f"Saved plots to {args.plot_dir}")
 
 

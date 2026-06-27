@@ -4,6 +4,7 @@ import argparse
 import gc
 import math
 import time
+import traceback
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -473,6 +474,56 @@ def print_result(result: dict[str, Any]) -> None:
     print(f"  NLL range:         {result['nll_range']}")
 
 
+def make_error_result(
+    workspace_path: Path,
+    target: str,
+    mode: str,
+    scan_parameter: str,
+    scan_min: float,
+    scan_max: float,
+    n_scan_points: int,
+    exc: Exception,
+) -> dict[str, Any]:
+    """
+    Build a structured benchmark result for a failed NLL scan run.
+    """
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": workspace_path.name,
+        "workspace_path": str(workspace_path),
+        "target": target,
+        "mode": mode,
+        "scan_parameter": scan_parameter,
+        "scan_min": scan_min,
+        "scan_max": scan_max,
+        "n_scan_points": n_scan_points,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        ),
+    }
+
+
+def print_error_result(result: dict[str, Any]) -> None:
+    """
+    Print a readable summary for a failed benchmark result.
+    """
+
+    print()
+    print("=" * 72)
+    print("NLL scan benchmark FAILED")
+    print("=" * 72)
+    print(f"Workspace:      {result['workspace']}")
+    print(f"Target:         {result['target']}")
+    print(f"Mode:           {result['mode']}")
+    print(f"Scan parameter: {result['scan_parameter']}")
+    print(f"Scan points:    {result['n_scan_points']}")
+    print(f"Reason:         {result['error_type']}: {result['error_message']}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark PyHS3 NLL scans over a parameter grid."
@@ -495,13 +546,23 @@ def parse_args() -> argparse.Namespace:
 
 def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
     """
-    Create bar plots for the benchmark results.
+    Create bar plots for successful benchmark results.
     """
+
+    successful_results = [
+        result
+        for result in results
+        if result.get("status") == "success"
+    ]
+
+    if len(successful_results) < 2:
+        print("Skipping plots: at least two successful result entries are needed.")
+        return
 
     plot_dir.mkdir(parents=True, exist_ok=True)
 
     plot_results = []
-    for result in results:
+    for result in successful_results:
         plot_result = dict(result)
         plot_result["runtime_per_scan_point_ms"] = (
             result["runtime_per_scan_point_seconds"] * 1000.0
@@ -569,8 +630,13 @@ def main() -> None:
         if n_scan_points < 2:
             raise ValueError("--n-scan-points values must be at least 2")
 
-    for workspace_path in args.workspaces:
-        validate_workspace_path(workspace_path)
+    for target in args.targets:
+        if not target:
+            raise ValueError("--targets must contain only non-empty strings")
+
+    for mode in args.modes:
+        if not mode:
+            raise ValueError("--modes must contain only non-empty strings")
 
     results = []
     ctx = get_context("spawn")
@@ -588,22 +654,38 @@ def main() -> None:
                         flush=True,
                     )
 
-                    with ctx.Pool(processes=1) as pool:
-                        result = pool.apply(
-                            run_single_benchmark,
-                            args=(
-                                workspace_path,
-                                target,
-                                mode,
-                                args.scan_parameter,
-                                args.scan_min,
-                                args.scan_max,
-                                n_scan_points,
-                            ),
+                    try:
+                        with ctx.Pool(processes=1) as pool:
+                            result = pool.apply(
+                                run_single_benchmark,
+                                args=(
+                                    workspace_path,
+                                    target,
+                                    mode,
+                                    args.scan_parameter,
+                                    args.scan_min,
+                                    args.scan_max,
+                                    n_scan_points,
+                                ),
+                            )
+                    except Exception as exc:
+                        result = make_error_result(
+                            workspace_path=workspace_path,
+                            target=target,
+                            mode=mode,
+                            scan_parameter=args.scan_parameter,
+                            scan_min=args.scan_min,
+                            scan_max=args.scan_max,
+                            n_scan_points=n_scan_points,
+                            exc=exc,
                         )
 
                     results.append(result)
-                    print_result(result)
+
+                    if result["status"] == "success":
+                        print_result(result)
+                    else:
+                        print_error_result(result)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
@@ -619,11 +701,8 @@ def main() -> None:
     print(f"Saved result to {output_path}")
 
     if args.plot:
-        if len(results) < 2:
-            print("Skipping plots: at least two result entries are needed.")
-        else:
-            make_plots(results=results, plot_dir=args.plot_dir)
-            print(f"Saved plots to {args.plot_dir}")
+        make_plots(results=results, plot_dir=args.plot_dir)
+        print(f"Saved plots to {args.plot_dir}")
 
 
 if __name__ == "__main__":
