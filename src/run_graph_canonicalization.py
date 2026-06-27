@@ -11,7 +11,7 @@ from pytensor.compile import mode as _ptmode
 from pytensor.graph.fg import FunctionGraph
 from pytensor.graph.traversal import explicit_graph_inputs
 
-from config import (
+from .config import (
     DEFAULT_MODE,
     DEFAULT_N_RUNS,
     DEFAULT_TARGET,
@@ -19,7 +19,7 @@ from config import (
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from utils import (
+from .utils import (
     build_log_prob,
     get_current_rss_mb,
     get_peak_rss_mb,

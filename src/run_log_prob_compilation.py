@@ -11,7 +11,7 @@ from typing import Any
 from pyhs3 import jaxify
 from pyhs3.transpile import JaxifiedGraph
 from pyhs3.workspace import Workspace
-from utils import (
+from .utils import (
     get_current_rss_mb,
     get_peak_rss_mb,
     make_bar_plot,
@@ -25,7 +25,7 @@ from utils import (
     build_validation_inputs,
 )
 
-from config import (
+from .config import (
     DEFAULT_MODE,
     DEFAULT_N_RUNS,
     DEFAULT_TARGET,

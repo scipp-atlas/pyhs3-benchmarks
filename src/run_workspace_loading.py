@@ -2,19 +2,20 @@ from __future__ import annotations
 
 import argparse
 import gc
+import json
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
 
 from pyhs3.workspace import Workspace
 
-from config import (
+from .config import (
     DEFAULT_N_RUNS,
     DEFAULT_WORKSPACE,
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from utils import (
+from .utils import (
     get_current_rss_mb,
     get_peak_rss_mb,
     load_workspace,
@@ -32,6 +33,54 @@ DEFAULT_OUTPUT_NAME = "workspace_loading_result.json"
 
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 DEFAULT_PLOT_NAME = "workspace_loading_wall_time.png"
+
+
+def validate_workspace_path(workspace_path: Path) -> Path:
+    """
+    Validate that the workspace path exists and points to a file.
+    """
+
+    workspace_path = Path(workspace_path)
+
+    if not workspace_path.exists():
+        raise FileNotFoundError(f"Workspace file does not exist: {workspace_path}")
+
+    if not workspace_path.is_file():
+        raise FileNotFoundError(f"Workspace path is not a file: {workspace_path}")
+
+    return workspace_path
+
+
+def validate_timings(timings: list[float]) -> None:
+    """
+    Validate timing samples before summary statistics are computed.
+    """
+
+    if len(timings) == 0:
+        raise ValueError("Timing samples are empty")
+
+    invalid_timings = [timing for timing in timings if timing <= 0]
+    if invalid_timings:
+        raise ValueError(
+            "All timing samples must be positive. "
+            f"Invalid samples: {invalid_timings}"
+        )
+
+
+def verify_output_file(output_path: Path) -> None:
+    """
+    Verify that benchmark JSON output was actually created.
+    """
+
+    if not output_path.exists():
+        raise FileNotFoundError(
+            f"Benchmark output file was not created: {output_path}"
+        )
+
+    if not output_path.is_file():
+        raise FileNotFoundError(
+            f"Benchmark output path is not a file: {output_path}"
+        )
 
 
 def validate_workspace(workspace: Workspace) -> dict[str, int | str]:
@@ -70,6 +119,8 @@ def measure_single_load_memory(workspace_path: Path) -> dict[str, Any]:
     loading can change RSS through allocator behavior and retained objects.
     """
 
+    workspace_path = validate_workspace_path(workspace_path)
+
     gc.collect()
 
     current_rss_before_mb = get_current_rss_mb()
@@ -104,14 +155,20 @@ def run_single_benchmark(
     Timing is measured separately using repeated loads.
     """
 
+    if n_runs < 1:
+        raise ValueError("n_runs must be at least 1")
+
+    workspace_path = validate_workspace_path(workspace_path)
+
     memory_summary = measure_single_load_memory(workspace_path)
 
     gc.collect()
 
-    workspace, timings = run_repeated_timing(
+    _, timings = run_repeated_timing(
         lambda: load_workspace(workspace_path),
         n_runs=n_runs,
     )
+    validate_timings(timings)
 
     timing_summary = summarize_timings(timings)
 
@@ -263,11 +320,12 @@ def main() -> None:
     if args.n_runs < 1:
         raise ValueError("--n-runs must be at least 1")
 
+    workspace_paths = [validate_workspace_path(path) for path in args.workspaces]
     results = []
 
     ctx = get_context("spawn")
 
-    for workspace_path in args.workspaces:
+    for workspace_path in workspace_paths:
         with ctx.Pool(processes=1) as pool:
             result = pool.apply(
                 run_single_benchmark,
@@ -285,6 +343,7 @@ def main() -> None:
 
     output_path = args.output_dir / args.output_name
     save_json(output_data, output_path)
+    verify_output_file(output_path)
 
     print()
     print(f"Saved result to {output_path}")

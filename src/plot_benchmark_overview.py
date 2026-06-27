@@ -9,7 +9,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from config import PLOTS_DIR, RESULTS_DIR
+from .config import PLOTS_DIR, RESULTS_DIR
 
 
 BENCHMARK_NAME = "benchmark_overview"

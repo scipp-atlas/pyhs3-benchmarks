@@ -21,7 +21,7 @@ from pyhs3.transpile import JaxifiedGraph
 from pyhs3.workspace import Workspace
 from pytensor.tensor.variable import TensorVariable
 
-from config import WORKSPACE_LABELS
+from .config import WORKSPACE_LABELS
 
 
 def get_current_rss_mb() -> float:

@@ -10,7 +10,7 @@ from typing import Any
 from pyhs3.model import Model
 from pyhs3.workspace import Workspace
 
-from config import (
+from .config import (
     DEFAULT_MODE,
     DEFAULT_N_RUNS,
     DEFAULT_TARGET,
@@ -18,7 +18,7 @@ from config import (
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from utils import (
+from .utils import (
     create_model,
     get_current_rss_mb,
     get_peak_rss_mb,

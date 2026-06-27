@@ -4,13 +4,13 @@ from multiprocessing import get_context
 from pathlib import Path
 from typing import Any, Callable
 
-from run_compiled_evaluation import run_single_benchmark as run_compiled_evaluation
-from run_log_prob_compilation import run_single_benchmark as run_log_prob_compilation
-from run_log_prob_construction import run_single_benchmark as run_log_prob_construction
-from run_model_creation import run_single_benchmark as run_model_creation
-from run_nll_scan import run_single_benchmark as run_nll_scan
-from run_pdf_evaluation import run_single_benchmark as run_pdf_evaluation
-from run_workspace_loading import run_single_benchmark as run_workspace_loading
+from .run_compiled_evaluation import run_single_benchmark as run_compiled_evaluation
+from .run_log_prob_compilation import run_single_benchmark as run_log_prob_compilation
+from .run_log_prob_construction import run_single_benchmark as run_log_prob_construction
+from .run_model_creation import run_single_benchmark as run_model_creation
+from .run_nll_scan import run_single_benchmark as run_nll_scan
+from .run_pdf_evaluation import run_single_benchmark as run_pdf_evaluation
+from .run_workspace_loading import run_single_benchmark as run_workspace_loading
 
 WORKFLOW_STAGES = [
     "workspace_loading",

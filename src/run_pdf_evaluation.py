@@ -11,14 +11,14 @@ from typing import Any
 
 import numpy as np
 
-from config import (
+from .config import (
     DEFAULT_MODE,
     DEFAULT_TARGET,
     DEFAULT_WORKSPACE,
     PLOTS_DIR,
     RESULTS_DIR,
 )
-from utils import (
+from .utils import (
     create_model,
     get_current_rss_mb,
     get_peak_rss_mb,

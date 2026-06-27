@@ -9,7 +9,7 @@ from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
 
-from utils import (
+from .utils import (
     build_log_prob,
     build_validation_inputs,
     compile_log_prob,
@@ -20,7 +20,7 @@ from utils import (
     should_plot_metric,
 )
 
-from config import (
+from .config import (
     DEFAULT_MODE,
     DEFAULT_TARGET,
     DEFAULT_WORKSPACE,

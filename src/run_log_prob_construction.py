@@ -11,7 +11,7 @@ from pytensor.tensor.variable import TensorVariable
 
 from pyhs3.model import Model
 from pyhs3.workspace import Workspace
-from utils import (
+from .utils import (
     get_current_rss_mb,
     get_peak_rss_mb,
     make_bar_plot,
@@ -22,7 +22,7 @@ from utils import (
     create_model,
 )
 
-from config import (
+from .config import (
     DEFAULT_MODE,
     DEFAULT_N_RUNS,
     DEFAULT_TARGET,

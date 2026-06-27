@@ -6,7 +6,7 @@ from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
 
-from config import (
+from .config import (
     DEFAULT_MODE,
     DEFAULT_N_RUNS,
     DEFAULT_TARGET,
@@ -15,7 +15,7 @@ from config import (
     REPORTS_DIR,
     RESULTS_DIR,
 )
-from benchmark_stages import (
+from .benchmark_stages import (
     DEFAULT_DISTRIBUTION,
     DEFAULT_N_EVALUATIONS,
     DEFAULT_N_SCAN_POINTS,
@@ -26,7 +26,7 @@ from benchmark_stages import (
     build_stage_specs,
     resolve_stages,
 )
-from utils import (
+from .utils import (
     make_bar_plot,
     save_json,
     should_plot_metric,
