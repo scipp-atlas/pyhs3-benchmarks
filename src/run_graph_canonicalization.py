@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import gc
 import time
+import traceback
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any, cast
@@ -258,6 +259,49 @@ def print_result(result: dict[str, Any]) -> None:
     print(f"  apply node delta:   {result['apply_node_delta']}")
 
 
+
+def make_error_result(
+    workspace_path: Path,
+    target: str,
+    mode: str,
+    n_runs: int,
+    exc: Exception,
+) -> dict[str, Any]:
+    """
+    Build a structured benchmark result for a failed graph canonicalization run.
+    """
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": workspace_path.name,
+        "workspace_path": str(workspace_path),
+        "target": target,
+        "mode": mode,
+        "n_runs": n_runs,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": traceback.format_exc(),
+    }
+
+
+def print_error_result(result: dict[str, Any]) -> None:
+    """
+    Print a readable failed benchmark summary.
+    """
+
+    print()
+    print("=" * 72)
+    print("Graph canonicalization benchmark FAILED")
+    print("=" * 72)
+    print(f"Workspace: {result['workspace']}")
+    print(f"Target:    {result['target']}")
+    print(f"Mode:      {result['mode']}")
+    print(f"Runs:      {result['n_runs']}")
+    print(f"Status:    {result['status']}")
+    print(f"Error:     {result['error_type']}: {result['error_message']}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark PyTensor graph canonicalization for pyHS3 log_prob graphs."
@@ -274,6 +318,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
+    results = [
+        result
+        for result in results
+        if result.get("status") == "success"
+    ]
+
+    if len(results) < 2:
+        print("Skipping plots: at least two successful result entries are needed.")
+        return
+
     plot_dir.mkdir(parents=True, exist_ok=True)
 
     make_bar_plot(
@@ -327,14 +381,35 @@ def main() -> None:
     for workspace_path in args.workspaces:
         for target in args.targets:
             for mode in args.modes:
-                with ctx.Pool(processes=1) as pool:
-                    result = pool.apply(
-                        run_single_benchmark,
-                        args=(workspace_path, target, mode, args.n_runs),
+                print(
+                    f"Running {workspace_path.name}, "
+                    f"target={target}, "
+                    f"mode={mode}, "
+                    f"n_runs={args.n_runs}",
+                    flush=True,
+                )
+
+                try:
+                    with ctx.Pool(processes=1) as pool:
+                        result = pool.apply(
+                            run_single_benchmark,
+                            args=(workspace_path, target, mode, args.n_runs),
+                        )
+                except Exception as exc:
+                    result = make_error_result(
+                        workspace_path=workspace_path,
+                        target=target,
+                        mode=mode,
+                        n_runs=args.n_runs,
+                        exc=exc,
                     )
 
                 results.append(result)
-                print_result(result)
+
+                if result["status"] == "success":
+                    print_result(result)
+                else:
+                    print_error_result(result)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
@@ -350,11 +425,8 @@ def main() -> None:
     print(f"Saved result to {output_path}")
 
     if args.plot:
-        if len(results) < 2:
-            print("Skipping plots: at least two result entries are needed.")
-        else:
-            make_plots(results=results, plot_dir=args.plot_dir)
-            print(f"Saved plots to {args.plot_dir}")
+        make_plots(results=results, plot_dir=args.plot_dir)
+        print(f"Saved plots to {args.plot_dir}")
 
 
 if __name__ == "__main__":

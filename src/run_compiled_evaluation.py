@@ -4,8 +4,10 @@ import argparse
 import gc
 import math
 import time
+import traceback
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from multiprocessing import get_context
 from pathlib import Path
@@ -83,10 +85,10 @@ def verify_output_file(output_path: Path) -> None:
 
 def extract_scalar_output(result) -> float:
     """
-    Extract a scalar float from the compiled log_prob output.
-    The compiled log_prob output is expected to be a tuple of tuples, 
-    where the first element is a 1x1 array containing the scalar value.
-    The scalar is the log probability of the model given the validation inputs.
+    Extract a scalar finite float from compiled log_prob output.
+
+    pyHS3/JAX compiled outputs are expected to be returned as a tuple whose
+    first element may be either scalar-like or array-like.
     """
 
     if not isinstance(result, tuple):
@@ -97,10 +99,20 @@ def extract_scalar_output(result) -> float:
     if len(result) == 0:
         raise ValueError("Compiled result tuple is empty")
 
+    array = np.asarray(result[0])
+
+    if array.size == 0:
+        raise ValueError("Compiled result array is empty")
+
     try:
-        return float(result[0][0])
+        value = float(array.reshape(-1)[0])
     except (TypeError, ValueError, IndexError) as exc:
         raise TypeError("Could not extract scalar float from compiled result") from exc
+
+    if not math.isfinite(value):
+        raise ValueError(f"Compiled result is not finite: {value}")
+
+    return value
 
 
 def prepare_compiled_graph(
@@ -366,6 +378,52 @@ def print_result(result: dict[str, Any]) -> None:
     print(f"  max abs deviation:  {result['max_absolute_deviation']}")
     print(f"  stable outputs:     {result['outputs_stable']}")
 
+
+
+def make_error_result(
+    workspace_path: Path,
+    target: str,
+    mode: str,
+    n_evaluations: int,
+    exc: Exception,
+) -> dict[str, Any]:
+    """Build a structured result for a failed compiled evaluation run."""
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": workspace_path.name,
+        "workspace_path": str(workspace_path),
+        "target": target,
+        "mode": mode,
+        "n_evaluations": n_evaluations,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": "".join(
+            traceback.format_exception(
+                type(exc),
+                exc,
+                exc.__traceback__,
+            )
+        ),
+    }
+
+
+def print_failed_result(result: dict[str, Any]) -> None:
+    """Print a readable failed benchmark summary."""
+
+    print()
+    print("=" * 72)
+    print("Compiled evaluation benchmark FAILED")
+    print("=" * 72)
+    print(f"Workspace:    {result['workspace']}")
+    print(f"Target:       {result['target']}")
+    print(f"Mode:         {result['mode']}")
+    print(f"Evaluations:  {result['n_evaluations']}")
+    print(f"Status:       {result['status']}")
+    print(f"Error:        {result['error_type']}: {result['error_message']}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark repeated evaluation of compiled pyHS3 log_prob graphs."
@@ -436,6 +494,16 @@ def make_scaling_line_plot(
     Each line corresponds to one workspace.
     """
 
+    results = [
+        result
+        for result in results
+        if result.get("status") == "success" and metric_key in result
+    ]
+
+    if not results:
+        print(f"Skipping {title}: no successful results with metric {metric_key}.")
+        return
+
     grouped: dict[str, list[dict[str, Any]]] = {}
 
     for result in results:
@@ -496,6 +564,12 @@ def make_plots(
     """
     Create scaling plots for the compiled evaluation benchmark.
     """
+
+    results = [result for result in results if result.get("status") == "success"]
+
+    if len(results) < 2:
+        print("Skipping plots: at least two successful result entries are needed.")
+        return
 
     plot_dir.mkdir(parents=True, exist_ok=True)
 
@@ -563,19 +637,40 @@ def main() -> None:
         for target in args.targets:
             for mode in args.modes:
                 for n_evaluations in args.n_evaluations:
-                    with ctx.Pool(processes=1) as pool:
-                        result = pool.apply(
-                            run_single_benchmark,
-                            args=(
-                                workspace_path,
-                                target,
-                                mode,
-                                n_evaluations,
-                            ),
+                    print(
+                        f"Running {workspace_path.name}, "
+                        f"target={target}, "
+                        f"mode={mode}, "
+                        f"n_evaluations={n_evaluations}",
+                        flush=True,
+                    )
+
+                    try:
+                        with ctx.Pool(processes=1) as pool:
+                            result = pool.apply(
+                                run_single_benchmark,
+                                args=(
+                                    workspace_path,
+                                    target,
+                                    mode,
+                                    n_evaluations,
+                                ),
+                            )
+                    except Exception as exc:
+                        result = make_error_result(
+                            workspace_path=workspace_path,
+                            target=target,
+                            mode=mode,
+                            n_evaluations=n_evaluations,
+                            exc=exc,
                         )
 
                     results.append(result)
-                    print_result(result)
+
+                    if result["status"] == "success":
+                        print_result(result)
+                    else:
+                        print_failed_result(result)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
@@ -591,11 +686,8 @@ def main() -> None:
     print(f"Saved result to {output_path}")
 
     if args.plot:
-        if len(results) < 2:
-            print("Skipping plots: at least two result entries are needed.")
-        else:
-            make_plots(results=results, plot_dir=args.plot_dir)
-            print(f"Saved plots to {args.plot_dir}")
+        make_plots(results=results, plot_dir=args.plot_dir)
+        print(f"Saved plots to {args.plot_dir}")
 
 
 if __name__ == "__main__":
