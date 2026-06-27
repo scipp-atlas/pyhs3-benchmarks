@@ -1447,7 +1447,7 @@ This is useful for verifying benchmark configuration before launching long bench
 
 # Benchmark Overview
 
-After running one or more benchmarks, the repository can generate summary plots across all benchmark results.
+The benchmark overview aggregates results from all executed benchmarks into a concise set of high-level performance visualizations. These plots are intended to provide an overall view of benchmark behavior rather than detailed analysis of individual benchmark runs.
 
 ---
 
@@ -1461,40 +1461,32 @@ python src/plot_benchmark_overview.py
 
 ## Available Arguments
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `--results-dir` | Benchmark result directory | `results/` |
-| `--plots` | Overview plots to generate | `all` |
+| Argument        | Description                                 | Default    |
+| --------------- | ------------------------------------------- | ---------- |
+| `--results-dir` | Directory containing benchmark result files | `results/` |
+| `--plots`       | Overview plots to generate                  | `all`      |
 
 ---
 
 ## Available Overview Plots
 
-The following plots are currently supported.
+| Plot                  | Description                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `performance_summary` | High-level comparison of setup, evaluation, and scan performance across workspaces |
+| `stage_timing`        | Runtime breakdown by workflow stage                                                |
+| `stage_memory`        | Peak RSS memory breakdown by workflow stage                                        |
 
-| Plot | Description |
-|------|-------------|
-| `status` | Benchmark success/failure summary |
-| `wall_time` | Average benchmark wall time |
-| `evaluation_time` | Average evaluation runtime |
-| `scan_time` | Runtime per NLL scan point |
-| `setup_time` | Setup cost across workflow stages |
-| `peak_rss` | Peak RSS memory usage |
-| `total_peak_rss` | Total peak RSS across benchmarks |
-| `stage_timing` | Runtime broken down by workflow stage |
-| `stage_memory` | Memory usage broken down by workflow stage |
-
-Generate every overview plot:
+Generate the complete benchmark overview:
 
 ```bash
 python src/plot_benchmark_overview.py --plots all
 ```
 
-Generate selected plots only:
+Generate only selected overview plots:
 
 ```bash
 python src/plot_benchmark_overview.py \
-    --plots wall_time peak_rss stage_memory
+    --plots performance_summary stage_memory
 ```
 
 ---
@@ -1507,55 +1499,39 @@ Overview figures are written to
 plots/benchmark_overview/
 ```
 
-Depending on the selected plots, generated figures may include
+Depending on the selected plots, generated figures include
 
 ```text
-benchmark_status.png
-benchmark_wall_time.png
-benchmark_evaluation_time.png
-benchmark_scan_time.png
-benchmark_setup_time.png
-benchmark_peak_rss.png
-benchmark_total_peak_rss.png
-benchmark_stage_timing.png
-benchmark_stage_memory.png
+benchmark_overview_performance_summary.png
+benchmark_overview_stage_timing.png
+benchmark_overview_stage_memory.png
 ```
 
 ---
 
 ## Example Plots
 
-### Wall Time
+### Performance Summary
 
-![Benchmark Overview Wall Time](plots/benchmark_overview/benchmark_overview_wall_time.png)
+Provides a concise comparison of the main benchmark performance metrics across all evaluated workspaces.
 
-### Average Evaluation Time
+![Performance Summary](plots/benchmark_overview/benchmark_overview_performance_summary.png)
 
-![Benchmark Overview Average Evaluation Time](plots/benchmark_overview/benchmark_overview_average_evaluation_time.png)
-
-### NLL Scan Time
-
-![Benchmark Overview Scan Time](plots/benchmark_overview/benchmark_overview_scan_time.png)
-
-### Setup Time
-
-![Benchmark Overview Setup Time](plots/benchmark_overview/benchmark_overview_setup_time.png)
-
-### Peak RSS Delta
-
-![Benchmark Overview Peak RSS Delta](plots/benchmark_overview/benchmark_overview_peak_rss_delta.png)
-
-### Total Peak RSS Delta
-
-![Benchmark Overview Total Peak RSS Delta](plots/benchmark_overview/benchmark_overview_total_peak_rss_delta.png)
+---
 
 ### Stage Timing Breakdown
 
-![Benchmark Overview Stage Timing](plots/benchmark_overview/benchmark_overview_stage_timing.png)
+Shows how the total runtime is distributed across the major execution stages, making it easy to identify the dominant performance bottlenecks.
+
+![Stage Timing Breakdown](plots/benchmark_overview/benchmark_overview_stage_timing.png)
+
+---
 
 ### Stage Memory Breakdown
 
-![Benchmark Overview Stage Memory](plots/benchmark_overview/benchmark_overview_stage_memory.png)
+Shows the contribution of each workflow stage to the total peak RSS memory usage for every workspace.
+
+![Stage Memory Breakdown](plots/benchmark_overview/benchmark_overview_stage_memory.png)
 
 ---
 

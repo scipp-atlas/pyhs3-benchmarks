@@ -40,6 +40,66 @@ DEFAULT_OUTPUT_NAME = "nll_scan_result.json"
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 
 
+def validate_workspace_path(workspace_path: Path) -> Path:
+    """
+    Validate that the workspace path points to an existing file.
+    """
+
+    if not workspace_path.exists():
+        raise FileNotFoundError(f"Workspace file does not exist: {workspace_path}")
+
+    if not workspace_path.is_file():
+        raise FileNotFoundError(f"Workspace path is not a file: {workspace_path}")
+
+    return workspace_path
+
+
+def validate_benchmark_config(
+    target: str,
+    mode: str,
+    scan_parameter: str,
+    scan_min: float,
+    scan_max: float,
+    n_scan_points: int,
+) -> None:
+    """
+    Validate NLL scan configuration before running expensive work.
+    """
+
+    if not target:
+        raise ValueError("target must be a non-empty string")
+
+    if not mode:
+        raise ValueError("mode must be a non-empty string")
+
+    if not scan_parameter:
+        raise ValueError("scan_parameter must be a non-empty string")
+
+    if not math.isfinite(scan_min):
+        raise ValueError("scan_min must be finite")
+
+    if not math.isfinite(scan_max):
+        raise ValueError("scan_max must be finite")
+
+    if scan_min >= scan_max:
+        raise ValueError("scan_min must be smaller than scan_max")
+
+    if n_scan_points < 2:
+        raise ValueError("n_scan_points must be at least 2")
+
+
+def verify_output_file(output_path: Path) -> None:
+    """
+    Verify that save_json created a regular output file.
+    """
+
+    if not output_path.exists():
+        raise FileNotFoundError(f"Benchmark output file was not created: {output_path}")
+
+    if not output_path.is_file():
+        raise FileNotFoundError(f"Benchmark output path is not a file: {output_path}")
+
+
 def extract_log_prob(result) -> float:
     """
     Extract the log probability value from the compiled result.
@@ -53,7 +113,17 @@ def extract_log_prob(result) -> float:
     if len(result) == 0:
         raise ValueError("Compiled result tuple is empty")
 
-    return float(np.asarray(result[0]).reshape(-1)[0])
+    array = np.asarray(result[0])
+
+    if array.size == 0:
+        raise ValueError("Compiled result array is empty")
+
+    value = float(array.reshape(-1)[0])
+
+    if not math.isfinite(value):
+        raise ValueError(f"Compiled log_prob is not finite: {value}")
+
+    return value
 
 
 def make_scan_values(
@@ -65,8 +135,14 @@ def make_scan_values(
     Create a list of scan values for the given range and number of points.
     """
 
-    if n_scan_points < 2:
-        raise ValueError("n_scan_points must be at least 2")
+    validate_benchmark_config(
+        target="validation_target",
+        mode="validation_mode",
+        scan_parameter="validation_scan_parameter",
+        scan_min=scan_min,
+        scan_max=scan_max,
+        n_scan_points=n_scan_points,
+    )
 
     return np.linspace(
         scan_min,
@@ -83,6 +159,12 @@ def set_scan_parameter(
     """
     Set the value of a scan parameter in the inputs dictionary.
     """
+
+    if not parameter_name:
+        raise ValueError("parameter_name must be a non-empty string")
+
+    if not math.isfinite(value):
+        raise ValueError(f"Scan value must be finite: {value}")
 
     if parameter_name not in inputs:
         raise KeyError(
@@ -150,20 +232,26 @@ def validate_nll_scan(
 
     all_finite = all(math.isfinite(value) for value in nll_values)
 
+    if not all_finite:
+        raise ValueError("NLL scan produced non-finite values")
+
     minimum_index = min(
         range(len(nll_values)),
         key=lambda index: nll_values[index],
     )
 
+    nll_min = min(nll_values)
+    nll_max = max(nll_values)
+
     return {
         "n_scan_outputs": len(nll_values),
-        "all_nll_values_finite": all_finite,
+        "all_nll_values_finite": True,
         "minimum_index": minimum_index,
         "minimum_scan_value": scan_values[minimum_index],
         "minimum_nll_value": nll_values[minimum_index],
-        "nll_min": min(nll_values),
-        "nll_max": max(nll_values),
-        "nll_range": max(nll_values) - min(nll_values),
+        "nll_min": nll_min,
+        "nll_max": nll_max,
+        "nll_range": nll_max - nll_min,
     }
 
 
@@ -176,6 +264,9 @@ def measure_nll_scan_timing(
     """
     Measure the timing of an NLL scan.
     """
+
+    if len(scan_values) == 0:
+        raise ValueError("Scan grid is empty")
 
     start = time.perf_counter()
 
@@ -214,6 +305,9 @@ def measure_nll_scan_memory(
     """
     Measure the memory usage of an NLL scan.
     """
+
+    if len(scan_values) == 0:
+        raise ValueError("Scan grid is empty")
 
     evaluate_nll_scan(
         compiled=compiled,
@@ -261,8 +355,15 @@ def run_single_benchmark(
     Run a single NLL scan benchmark.
     """
 
-    if n_scan_points < 2:
-        raise ValueError("n_scan_points must be at least 2")
+    validate_benchmark_config(
+        target=target,
+        mode=mode,
+        scan_parameter=scan_parameter,
+        scan_min=scan_min,
+        scan_max=scan_max,
+        n_scan_points=n_scan_points,
+    )
+    workspace_path = validate_workspace_path(workspace_path)
 
     model, log_prob = build_log_prob(
         workspace_path=workspace_path,
@@ -434,6 +535,8 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
             metric_key="current_rss_delta_mb",
             metric_label="Current RSS delta [MB]",
         )
+    else:
+        print("Skipping current RSS plot: all values are zero.")
 
     if should_plot_metric(plot_results, "peak_rss_delta_mb"):
         make_bar_plot(
@@ -443,14 +546,31 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
             metric_key="peak_rss_delta_mb",
             metric_label="Peak RSS delta [MB]",
         )
+    else:
+        print("Skipping peak RSS plot: all values are zero.")
 
 
 def main() -> None:
     args = parse_args()
 
+    if not args.scan_parameter:
+        raise ValueError("--scan-parameter must be a non-empty string")
+
+    if not math.isfinite(args.scan_min):
+        raise ValueError("--scan-min must be finite")
+
+    if not math.isfinite(args.scan_max):
+        raise ValueError("--scan-max must be finite")
+
+    if args.scan_min >= args.scan_max:
+        raise ValueError("--scan-min must be smaller than --scan-max")
+
     for n_scan_points in args.n_scan_points:
         if n_scan_points < 2:
             raise ValueError("--n-scan-points values must be at least 2")
+
+    for workspace_path in args.workspaces:
+        validate_workspace_path(workspace_path)
 
     results = []
     ctx = get_context("spawn")
@@ -493,6 +613,7 @@ def main() -> None:
 
     output_path = args.output_dir / args.output_name
     save_json(output_data, output_path)
+    verify_output_file(output_path)
 
     print()
     print(f"Saved result to {output_path}")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -46,6 +47,72 @@ SETUP_STAGES = [
     "log_prob_construction",
     "log_prob_compilation",
 ]
+
+
+def validate_workspace_path(workspace_path: Path) -> Path:
+    """Validate that the workspace path points to an existing file."""
+
+    if not workspace_path.exists():
+        raise FileNotFoundError(f"Workspace file does not exist: {workspace_path}")
+
+    if not workspace_path.is_file():
+        raise FileNotFoundError(f"Workspace path is not a file: {workspace_path}")
+
+    return workspace_path
+
+
+def validate_benchmark_config(
+    target: str,
+    mode: str,
+    n_runs: int,
+    n_evaluations: int,
+    distribution: str,
+    scan_parameter: str,
+    scan_min: float,
+    scan_max: float,
+    n_scan_points: int,
+) -> None:
+    """Validate benchmark configuration before running expensive work."""
+
+    if not target:
+        raise ValueError("target must be a non-empty string")
+
+    if not mode:
+        raise ValueError("mode must be a non-empty string")
+
+    if n_runs < 1:
+        raise ValueError("n_runs must be at least 1")
+
+    if n_evaluations < 1:
+        raise ValueError("n_evaluations must be at least 1")
+
+    if not distribution:
+        raise ValueError("distribution must be a non-empty string")
+
+    if not scan_parameter:
+        raise ValueError("scan_parameter must be a non-empty string")
+
+    if not math.isfinite(scan_min):
+        raise ValueError("scan_min must be finite")
+
+    if not math.isfinite(scan_max):
+        raise ValueError("scan_max must be finite")
+
+    if scan_min >= scan_max:
+        raise ValueError("scan_min must be smaller than scan_max")
+
+    if n_scan_points < 2:
+        raise ValueError("n_scan_points must be at least 2")
+
+
+def verify_output_file(output_path: Path) -> None:
+    """Verify that an output writer created a regular file."""
+
+    if not output_path.exists():
+        raise FileNotFoundError(f"Output file was not created: {output_path}")
+
+    if not output_path.is_file():
+        raise FileNotFoundError(f"Output path is not a file: {output_path}")
 
 
 def summarize_stage(
@@ -117,6 +184,19 @@ def run_single_scaling_benchmark(
     """
     Run selected benchmark stages for one workspace and collect one scaling row.
     """
+
+    validate_benchmark_config(
+        target=target,
+        mode=mode,
+        n_runs=n_runs,
+        n_evaluations=n_evaluations,
+        distribution=distribution,
+        scan_parameter=scan_parameter,
+        scan_min=scan_min,
+        scan_max=scan_max,
+        n_scan_points=n_scan_points,
+    )
+    workspace_path = validate_workspace_path(workspace_path)
 
     selected_stages = resolve_stages(stages)
 
@@ -541,6 +621,29 @@ def main() -> None:
     if args.n_scan_points < 2:
         raise ValueError("--n-scan-points must be at least 2")
 
+    for workspace_path in args.workspaces:
+        validate_workspace_path(workspace_path)
+
+    for target in args.targets:
+        if not target:
+            raise ValueError("--targets must contain only non-empty strings")
+
+    for mode in args.modes:
+        if not mode:
+            raise ValueError("--modes must contain only non-empty strings")
+
+    validate_benchmark_config(
+        target=args.targets[0],
+        mode=args.modes[0],
+        n_runs=args.n_runs,
+        n_evaluations=args.n_evaluations,
+        distribution=args.distribution,
+        scan_parameter=args.scan_parameter,
+        scan_min=args.scan_min,
+        scan_max=args.scan_max,
+        n_scan_points=args.n_scan_points,
+    )
+
     selected_stages = resolve_stages(args.stages)
 
     results = []
@@ -591,12 +694,14 @@ def main() -> None:
         output_data,
         output_path,
     )
+    verify_output_file(output_path)
 
     csv_path = args.report_dir / args.csv_name
     write_summary_csv(
         results=results,
         output_path=csv_path,
     )
+    verify_output_file(csv_path)
 
     print()
     print(f"Saved result to {output_path}")
