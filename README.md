@@ -50,9 +50,15 @@ reports/
 
 # Benchmark Inputs
 
-The repository contains generators for reproducible benchmark inputs.
+The benchmark suite uses two categories of input models.
+
+The primary benchmark workspaces included in this repository were generated using the ([workspace-scripts repository](https://github.com/scipp-atlas/workspace-scripts)), which provides utilities for constructing representative HS3 workspaces for benchmarking and testing. These workspaces serve as the main inputs for the workflow benchmarks, including workspace loading, model creation, graph construction, compilation, and execution.
+
+In addition to these benchmark workspaces, this repository provides its own generators for creating reproducible benchmark inputs used by specialized benchmarks. These generators produce deterministic scalar PDF workspaces and synthetic binned likelihood models, ensuring that all benchmark inputs are reproducible, easy to regenerate, and consistent across repeated experiments.
 
 ## Scalar PDF Workspaces
+
+This script automatically generates a collection of minimal HS3 workspaces used by the scalar PDF evaluation benchmarks. Each generated workspace represents a simple statistical model containing a single probability distribution (Gaussian, Poisson, or Exponential) together with the associated parameters, data, domains, likelihood, and analysis definition. By generating these workspaces programmatically, the repository ensures that all PDF evaluation benchmarks use reproducible and consistent benchmark inputs while eliminating the need to maintain manually created JSON files. The generator can also validate the produced workspaces by loading them with PyHS3 and performing a test PDF evaluation.
 
 Generate scalar PDF benchmark workspaces:
 
@@ -88,6 +94,8 @@ The generator is deterministic and produces identical outputs across repeated ru
 ---
 
 ## Binned Likelihood Models
+
+This script automatically generates synthetic binned likelihood models for benchmarking and cross-framework comparisons. For each requested number of bins, it creates deterministic signal, background, and observation data together with equivalent model descriptions for both PyHS3 and pyhf. Using automatically generated benchmark inputs guarantees reproducibility, ensures that different frameworks are evaluated on identical statistical models, and makes it straightforward to extend benchmarking studies to models of different sizes. An optional validation step verifies that the generated PyHS3 workspaces can be successfully loaded and executed.
 
 Generate benchmark likelihood models:
 
@@ -1588,6 +1596,29 @@ The benchmark suite is designed so that
 - plots can be regenerated from stored benchmark results
 
 This makes the repository suitable for continuous benchmarking, regression testing, and performance tracking across PyHS3 releases.
+
+# Scalene Profiling
+
+In addition to the benchmarking suite, the repository supports performance profiling using **Scalene**. While the benchmark scripts measure execution time and memory usage at the workflow level, Scalene provides detailed line-by-line profiling information, making it possible to identify computational bottlenecks, expensive function calls, and sources of excessive memory allocation.
+
+Profiling can be performed on any benchmark script. For example, to profile the model creation benchmark:
+
+```bash
+scalene \
+    --outfile results/scalene/model_creation.html \
+    src/run_model_creation.py
+```
+
+Profiling reports are written to:
+
+```text
+results/scalene/
+```
+
+Each report is generated as a self-contained HTML file that can be opened directly in any modern web browser. The reports include detailed CPU, memory, and allocation statistics for every executed line of code, making them useful for optimization and debugging.
+
+Unlike benchmark results, Scalene reports are intended for interactive performance investigation and are therefore **not committed to the repository**. They can be regenerated at any time when profiling a benchmark or evaluating the impact of implementation changes.
+
 
 # Future Work
 
