@@ -4,7 +4,6 @@ import argparse
 import gc
 import math
 import time
-import tracemalloc
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -24,6 +23,8 @@ from .utils import (
     get_peak_rss_mb,
     load_workspace,
     make_bar_plot,
+    make_grouped_bar_plot,
+    make_line_plot_by_evaluations,
     save_json,
     should_plot_metric,
 )
@@ -44,6 +45,55 @@ DEFAULT_OUTPUT_NAME = "pdf_evaluation_result.json"
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 
 
+def validate_workspace_path(workspace_path: Path) -> Path:
+    """
+    Validate that the workspace path points to an existing JSON file.
+    """
+
+    if not workspace_path.exists():
+        raise FileNotFoundError(f"Workspace file does not exist: {workspace_path}")
+
+    if not workspace_path.is_file():
+        raise FileNotFoundError(f"Workspace path is not a file: {workspace_path}")
+
+    return workspace_path
+
+
+def validate_benchmark_config(
+    target: str,
+    mode: str,
+    distribution: str,
+    n_evaluations: int,
+) -> None:
+    """
+    Validate benchmark configuration before running expensive work.
+    """
+
+    if not target:
+        raise ValueError("target must be a non-empty string")
+
+    if not mode:
+        raise ValueError("mode must be a non-empty string")
+
+    if not distribution:
+        raise ValueError("distribution must be a non-empty string")
+
+    if n_evaluations < 1:
+        raise ValueError("n_evaluations must be at least 1")
+
+
+def verify_output_file(output_path: Path) -> None:
+    """
+    Verify that save_json created a regular output file.
+    """
+
+    if not output_path.exists():
+        raise FileNotFoundError(f"Benchmark output file was not created: {output_path}")
+
+    if not output_path.is_file():
+        raise FileNotFoundError(f"Benchmark output path is not a file: {output_path}")
+
+
 def build_parameter_inputs(model) -> dict[str, Any]:
     """
     Build keyword inputs for model.pdf(...) from the model data and free
@@ -61,7 +111,7 @@ def build_parameter_inputs(model) -> dict[str, Any]:
 
 def extract_scalar_output(result) -> float:
     """
-    Convert a model.pdf(...) result into a scalar float for validation.
+    Convert a model.pdf(...) result into a scalar finite float for validation.
     """
 
     array = np.asarray(result)
@@ -69,7 +119,12 @@ def extract_scalar_output(result) -> float:
     if array.size == 0:
         raise ValueError("PDF result is empty")
 
-    return float(array.reshape(-1)[0])
+    value = float(array.reshape(-1)[0])
+
+    if not math.isfinite(value):
+        raise ValueError(f"PDF result is not finite: {value}")
+
+    return value
 
 
 def measure_cold_start_pdf_call(
@@ -124,6 +179,10 @@ def validate_pdf_outputs(outputs: list[float]) -> dict[str, Any]:
         raise ValueError("No PDF outputs were produced")
 
     all_finite = all(math.isfinite(output) for output in outputs)
+
+    if not all_finite:
+        raise ValueError("PDF outputs contain non-finite values")
+
     reference_value = outputs[0]
 
     max_absolute_deviation = max(
@@ -133,7 +192,7 @@ def validate_pdf_outputs(outputs: list[float]) -> dict[str, Any]:
 
     return {
         "n_outputs": len(outputs),
-        "all_outputs_finite": all_finite,
+        "all_outputs_finite": True,
         "reference_output": reference_value,
         "max_absolute_deviation": max_absolute_deviation,
         "outputs_stable": max_absolute_deviation < 1e-12,
@@ -151,6 +210,9 @@ def measure_pdf_evaluation_timing(
 
     The cold-start call is measured separately before this function.
     """
+
+    if n_evaluations < 1:
+        raise ValueError("n_evaluations must be at least 1")
 
     result = model.pdf(distribution, **parameters)
     first_output = extract_scalar_output(result)
@@ -192,6 +254,9 @@ def measure_pdf_evaluation_memory(
     Measure memory change for repeated warm model.pdf(...) evaluation.
     """
 
+    if n_evaluations < 1:
+        raise ValueError("n_evaluations must be at least 1")
+
     result = model.pdf(distribution, **parameters)
     extract_scalar_output(result)
 
@@ -232,6 +297,14 @@ def run_single_benchmark(
     Workspace loading and model creation are setup only.
     The measured operation is model.pdf(...).
     """
+
+    validate_benchmark_config(
+        target=target,
+        mode=mode,
+        distribution=distribution,
+        n_evaluations=n_evaluations,
+    )
+    workspace_path = validate_workspace_path(workspace_path)
 
     workspace = load_workspace(workspace_path)
 
@@ -438,43 +511,47 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
         }
         plot_results.append(plot_result)
 
-    make_bar_plot(
+    # Cold start is mainly a first-call/setup metric, so a grouped bar plot
+    # is easier to read than one long sequence of bars.
+    make_grouped_bar_plot(
         results=plot_results,
-        output_path=plot_dir / "pdf_evaluation_cold_start_time.png",
+        output_path=plot_dir / "pdf_evaluation_cold_start_time_grouped.png",
         title="PDF evaluation cold-start time",
         metric_key="cold_start_time_ms",
         metric_label="Cold-start time [ms]",
     )
 
-    make_bar_plot(
+    # Warm timing and throughput naturally depend on n_evaluations, so line
+    # plots show the scaling trend more clearly than many separate bars.
+    make_line_plot_by_evaluations(
         results=plot_results,
-        output_path=plot_dir / "pdf_evaluation_average_time.png",
+        output_path=plot_dir / "pdf_evaluation_average_time_lines.png",
         title="PDF evaluation average warm wall time",
         metric_key="average_runtime_ms_per_evaluation",
         metric_label="Average warm time per evaluation [ms]",
     )
 
-    make_bar_plot(
+    make_line_plot_by_evaluations(
         results=plot_results,
-        output_path=plot_dir / "pdf_evaluation_throughput.png",
+        output_path=plot_dir / "pdf_evaluation_throughput_lines.png",
         title="PDF evaluation warm throughput",
         metric_key="throughput_evaluations_per_second",
         metric_label="Throughput [evaluations / s]",
     )
 
     if should_plot_metric(plot_results, "current_rss_delta_mb"):
-        make_bar_plot(
+        make_grouped_bar_plot(
             results=plot_results,
-            output_path=plot_dir / "pdf_evaluation_current_rss_delta.png",
+            output_path=plot_dir / "pdf_evaluation_current_rss_delta_grouped.png",
             title="PDF evaluation current RSS delta",
             metric_key="current_rss_delta_mb",
             metric_label="Current RSS delta [MB]",
         )
 
     if should_plot_metric(plot_results, "peak_rss_delta_mb"):
-        make_bar_plot(
+        make_grouped_bar_plot(
             results=plot_results,
-            output_path=plot_dir / "pdf_evaluation_peak_rss_delta.png",
+            output_path=plot_dir / "pdf_evaluation_peak_rss_delta_grouped.png",
             title="PDF evaluation peak RSS delta",
             metric_key="peak_rss_delta_mb",
             metric_label="Peak RSS delta [MB]",
@@ -483,6 +560,21 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
 
 def main() -> None:
     args = parse_args()
+
+    for workspace_path in args.workspaces:
+        validate_workspace_path(workspace_path)
+
+    for target in args.targets:
+        if not target:
+            raise ValueError("--targets must contain only non-empty strings")
+
+    for mode in args.modes:
+        if not mode:
+            raise ValueError("--modes must contain only non-empty strings")
+
+    for distribution in args.distributions:
+        if not distribution:
+            raise ValueError("--distributions must contain only non-empty strings")
 
     for n_evaluations in args.n_evaluations:
         if n_evaluations < 1:
@@ -528,6 +620,7 @@ def main() -> None:
 
     output_path = args.output_dir / args.output_name
     save_json(output_data, output_path)
+    verify_output_file(output_path)
 
     print()
     print(f"Saved result to {output_path}")

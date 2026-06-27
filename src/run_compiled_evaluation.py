@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+import argparse
+import gc
 import math
 import time
-import gc
-import argparse
 
 import matplotlib.pyplot as plt
 
@@ -43,6 +45,42 @@ DEFAULT_N_EVALUATIONS = [
     10000,
 ]
 
+
+def validate_workspace_path(workspace_path: Path) -> Path:
+    """Validate that the workspace path points to an existing JSON file."""
+
+    if not workspace_path.exists():
+        raise FileNotFoundError(f"Workspace file does not exist: {workspace_path}")
+
+    if not workspace_path.is_file():
+        raise FileNotFoundError(f"Workspace path is not a file: {workspace_path}")
+
+    return workspace_path
+
+
+def validate_benchmark_config(target: str, mode: str, n_evaluations: int) -> None:
+    """Validate benchmark configuration before running expensive work."""
+
+    if not target:
+        raise ValueError("target must be a non-empty string")
+
+    if not mode:
+        raise ValueError("mode must be a non-empty string")
+
+    if n_evaluations < 1:
+        raise ValueError("n_evaluations must be at least 1")
+
+
+def verify_output_file(output_path: Path) -> None:
+    """Verify that save_json created a regular output file."""
+
+    if not output_path.exists():
+        raise FileNotFoundError(f"Benchmark output file was not created: {output_path}")
+
+    if not output_path.is_file():
+        raise FileNotFoundError(f"Benchmark output path is not a file: {output_path}")
+
+
 def extract_scalar_output(result) -> float:
     """
     Extract a scalar float from the compiled log_prob output.
@@ -59,7 +97,11 @@ def extract_scalar_output(result) -> float:
     if len(result) == 0:
         raise ValueError("Compiled result tuple is empty")
 
-    return float(result[0][0])
+    try:
+        return float(result[0][0])
+    except (TypeError, ValueError, IndexError) as exc:
+        raise TypeError("Could not extract scalar float from compiled result") from exc
+
 
 def prepare_compiled_graph(
     workspace_path: Path,
@@ -119,6 +161,9 @@ def validate_evaluation(
         for output in outputs
     )
 
+    if not all_finite:
+        raise ValueError("Evaluation outputs contain non-finite values")
+
     reference_value = outputs[0]
 
     max_absolute_deviation = max(
@@ -146,6 +191,9 @@ def measure_evaluation_timing(
     Outputs are not stored here so that timing reflects evaluation cost, not
     Python list accumulation.
     """
+
+    if n_evaluations < 1:
+        raise ValueError("n_evaluations must be at least 1")
 
     result = compiled(**validation_inputs)
     first_output = extract_scalar_output(result)
@@ -225,6 +273,9 @@ def run_single_benchmark(
     Workspace loading, model creation, log_prob construction, and compilation
     are setup only. The measured operation is only compiled graph evaluation.
     """
+
+    validate_benchmark_config(target=target, mode=mode, n_evaluations=n_evaluations)
+    workspace_path = validate_workspace_path(workspace_path)
 
     model, compiled, validation_inputs = prepare_compiled_graph(
         workspace_path=workspace_path,
@@ -493,6 +544,17 @@ def main() -> None:
     if any(n_evaluations < 1 for n_evaluations in args.n_evaluations):
         raise ValueError("--n-evaluations values must be at least 1")
 
+    for workspace_path in args.workspaces:
+        validate_workspace_path(workspace_path)
+
+    for target in args.targets:
+        if not target:
+            raise ValueError("--targets must contain only non-empty strings")
+
+    for mode in args.modes:
+        if not mode:
+            raise ValueError("--modes must contain only non-empty strings")
+
     results = []
 
     ctx = get_context("spawn")
@@ -523,6 +585,7 @@ def main() -> None:
 
     output_path = args.output_dir / args.output_name
     save_json(output_data, output_path)
+    verify_output_file(output_path)
 
     print()
     print(f"Saved result to {output_path}")
