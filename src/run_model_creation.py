@@ -38,33 +38,72 @@ DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 DEFAULT_PLOT_NAME = "model_creation_wall_time.png"
 
 
+def validate_workspace_path(workspace_path: Path) -> Path:
+    """
+    Validate that the workspace path points to an existing JSON file.
+    """
+
+    if not workspace_path.exists():
+        raise FileNotFoundError(f"Workspace file does not exist: {workspace_path}")
+
+    if not workspace_path.is_file():
+        raise FileNotFoundError(f"Workspace path is not a file: {workspace_path}")
+
+    return workspace_path
+
+
+def validate_benchmark_config(target: str, mode: str, n_runs: int) -> None:
+    """
+    Validate benchmark configuration before running expensive work.
+    """
+
+    if not target:
+        raise ValueError("target must be a non-empty string")
+
+    if not mode:
+        raise ValueError("mode must be a non-empty string")
+
+    if n_runs < 1:
+        raise ValueError("n_runs must be at least 1")
+
+
+def validate_timings(timings: list[float]) -> None:
+    """
+    Validate timing samples before summarizing them.
+    """
+
+    if len(timings) == 0:
+        raise ValueError("Timing samples are empty")
+
+    if any(timing <= 0 for timing in timings):
+        raise ValueError("All timing samples must be positive")
+
+
+def verify_output_file(output_path: Path) -> None:
+    """
+    Verify that save_json created a regular output file.
+    """
+
+    if not output_path.exists():
+        raise FileNotFoundError(f"Benchmark output file was not created: {output_path}")
+
+    if not output_path.is_file():
+        raise FileNotFoundError(f"Benchmark output path is not a file: {output_path}")
+
 def validate_model(model: Model) -> dict[str, Any]:
     """
-    Validate that the created model exposes expected interfaces.
+    Validate that model creation succeeded.
+
+    This benchmark intentionally does not access properties such as
+    data, free_params or log_prob because they may require a likelihood
+    context and are validated by later benchmarks.
     """
 
     if model is None:
         raise ValueError("Model creation returned None")
 
-    if not hasattr(model, "log_prob"):
-        raise ValueError("Model does not expose log_prob")
-
-    if not hasattr(model, "data"):
-        raise ValueError("Model does not expose data")
-
-    if not hasattr(model, "free_params"):
-        raise ValueError("Model does not expose free_params")
-
     return {
         "model_type": type(model).__name__,
-        "has_log_prob": hasattr(model, "log_prob"),
-        "has_data": hasattr(model, "data"),
-        "has_free_params": hasattr(model, "free_params"),
-        "n_free_params": (
-            len(model.free_params)
-            if getattr(model, "free_params", None) is not None
-            else 0
-        ),
     }
 
 
@@ -162,6 +201,9 @@ def run_single_benchmark(
     Memory measures one isolated ws.model(...) call.
     """
 
+    validate_benchmark_config(target=target, mode=mode, n_runs=n_runs)
+    workspace_path = validate_workspace_path(workspace_path)
+
     workspace = load_workspace(workspace_path)
 
     model, memory_summary = measure_model_creation_memory(
@@ -180,6 +222,7 @@ def run_single_benchmark(
         mode=mode,
         n_runs=n_runs,
     )
+    validate_timings(timings)
     timing_summary = summarize_timings(timings)
 
     return {
@@ -231,11 +274,6 @@ def print_result(result: dict[str, Any]) -> None:
     print()
     print("Validation")
     print(f"  model type:       {result['model_type']}")
-    print(f"  has log_prob:     {result['has_log_prob']}")
-    print(f"  has data:         {result['has_data']}")
-    print(f"  has free_params:  {result['has_free_params']}")
-    print(f"  free parameters:  {result['n_free_params']}")
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -346,6 +384,17 @@ def main() -> None:
     if args.n_runs < 1:
         raise ValueError("--n-runs must be at least 1")
 
+    for workspace_path in args.workspaces:
+        validate_workspace_path(workspace_path)
+
+    for target in args.targets:
+        if not target:
+            raise ValueError("--targets must contain only non-empty strings")
+
+    for mode in args.modes:
+        if not mode:
+            raise ValueError("--modes must contain only non-empty strings")
+
     results = []
 
     ctx = get_context("spawn")
@@ -370,6 +419,7 @@ def main() -> None:
 
     output_path = args.output_dir / args.output_name
     save_json(output_data, output_path)
+    verify_output_file(output_path)
 
     print()
     print(f"Saved result to {output_path}")
