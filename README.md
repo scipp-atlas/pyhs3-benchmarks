@@ -819,21 +819,17 @@ Memory measurements are collected independently from timing measurements.
 
 ## Example Plots
 
-### Cold Start
+### Average Runtime Per Evaluation
 
-![Cold Start](plots/pdf_evaluation/pdf_evaluation_cold_start_time_seconds.png)
-
-### Average Runtime
-
-![Average Runtime](plots/pdf_evaluation/pdf_evaluation_average_runtime_seconds_per_evaluation.png)
+![PDF Evaluation Average Runtime](plots/pdf_evaluation/pdf_evaluation_average_time.png)
 
 ### Throughput
 
-![Throughput](plots/pdf_evaluation/pdf_evaluation_throughput_evaluations_per_second.png)
+![PDF Evaluation Throughput](plots/pdf_evaluation/pdf_evaluation_throughput.png)
 
-### Current RSS Delta
+### Cold-Start Runtime
 
-![Current RSS](plots/pdf_evaluation/pdf_evaluation_current_rss_delta.png)
+![PDF Evaluation Cold Start Runtime](plots/pdf_evaluation/pdf_evaluation_cold_start_time.png)
 
 ---
 
@@ -929,21 +925,13 @@ Memory measurements therefore isolate scan execution rather than graph construct
 
 ## Example Plots
 
-### Runtime per Scan Point
+### Total Runtime
 
-![Runtime](plots/nll_scan/nll_scan_runtime_per_scan_point_seconds.png)
+![NLL Scan Total Runtime](plots/nll_scan/nll_scan_total_runtime.png)
 
-### Scan Throughput
+### Runtime Per Scan Point
 
-![Throughput](plots/nll_scan/nll_scan_throughput_scan_points_per_second.png)
-
-### Current RSS Delta
-
-![Current RSS](plots/nll_scan/nll_scan_current_rss_delta.png)
-
-### Peak RSS Delta
-
-![Peak RSS](plots/nll_scan/nll_scan_peak_rss_delta.png)
+![NLL Scan Runtime Per Point](plots/nll_scan/nll_scan_runtime_per_point.png)
 
 ---
 
@@ -1040,11 +1028,15 @@ The benchmark reports
 
 ### Current RSS Delta
 
-![Current RSS](plots/memory_scaling/memory_scaling_current_rss_delta_mb.png)
+![Memory Scaling Current RSS Delta](plots/memory_scaling/memory_scaling_current_rss_delta.png)
 
 ### Peak RSS Delta
 
-![Peak RSS](plots/memory_scaling/memory_scaling_peak_rss_delta_mb.png)
+![Memory Scaling Peak RSS Delta](plots/memory_scaling/memory_scaling_peak_rss_delta.png)
+
+### Peak RSS After Stage
+
+![Memory Scaling Peak RSS After Stage](plots/memory_scaling/memory_scaling_peak_rss_after.png)
 
 ---
 
@@ -1143,21 +1135,25 @@ The benchmark reports
 
 ## Example Plots
 
-### Wall Time
+### Total Setup Time
 
-![Wall Time](plots/model_complexity_scaling/model_complexity_scaling_wall_time.png)
+![Model Complexity Total Setup Time](plots/model_complexity_all_stages/model_complexity_total_setup_time.png)
 
-### Peak RSS
+### Compiled Evaluation Time
 
-![Peak RSS](plots/model_complexity_scaling/model_complexity_scaling_peak_rss.png)
+![Model Complexity Compiled Evaluation Time](plots/model_complexity_all_stages/model_complexity_compiled_evaluation_time.png)
 
-### Stage Timing
+### PDF Evaluation Time
 
-![Stage Timing](plots/model_complexity_scaling/model_complexity_scaling_stage_timing.png)
+![Model Complexity PDF Evaluation Time](plots/model_complexity_all_stages/model_complexity_pdf_evaluation_time.png)
 
-### Stage Memory
+### NLL Scan Time
 
-![Stage Memory](plots/model_complexity_scaling/model_complexity_scaling_stage_memory.png)
+![Model Complexity NLL Scan Time](plots/model_complexity_all_stages/model_complexity_nll_scan_time.png)
+
+### Peak RSS Delta
+
+![Model Complexity Peak RSS Delta](plots/model_complexity_all_stages/model_complexity_peak_rss_delta.png)
 
 ---
 
@@ -1237,15 +1233,11 @@ plots/graph_canonicalization/
 
 ### Wall Time
 
-![Wall Time](plots/graph_canonicalization/graph_canonicalization_wall_time.png)
+![Graph Canonicalization Wall Time](plots/graph_canonicalization_simple/graph_canonicalization_wall_time.png)
 
-### Current RSS
+### Current RSS Delta
 
-![Current RSS](plots/graph_canonicalization/graph_canonicalization_current_rss_delta.png)
-
-### Peak RSS
-
-![Peak RSS](plots/graph_canonicalization/graph_canonicalization_peak_rss_delta.png)
+![Graph Canonicalization Current RSS Delta](plots/graph_canonicalization_simple/graph_canonicalization_current_rss_delta.png)
 
 ---
 
@@ -1325,15 +1317,11 @@ plots/graph_optimization/
 
 ### Wall Time
 
-![Wall Time](plots/graph_optimization/graph_optimization_wall_time.png)
+![Graph Optimization Wall Time](plots/graph_optimization_simple/graph_optimization_wall_time.png)
 
-### Current RSS
+### Current RSS Delta
 
-![Current RSS](plots/graph_optimization/graph_optimization_current_rss_delta.png)
-
-### Peak RSS
-
-![Peak RSS](plots/graph_optimization/graph_optimization_peak_rss_delta.png)
+![Graph Optimization Current RSS Delta](plots/graph_optimization_simple/graph_optimization_current_rss_delta.png)
 
 ---
 
@@ -1539,39 +1527,39 @@ benchmark_stage_memory.png
 
 ### Benchmark Status
 
-![Benchmark Status](plots/benchmark_overview/benchmark_status.png)
+![Benchmark Overview Status](plots/benchmark_overview/benchmark_overview_status.png)
 
 ### Wall Time
 
-![Benchmark Wall Time](plots/benchmark_overview/benchmark_wall_time.png)
+![Benchmark Overview Wall Time](plots/benchmark_overview/benchmark_overview_wall_time.png)
 
-### Evaluation Runtime
+### Average Evaluation Time
 
-![Evaluation Runtime](plots/benchmark_overview/benchmark_evaluation_time.png)
+![Benchmark Overview Average Evaluation Time](plots/benchmark_overview/benchmark_overview_average_evaluation_time.png)
 
-### Scan Runtime
+### NLL Scan Time
 
-![Scan Runtime](plots/benchmark_overview/benchmark_scan_time.png)
+![Benchmark Overview Scan Time](plots/benchmark_overview/benchmark_overview_scan_time.png)
 
 ### Setup Time
 
-![Setup Time](plots/benchmark_overview/benchmark_setup_time.png)
+![Benchmark Overview Setup Time](plots/benchmark_overview/benchmark_overview_setup_time.png)
 
-### Peak RSS
+### Peak RSS Delta
 
-![Peak RSS](plots/benchmark_overview/benchmark_peak_rss.png)
+![Benchmark Overview Peak RSS Delta](plots/benchmark_overview/benchmark_overview_peak_rss_delta.png)
 
-### Total Peak RSS
+### Total Peak RSS Delta
 
-![Total Peak RSS](plots/benchmark_overview/benchmark_total_peak_rss.png)
+![Benchmark Overview Total Peak RSS Delta](plots/benchmark_overview/benchmark_overview_total_peak_rss_delta.png)
 
-### Stage Timing
+### Stage Timing Breakdown
 
-![Stage Timing](plots/benchmark_overview/benchmark_stage_timing.png)
+![Benchmark Overview Stage Timing](plots/benchmark_overview/benchmark_overview_stage_timing.png)
 
-### Stage Memory
+### Stage Memory Breakdown
 
-![Stage Memory](plots/benchmark_overview/benchmark_stage_memory.png)
+![Benchmark Overview Stage Memory](plots/benchmark_overview/benchmark_overview_stage_memory.png)
 
 ---
 
