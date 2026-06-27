@@ -288,6 +288,52 @@ def print_result(result: dict[str, Any]) -> None:
     print(f"  compilable:        {result['can_proceed_to_compilation']}")
 
 
+
+def print_error_result(result: dict[str, Any]) -> None:
+    """
+    Print a readable benchmark failure summary.
+    """
+
+    print()
+    print("=" * 72)
+    print("log_prob construction benchmark FAILED")
+    print("=" * 72)
+    print(f"Workspace: {result['workspace']}")
+    print(f"Target:    {result['target']}")
+    print(f"Mode:      {result['mode']}")
+    print(f"Runs:      {result['n_runs']}")
+    print(f"Status:    {result['status']}")
+    print(f"Error:     {result['error_type']}: {result['error_message']}")
+
+
+def make_error_result(
+    workspace_path: Path,
+    target: str,
+    mode: str,
+    n_runs: int,
+    exc: Exception,
+) -> dict[str, Any]:
+    """
+    Build a structured benchmark result for a failed run.
+
+    The benchmark suite should keep running across other workspaces, targets,
+    and modes even if one configuration fails. The original exception is kept
+    in a compact JSON-friendly form for later diagnosis.
+    """
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": workspace_path.name,
+        "workspace_path": str(workspace_path),
+        "target": target,
+        "mode": mode,
+        "n_runs": n_runs,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark symbolic log_prob construction from pyHS3 Models."
@@ -349,11 +395,17 @@ def make_plots(
     plot_dir: Path,
 ) -> None:
     """
-    Create standard plots for the log_prob construction benchmark.
+    Create standard plots for successful log_prob construction results.
     """
 
+    results = [result for result in results if result.get("status") == "success"]
+
+    if len(results) < 2:
+        print("Skipping plots: at least two successful result entries are needed.")
+        return
+
     plot_dir.mkdir(parents=True, exist_ok=True)
-    
+
     wall_time_plot_path = plot_dir / "log_prob_construction_wall_time.png"
     make_bar_plot(
         results=results,
@@ -412,14 +464,25 @@ def main() -> None:
     for workspace_path in args.workspaces:
         for target in args.targets:
             for mode in args.modes:
-                with ctx.Pool(processes=1) as pool:
-                    result = pool.apply(
-                        run_single_benchmark,
-                        args=(workspace_path, target, mode, args.n_runs),
+                try:
+                    with ctx.Pool(processes=1) as pool:
+                        result = pool.apply(
+                            run_single_benchmark,
+                            args=(workspace_path, target, mode, args.n_runs),
+                        )
+                except Exception as exc:
+                    result = make_error_result(
+                        workspace_path=workspace_path,
+                        target=target,
+                        mode=mode,
+                        n_runs=args.n_runs,
+                        exc=exc,
                     )
+                    print_error_result(result)
+                else:
+                    print_result(result)
 
                 results.append(result)
-                print_result(result)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,

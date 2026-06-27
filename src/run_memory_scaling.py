@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -307,6 +308,78 @@ def run_single_benchmark(
     }
 
 
+def make_error_result(
+    workspace_path: Path,
+    target: str,
+    mode: str,
+    n_runs: int,
+    n_evaluations: int,
+    stages: list[str],
+    distribution: str,
+    scan_parameter: str,
+    scan_min: float,
+    scan_max: float,
+    n_scan_points: int,
+    exc: Exception,
+) -> dict[str, Any]:
+    """
+    Build a structured benchmark result for a failed memory-scaling run.
+    """
+
+    selected_stages = list(stages)
+
+    return {
+        "benchmark": BENCHMARK_NAME,
+        "workspace": workspace_path.name,
+        "workspace_path": str(workspace_path),
+        "target": target,
+        "mode": mode,
+        "n_runs": n_runs,
+        "n_evaluations": n_evaluations,
+        "distribution": distribution,
+        "scan_parameter": scan_parameter,
+        "scan_min": scan_min,
+        "scan_max": scan_max,
+        "n_scan_points": n_scan_points,
+        "selected_stages": selected_stages,
+        "stages": [],
+        "stage_results": {},
+        "n_stages": len(selected_stages),
+        "all_stages_successful": False,
+        "all_rss_fields_present": False,
+        "missing_rss_fields": [],
+        "total_current_rss_delta_mb": 0.0,
+        "total_peak_rss_delta_mb": 0.0,
+        "max_peak_rss_after_mb": None,
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        ),
+    }
+
+
+def print_failed_result(result: dict[str, Any]) -> None:
+    """
+    Print a compact summary for a failed memory-scaling run.
+    """
+
+    print()
+    print("=" * 72)
+    print("RSS / memory scaling benchmark FAILED")
+    print("=" * 72)
+    print(f"Workspace: {result['workspace']}")
+    print(f"Target:    {result['target']}")
+    print(f"Mode:      {result['mode']}")
+    print(f"Stages:    {', '.join(result['selected_stages'])}")
+    print(
+        "Reason:    "
+        f"{result.get('error_type', 'UnknownError')}: "
+        f"{result.get('error_message', '')}"
+    )
+
+
 def make_plot_records(
     results: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -324,7 +397,13 @@ def make_plot_records(
     records = []
 
     for result in results:
-        for stage in result["stages"]:
+        if result.get("status") != "success":
+            continue
+
+        for stage in result.get("stages", []):
+            if any(stage.get(key) is None for key in RSS_KEYS):
+                continue
+
             records.append(
                 {
                     "plot_label": (
@@ -354,6 +433,10 @@ def make_plots(
 
     records = make_plot_records(results)
 
+    if not records:
+        print("Skipping plots: no successful stage records to plot.")
+        return
+
     if should_plot_metric(records, "current_rss_delta_mb"):
         make_bar_plot(
             results=records,
@@ -382,6 +465,10 @@ def make_plots(
 
 
 def print_result(result: dict[str, Any]) -> None:
+    if result.get("status") != "success":
+        print_failed_result(result)
+        return
+
     print()
     print("=" * 72)
     print("RSS / memory scaling benchmark")
@@ -506,9 +593,15 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
+    if not args.targets:
+        raise ValueError("--targets must contain at least one value")
+
+    if not args.modes:
+        raise ValueError("--modes must contain at least one value")
+
     validate_benchmark_config(
-        target=args.targets[0] if args.targets else "",
-        mode=args.modes[0] if args.modes else "",
+        target=args.targets[0],
+        mode=args.modes[0],
         n_runs=args.n_runs,
         n_evaluations=args.n_evaluations,
         distribution=args.distribution,
@@ -521,6 +614,14 @@ def main() -> None:
     for workspace_path in args.workspaces:
         validate_workspace_path(workspace_path)
 
+    for target in args.targets:
+        if not target:
+            raise ValueError("--targets must contain only non-empty strings")
+
+    for mode in args.modes:
+        if not mode:
+            raise ValueError("--modes must contain only non-empty strings")
+
     selected_stages = resolve_stages(args.stages)
 
     results = []
@@ -528,19 +629,43 @@ def main() -> None:
     for workspace_path in args.workspaces:
         for target in args.targets:
             for mode in args.modes:
-                result = run_single_benchmark(
-                    workspace_path=workspace_path,
-                    target=target,
-                    mode=mode,
-                    n_runs=args.n_runs,
-                    n_evaluations=args.n_evaluations,
-                    stages=selected_stages,
-                    distribution=args.distribution,
-                    scan_parameter=args.scan_parameter,
-                    scan_min=args.scan_min,
-                    scan_max=args.scan_max,
-                    n_scan_points=args.n_scan_points,
+                print(
+                    f"Running {workspace_path.name}, "
+                    f"target={target}, "
+                    f"mode={mode}, "
+                    f"stages={selected_stages}",
+                    flush=True,
                 )
+
+                try:
+                    result = run_single_benchmark(
+                        workspace_path=workspace_path,
+                        target=target,
+                        mode=mode,
+                        n_runs=args.n_runs,
+                        n_evaluations=args.n_evaluations,
+                        stages=selected_stages,
+                        distribution=args.distribution,
+                        scan_parameter=args.scan_parameter,
+                        scan_min=args.scan_min,
+                        scan_max=args.scan_max,
+                        n_scan_points=args.n_scan_points,
+                    )
+                except Exception as exc:
+                    result = make_error_result(
+                        workspace_path=workspace_path,
+                        target=target,
+                        mode=mode,
+                        n_runs=args.n_runs,
+                        n_evaluations=args.n_evaluations,
+                        stages=selected_stages,
+                        distribution=args.distribution,
+                        scan_parameter=args.scan_parameter,
+                        scan_min=args.scan_min,
+                        scan_max=args.scan_max,
+                        n_scan_points=args.n_scan_points,
+                        exc=exc,
+                    )
 
                 results.append(result)
                 print_result(result)
