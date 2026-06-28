@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import shlex
 import subprocess
 import sys
 import time
@@ -48,22 +50,43 @@ PRESETS = {
 
 @dataclass(frozen=True)
 class BenchmarkCommand:
-    """
-    Container for a benchmark name and execution command.
-    """
+    """Container for a benchmark name and execution command."""
 
     name: str
     command: list[str]
 
 
-def script_path(script_name: str) -> str:
+@dataclass(frozen=True)
+class BenchmarkRunResult:
+    """Structured result for one benchmark subprocess."""
+
+    name: str
+    command: list[str]
+    status: str
+    returncode: int | None
+    duration_seconds: float
+    error_type: str | None = None
+    error_message: str | None = None
+
+
+def module_name(script_name: str) -> str:
+    """Return the importable module name for a benchmark script."""
+
+    if not script_name.endswith(".py"):
+        raise ValueError(f"Expected a Python script name, got: {script_name}")
+
+    return f"src.{script_name.removesuffix('.py')}"
+
+
+def module_command(script_name: str) -> list[str]:
+    """Build a command that runs a benchmark as a package module.
+
+    The benchmark files use relative imports such as ``from .config import ...``,
+    so they must be executed with ``python -m src.<module>`` from the repository
+    root rather than as direct script paths.
     """
-    Return the absolute path to a benchmark script.
-    """
 
-    return str(SRC_DIR / script_name)
-
-
+    return [sys.executable, "-m", module_name(script_name)]
 
 
 def validate_positive_int(value: int, name: str, minimum: int = 1) -> None:
@@ -97,39 +120,119 @@ def command_has_plot_flag(command: list[str]) -> bool:
 
     return "--plot" in command
 
+def format_command(command: list[str]) -> str:
+    """Return a shell-readable command string for logging."""
+
+    return " ".join(shlex.quote(part) for part in command)
+
+
 def run_command(
     benchmark: BenchmarkCommand,
     dry_run: bool,
-) -> bool:
-    """
-    Execute a benchmark command and report its status.
-    """
+) -> BenchmarkRunResult:
+    """Execute one benchmark command and return a structured status."""
 
     print()
     print("=" * 80)
     print(f"Running benchmark: {benchmark.name}")
     print("=" * 80)
-    print(" ".join(benchmark.command))
+    print(format_command(benchmark.command))
 
     if dry_run:
-        return True
+        return BenchmarkRunResult(
+            name=benchmark.name,
+            command=benchmark.command,
+            status="skipped_dry_run",
+            returncode=0,
+            duration_seconds=0.0,
+        )
 
     start = time.perf_counter()
 
-    completed = subprocess.run(
-        benchmark.command,
-        cwd=REPO_ROOT,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            benchmark.command,
+            cwd=REPO_ROOT,
+            check=False,
+        )
+    except OSError as exc:
+        end = time.perf_counter()
+        print(
+            f"FAILED {benchmark.name}: {type(exc).__name__}: {exc}",
+            flush=True,
+        )
+        return BenchmarkRunResult(
+            name=benchmark.name,
+            command=benchmark.command,
+            status="failed",
+            returncode=None,
+            duration_seconds=end - start,
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+        )
 
     end = time.perf_counter()
+    duration_seconds = end - start
 
     if completed.returncode == 0:
-        print(f"Finished {benchmark.name} in {end - start:.2f} s")
-        return True
+        print(f"Finished {benchmark.name} in {duration_seconds:.2f} s")
+        return BenchmarkRunResult(
+            name=benchmark.name,
+            command=benchmark.command,
+            status="success",
+            returncode=completed.returncode,
+            duration_seconds=duration_seconds,
+        )
 
     print(f"FAILED {benchmark.name} with exit code {completed.returncode}")
-    return False
+    return BenchmarkRunResult(
+        name=benchmark.name,
+        command=benchmark.command,
+        status="failed",
+        returncode=completed.returncode,
+        duration_seconds=duration_seconds,
+        error_type="CalledProcessError",
+        error_message=f"Benchmark exited with code {completed.returncode}",
+    )
+
+
+def save_suite_summary(
+    run_results: list[BenchmarkRunResult],
+    output_path: Path,
+    total_time_seconds: float,
+) -> None:
+    """Save a machine-readable summary for the full benchmark suite."""
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "benchmark": "benchmark_suite",
+        "total_time_seconds": total_time_seconds,
+        "n_results": len(run_results),
+        "n_success": sum(result.status == "success" for result in run_results),
+        "n_failed": sum(result.status == "failed" for result in run_results),
+        "n_skipped_dry_run": sum(
+            result.status == "skipped_dry_run"
+            for result in run_results
+        ),
+        "results": [
+            {
+                "name": result.name,
+                "command": result.command,
+                "command_string": format_command(result.command),
+                "status": result.status,
+                "returncode": result.returncode,
+                "duration_seconds": result.duration_seconds,
+                "error_type": result.error_type,
+                "error_message": result.error_message,
+            }
+            for result in run_results
+        ],
+    }
+
+    with output_path.open("w") as file:
+        json.dump(payload, file, indent=2, sort_keys=True)
+
 
 
 def build_core_benchmarks(
@@ -150,8 +253,7 @@ def build_core_benchmarks(
         BenchmarkCommand(
             name="workspace_loading",
             command=[
-                sys.executable,
-                script_path("run_workspace_loading.py"),
+                *module_command("run_workspace_loading.py"),
                 "--workspaces",
                 *workspaces,
                 "--n-runs",
@@ -162,8 +264,7 @@ def build_core_benchmarks(
         BenchmarkCommand(
             name="model_creation",
             command=[
-                sys.executable,
-                script_path("run_model_creation.py"),
+                *module_command("run_model_creation.py"),
                 "--workspaces",
                 *workspaces,
                 "--targets",
@@ -178,8 +279,7 @@ def build_core_benchmarks(
         BenchmarkCommand(
             name="log_prob_construction",
             command=[
-                sys.executable,
-                script_path("run_log_prob_construction.py"),
+                *module_command("run_log_prob_construction.py"),
                 "--workspaces",
                 *workspaces,
                 "--targets",
@@ -194,8 +294,7 @@ def build_core_benchmarks(
         BenchmarkCommand(
             name="log_prob_compilation",
             command=[
-                sys.executable,
-                script_path("run_log_prob_compilation.py"),
+                *module_command("run_log_prob_compilation.py"),
                 "--workspaces",
                 *workspaces,
                 "--targets",
@@ -210,8 +309,7 @@ def build_core_benchmarks(
         BenchmarkCommand(
             name="compiled_evaluation",
             command=[
-                sys.executable,
-                script_path("run_compiled_evaluation.py"),
+                *module_command("run_compiled_evaluation.py"),
                 "--workspaces",
                 *workspaces,
                 "--targets",
@@ -240,8 +338,7 @@ def build_pdf_benchmarks(
         BenchmarkCommand(
             name="pdf_evaluation_simple",
             command=[
-                sys.executable,
-                script_path("run_pdf_evaluation.py"),
+                *module_command("run_pdf_evaluation.py"),
                 "--workspaces",
                 *DEFAULT_SIMPLE_WORKSPACES,
                 "--targets",
@@ -258,8 +355,7 @@ def build_pdf_benchmarks(
         BenchmarkCommand(
             name="pdf_evaluation_scalar",
             command=[
-                sys.executable,
-                script_path("run_pdf_evaluation.py"),
+                *module_command("run_pdf_evaluation.py"),
                 "--workspaces",
                 *DEFAULT_SCALAR_WORKSPACES,
                 "--targets",
@@ -289,8 +385,7 @@ def build_nll_scan_benchmark(
     return BenchmarkCommand(
         name="nll_scan",
         command=[
-            sys.executable,
-            script_path("run_nll_scan.py"),
+            *module_command("run_nll_scan.py"),
             "--workspaces",
             *DEFAULT_SIMPLE_WORKSPACES,
             "--targets",
@@ -320,8 +415,7 @@ def build_scaling_benchmarks(
         BenchmarkCommand(
             name="memory_scaling",
             command=[
-                sys.executable,
-                script_path("run_memory_scaling.py"),
+                *module_command("run_memory_scaling.py"),
                 "--workspaces",
                 *DEFAULT_SIMPLE_WORKSPACES,
                 "--targets",
@@ -340,8 +434,7 @@ def build_scaling_benchmarks(
         BenchmarkCommand(
             name="model_complexity_scaling",
             command=[
-                sys.executable,
-                script_path("run_model_complexity_scaling.py"),
+                *module_command("run_model_complexity_scaling.py"),
                 "--workspaces",
                 *DEFAULT_SIMPLE_WORKSPACES,
                 "--targets",
@@ -380,8 +473,7 @@ def build_graph_benchmarks(
         BenchmarkCommand(
             name="graph_canonicalization",
             command=[
-                sys.executable,
-                script_path("run_graph_canonicalization.py"),
+                *module_command("run_graph_canonicalization.py"),
                 "--workspaces",
                 *DEFAULT_SIMPLE_WORKSPACES,
                 "--targets",
@@ -396,8 +488,7 @@ def build_graph_benchmarks(
         BenchmarkCommand(
             name="graph_optimization",
             command=[
-                sys.executable,
-                script_path("run_graph_optimization.py"),
+                *module_command("run_graph_optimization.py"),
                 "--workspaces",
                 *DEFAULT_SIMPLE_WORKSPACES,
                 "--targets",
@@ -512,6 +603,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
     )
     parser.add_argument(
+        "--summary-output",
+        type=Path,
+        default=Path("results/benchmark_suite/benchmark_suite_summary.json"),
+        help="Path where a JSON summary of the benchmark suite will be saved.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
     )
@@ -587,31 +684,60 @@ def main() -> None:
     for benchmark in selected_benchmarks:
         print(f"  - {benchmark.name}")
 
-    failures = []
+    run_results: list[BenchmarkRunResult] = []
+    failures: list[str] = []
 
     start = time.perf_counter()
 
-    for benchmark in selected_benchmarks:
-        success = run_command(
-            benchmark=benchmark,
-            dry_run=args.dry_run,
+    try:
+        for benchmark in selected_benchmarks:
+            result = run_command(
+                benchmark=benchmark,
+                dry_run=args.dry_run,
+            )
+            run_results.append(result)
+
+            if result.status == "failed":
+                failures.append(benchmark.name)
+
+                if not args.continue_on_failure:
+                    break
+    except KeyboardInterrupt:
+        end = time.perf_counter()
+        total_time_seconds = end - start
+        save_suite_summary(
+            run_results=run_results,
+            output_path=args.summary_output,
+            total_time_seconds=total_time_seconds,
         )
-
-        if not success:
-            failures.append(benchmark.name)
-
-            if not args.continue_on_failure:
-                break
+        print()
+        print("Benchmark suite interrupted by user.")
+        print(f"Saved partial summary to {args.summary_output}")
+        raise SystemExit(130)
 
     end = time.perf_counter()
+    total_time_seconds = end - start
+
+    save_suite_summary(
+        run_results=run_results,
+        output_path=args.summary_output,
+        total_time_seconds=total_time_seconds,
+    )
+
+    n_success = sum(result.status == "success" for result in run_results)
+    n_dry_run = sum(result.status == "skipped_dry_run" for result in run_results)
 
     print()
     print("=" * 80)
     print("Benchmark suite summary")
     print("=" * 80)
-    print(f"Total time: {end - start:.2f} s")
-    print(f"Succeeded:  {len(selected_benchmarks) - len(failures)}")
+    print(f"Total time: {total_time_seconds:.2f} s")
+    print(f"Selected:   {len(selected_benchmarks)}")
+    print(f"Executed:   {len(run_results)}")
+    print(f"Succeeded:  {n_success}")
+    print(f"Dry-run:    {n_dry_run}")
     print(f"Failed:     {len(failures)}")
+    print(f"Summary:    {args.summary_output}")
 
     if failures:
         print()
@@ -622,7 +748,10 @@ def main() -> None:
         raise SystemExit(1)
 
     print()
-    print("All selected benchmarks completed successfully.")
+    if args.dry_run:
+        print("Dry run completed successfully.")
+    else:
+        print("All selected benchmarks completed successfully.")
 
 
 if __name__ == "__main__":

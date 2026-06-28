@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import numpy as np
+import math
 from pathlib import Path
+from typing import Any
+
+import numpy as np
 
 from pyhs3.analyses import Analyses, Analysis
 from pyhs3.data import Data, PointData
@@ -28,6 +31,33 @@ SCENARIO_X_VALUES = {
     "exponential": 1.0,
 }
 
+AVAILABLE_SCENARIOS = tuple(SCENARIO_X_VALUES)
+
+
+def validate_scenario(scenario: str) -> str:
+    """
+    Validate a scalar PDF scenario name.
+    """
+
+    if scenario not in SCENARIO_X_VALUES:
+        raise ValueError(
+            f"Unknown scenario: {scenario}. "
+            f"Available scenarios: {list(AVAILABLE_SCENARIOS)}"
+        )
+
+    return scenario
+
+
+def validate_scenarios(scenarios: list[str]) -> list[str]:
+    """
+    Validate all requested scalar PDF scenarios.
+    """
+
+    if not scenarios:
+        raise ValueError("--scenarios must contain at least one value")
+
+    return [validate_scenario(scenario) for scenario in scenarios]
+
 
 def make_workspace(
     scenario: str,
@@ -35,6 +65,8 @@ def make_workspace(
     """
     Generate a minimal HS3 workspace for a scalar PDF benchmark.
     """
+
+    scenario = validate_scenario(scenario)
 
     metadata = Metadata(
         hs3_version="0.2",
@@ -95,9 +127,6 @@ def make_workspace(
             ParameterPoint(name="c", value=-1.0, const=True),
         ]
 
-    else:
-        raise ValueError(f"Unknown scenario: {scenario}")
-
     likelihood = Likelihood(
         name="likelihood",
         distributions=["pdf"],
@@ -152,6 +181,36 @@ def save_workspace(
         )
 
 
+def verify_output_file(output_path: Path) -> None:
+    """
+    Verify that the expected workspace file was created.
+    """
+
+    if not output_path.exists():
+        raise FileNotFoundError(f"Workspace file was not created: {output_path}")
+
+    if not output_path.is_file():
+        raise FileNotFoundError(f"Workspace output path is not a file: {output_path}")
+
+
+def extract_scalar_output(result: Any) -> float:
+    """
+    Extract a finite scalar value from model.pdf(...) output for validation.
+    """
+
+    array = np.asarray(result)
+
+    if array.size == 0:
+        raise ValueError("Validation PDF output is empty")
+
+    value = float(array.reshape(-1)[0])
+
+    if not math.isfinite(value):
+        raise ValueError(f"Validation PDF output is not finite: {value}")
+
+    return value
+
+
 def validate_workspace(
     output_path: Path,
     scenario: str,
@@ -160,6 +219,7 @@ def validate_workspace(
     Validate a pyHS3 workspace for a scalar PDF benchmark.
     """
 
+    scenario = validate_scenario(scenario)
     workspace = Workspace.load(output_path)
     model = workspace.model("analysis", progress=False, mode="FAST_RUN")
 
@@ -177,8 +237,54 @@ def validate_workspace(
     }
 
     result = model.pdf("pdf", **parameters)
+    output = extract_scalar_output(result)
 
-    print(f"{scenario}: validation output = {result}")
+    print(f"{scenario}: validation output = {output}")
+
+
+def generate_single_workspace(
+    scenario: str,
+    output_dir: Path,
+    validate: bool,
+) -> dict[str, Any]:
+    """
+    Generate and optionally validate one scalar PDF workspace.
+    """
+
+    scenario = validate_scenario(scenario)
+    workspace = make_workspace(scenario)
+    output_path = output_dir / f"{scenario}_pdf_workspace.json"
+
+    save_workspace(
+        workspace=workspace,
+        output_path=output_path,
+    )
+    verify_output_file(output_path)
+
+    if validate:
+        validate_workspace(
+            output_path=output_path,
+            scenario=scenario,
+        )
+
+    return {
+        "scenario": scenario,
+        "output_path": output_path,
+        "status": "success",
+    }
+
+
+def print_success(result: dict[str, Any]) -> None:
+    print(f"Saved {result['scenario']} workspace to {result['output_path']}")
+
+
+def print_failure(scenario: str, exc: Exception) -> None:
+    print()
+    print("=" * 72)
+    print("Scalar PDF workspace generation FAILED")
+    print("=" * 72)
+    print(f"Scenario: {scenario}")
+    print(f"Error:    {type(exc).__name__}: {exc}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -194,8 +300,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scenarios",
         nargs="+",
-        default=["normal", "poisson", "exponential"],
-        choices=["normal", "poisson", "exponential"],
+        default=list(AVAILABLE_SCENARIOS),
+        choices=list(AVAILABLE_SCENARIOS),
     )
     parser.add_argument(
         "--validate",
@@ -207,23 +313,43 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    scenarios = validate_scenarios(args.scenarios)
 
-    for scenario in args.scenarios:
-        workspace = make_workspace(scenario)
-        output_path = args.output_dir / f"{scenario}_pdf_workspace.json"
+    failures = []
 
-        save_workspace(
-            workspace=workspace,
-            output_path=output_path,
-        )
-
-        print(f"Saved {scenario} workspace to {output_path}")
-
-        if args.validate:
-            validate_workspace(
-                output_path=output_path,
+    for scenario in scenarios:
+        try:
+            result = generate_single_workspace(
                 scenario=scenario,
+                output_dir=args.output_dir,
+                validate=args.validate,
             )
+        except Exception as exc:
+            failures.append(
+                {
+                    "scenario": scenario,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                }
+            )
+            print_failure(scenario=scenario, exc=exc)
+            continue
+
+        print_success(result)
+
+    if failures:
+        print()
+        print("=" * 72)
+        print("Scalar PDF workspace generation summary")
+        print("=" * 72)
+        print(f"Succeeded: {len(scenarios) - len(failures)}")
+        print(f"Failed:    {len(failures)}")
+        for failure in failures:
+            print(
+                f"  - {failure['scenario']}: "
+                f"{failure['error_type']}: {failure['error_message']}"
+            )
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

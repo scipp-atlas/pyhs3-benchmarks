@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any, Callable
@@ -30,6 +31,7 @@ DEFAULT_SCAN_MIN = 0.0
 DEFAULT_SCAN_MAX = 5.0
 DEFAULT_N_SCAN_POINTS = 101
 
+
 def resolve_stages(
     stages: list[str],
     available_stages: list[str] = WORKFLOW_STAGES,
@@ -37,16 +39,22 @@ def resolve_stages(
     """
     Resolve the list of stages to run.
 
-    Passing ``["all"]`` expands to *available_stages*.  Any unknown stage
+    Passing ``["all"]`` expands to *available_stages*. Any unknown stage
     name raises :exc:`ValueError`.
     """
+
+    if not stages:
+        raise ValueError("At least one stage must be selected")
+
+    if not available_stages:
+        raise ValueError("available_stages must not be empty")
 
     if "all" in stages:
         if len(stages) > 1:
             raise ValueError("--stages all cannot be combined with other stages")
         return list(available_stages)
 
-    unknown_stages = [s for s in stages if s not in available_stages]
+    unknown_stages = [stage for stage in stages if stage not in available_stages]
 
     if unknown_stages:
         raise ValueError(
@@ -54,7 +62,7 @@ def resolve_stages(
             f"Available stages: {available_stages}"
         )
 
-    return stages
+    return list(stages)
 
 
 def build_stage_specs(
@@ -72,8 +80,10 @@ def build_stage_specs(
 ) -> list[tuple[str, Callable[..., dict[str, Any]], tuple[Any, ...]]]:
     """
     Build a list of ``(stage_name, function, args)`` triples for the
-    *selected_stages*, ready to be executed sequentially.
+    selected stages, ready to be executed sequentially.
     """
+
+    resolved_stages = resolve_stages(selected_stages)
 
     specs: dict[str, tuple[Callable[..., dict[str, Any]], tuple[Any, ...]]] = {
         "workspace_loading": (
@@ -114,18 +124,81 @@ def build_stage_specs(
         ),
     }
 
-    return [(stage, specs[stage][0], specs[stage][1]) for stage in selected_stages]
+    return [
+        (stage, specs[stage][0], specs[stage][1])
+        for stage in resolved_stages
+    ]
+
+
+def make_stage_error_result(
+    stage_name: str,
+    function: Callable[..., dict[str, Any]],
+    exc: Exception,
+) -> dict[str, Any]:
+    """
+    Build a structured result for a stage that failed in an isolated process.
+
+    The scaling benchmarks expect every stage result to be a dictionary with at
+    least ``benchmark`` and ``status`` keys. Returning this shape lets the
+    caller continue, write JSON, and include the failure in summaries.
+    """
+
+    return {
+        "benchmark": stage_name,
+        "stage_function": getattr(function, "__name__", type(function).__name__),
+        "status": "failed",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "traceback": traceback.format_exc(),
+    }
 
 
 def run_stage_isolated(
     function: Callable[..., dict[str, Any]],
     args: tuple[Any, ...],
+    stage_name: str | None = None,
 ) -> dict[str, Any]:
     """
-    Run one benchmark stage in a fresh child process (spawn context).
+    Run one benchmark stage in a fresh child process.
+
+    If the child process raises, return a structured failed result instead of
+    letting the exception abort the parent scaling benchmark.
     """
+
+    resolved_stage_name = stage_name or getattr(
+        function,
+        "__name__",
+        "unknown_stage",
+    )
 
     ctx = get_context("spawn")
 
-    with ctx.Pool(processes=1) as pool:
-        return pool.apply(function, args=args)
+    try:
+        with ctx.Pool(processes=1) as pool:
+            result = pool.apply(function, args=args)
+    except Exception as exc:
+        return make_stage_error_result(
+            stage_name=resolved_stage_name,
+            function=function,
+            exc=exc,
+        )
+
+    if not isinstance(result, dict):
+        return {
+            "benchmark": resolved_stage_name,
+            "stage_function": getattr(function, "__name__", type(function).__name__),
+            "status": "failed",
+            "error_type": "TypeError",
+            "error_message": (
+                "Stage returned a non-dictionary result: "
+                f"{type(result).__name__}"
+            ),
+        }
+
+    if "benchmark" not in result:
+        result["benchmark"] = resolved_stage_name
+
+    if "status" not in result:
+        result["status"] = "success"
+
+    return result

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -21,11 +22,37 @@ DEFAULT_OUTPUT_DIR = Path("inputs/binned_likelihood_models")
 DEFAULT_BIN_COUNTS = [3, 30, 300]
 
 
+def validate_bin_count(n_bins: int) -> int:
+    """
+    Validate a bin count before generating arrays or file names.
+    """
+
+    if not isinstance(n_bins, int):
+        raise TypeError(f"n_bins must be an integer, got {type(n_bins).__name__}")
+
+    if n_bins < 1:
+        raise ValueError(f"n_bins must be at least 1, got {n_bins}")
+
+    return n_bins
+
+
+def validate_bin_counts(bin_counts: list[int]) -> list[int]:
+    """
+    Validate all requested bin counts.
+    """
+
+    if not bin_counts:
+        raise ValueError("--bin-counts must contain at least one value")
+
+    return [validate_bin_count(n_bins) for n_bins in bin_counts]
+
+
 def make_arrays(n_bins: int) -> dict[str, list[float]]:
     """
     Generate deterministic arrays for a binned likelihood model.
     """
 
+    n_bins = validate_bin_count(n_bins)
     rng = np.random.default_rng(12345 + n_bins)
 
     signal = rng.uniform(2.0, 10.0, size=n_bins)
@@ -39,7 +66,28 @@ def make_arrays(n_bins: int) -> dict[str, list[float]]:
     }
 
 
-def make_pyhf_spec(model: dict[str, list[float]]) -> dict:
+def validate_model_arrays(model: dict[str, list[float]], n_bins: int) -> None:
+    """
+    Validate that the generated model arrays are present and have matching sizes.
+    """
+
+    required_keys = ["signal", "background", "observation"]
+    missing_keys = [key for key in required_keys if key not in model]
+
+    if missing_keys:
+        raise KeyError(f"Generated model is missing arrays: {missing_keys}")
+
+    for key in required_keys:
+        values = model[key]
+        if len(values) != n_bins:
+            raise ValueError(
+                f"Array '{key}' has length {len(values)}, expected {n_bins}"
+            )
+        if not all(np.isfinite(value) for value in values):
+            raise ValueError(f"Array '{key}' contains non-finite values")
+
+
+def make_pyhf_spec(model: dict[str, list[float]]) -> dict[str, Any]:
     """
     Generate a pyhf spec for a binned likelihood model.
     """
@@ -94,6 +142,9 @@ def make_pyhs3_workspace(
     """
     Generate a pyHS3 workspace for a binned likelihood model.
     """
+
+    n_bins = validate_bin_count(n_bins)
+    validate_model_arrays(model, n_bins)
 
     metadata = Metadata(
         hs3_version="0.2",
@@ -212,7 +263,7 @@ def make_pyhs3_workspace(
     )
 
 
-def save_json(data: dict, path: Path) -> None:
+def save_json(data: dict[str, Any], path: Path) -> None:
     """
     Save a dictionary to a JSON file.
     """
@@ -237,6 +288,18 @@ def save_workspace(workspace: Workspace, path: Path) -> None:
         workspace.model_dump(mode="json", exclude_none=True),
         path,
     )
+
+
+def verify_output_file(path: Path) -> None:
+    """
+    Verify that an expected output file was created.
+    """
+
+    if not path.exists():
+        raise FileNotFoundError(f"Expected output file was not created: {path}")
+
+    if not path.is_file():
+        raise FileNotFoundError(f"Expected output path is not a file: {path}")
 
 
 def validate_workspace(
@@ -267,6 +330,77 @@ def validate_workspace(
     )
 
 
+def generate_single_model(
+    n_bins: int,
+    output_dir: Path,
+    validate: bool,
+) -> dict[str, Any]:
+    """
+    Generate all output files for one bin count.
+    """
+
+    n_bins = validate_bin_count(n_bins)
+    model = make_arrays(n_bins=n_bins)
+    validate_model_arrays(model, n_bins)
+
+    common_path = output_dir / f"common_{n_bins}bins.json"
+    pyhf_path = output_dir / f"pyhf_{n_bins}bins.json"
+    pyhs3_path = output_dir / f"pyhs3_{n_bins}bins.json"
+
+    save_json(
+        {
+            "n_bins": n_bins,
+            **model,
+        },
+        common_path,
+    )
+    verify_output_file(common_path)
+
+    save_json(
+        make_pyhf_spec(model),
+        pyhf_path,
+    )
+    verify_output_file(pyhf_path)
+
+    save_workspace(
+        make_pyhs3_workspace(
+            model=model,
+            n_bins=n_bins,
+        ),
+        pyhs3_path,
+    )
+    verify_output_file(pyhs3_path)
+
+    if validate:
+        validate_workspace(
+            workspace_path=pyhs3_path,
+            n_bins=n_bins,
+        )
+
+    return {
+        "n_bins": n_bins,
+        "common_path": common_path,
+        "pyhf_path": pyhf_path,
+        "pyhs3_path": pyhs3_path,
+        "status": "success",
+    }
+
+
+def print_success(result: dict[str, Any]) -> None:
+    print(f"Saved common model to {result['common_path']}")
+    print(f"Saved pyhf model to {result['pyhf_path']}")
+    print(f"Saved pyhs3 model to {result['pyhs3_path']}")
+
+
+def print_failure(n_bins: int, exc: Exception) -> None:
+    print()
+    print("=" * 72)
+    print("Binned likelihood generation FAILED")
+    print("=" * 72)
+    print(f"Bins:   {n_bins}")
+    print(f"Error:  {type(exc).__name__}: {exc}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate binned likelihood models for cross-framework benchmarks."
@@ -293,44 +427,43 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    bin_counts = validate_bin_counts(args.bin_counts)
 
-    for n_bins in args.bin_counts:
-        model = make_arrays(n_bins=n_bins)
+    failures = []
 
-        common_path = args.output_dir / f"common_{n_bins}bins.json"
-        pyhf_path = args.output_dir / f"pyhf_{n_bins}bins.json"
-        pyhs3_path = args.output_dir / f"pyhs3_{n_bins}bins.json"
-
-        save_json(
-            {
-                "n_bins": n_bins,
-                **model,
-            },
-            common_path,
-        )
-
-        save_json(
-            make_pyhf_spec(model),
-            pyhf_path,
-        )
-
-        save_workspace(
-            make_pyhs3_workspace(
-                model=model,
+    for n_bins in bin_counts:
+        try:
+            result = generate_single_model(
                 n_bins=n_bins,
-            ),
-            pyhs3_path,
-        )
-
-        if args.validate:
-            validate_workspace(
-                workspace_path=pyhs3_path,
-                n_bins=n_bins,
+                output_dir=args.output_dir,
+                validate=args.validate,
             )
+        except Exception as exc:
+            failures.append(
+                {
+                    "n_bins": n_bins,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                }
+            )
+            print_failure(n_bins=n_bins, exc=exc)
+            continue
 
-        print(f"Saved common model to {common_path}")
-        print(f"Saved pyhf model to {pyhf_path}")
-        print(f"Saved pyhs3 model to {pyhs3_path}")
+        print_success(result)
+
+    if failures:
+        print()
+        print("=" * 72)
+        print("Binned likelihood generation summary")
+        print("=" * 72)
+        print(f"Succeeded: {len(bin_counts) - len(failures)}")
+        print(f"Failed:    {len(failures)}")
+        for failure in failures:
+            print(
+                f"  - {failure['n_bins']} bins: "
+                f"{failure['error_type']}: {failure['error_message']}"
+            )
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

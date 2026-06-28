@@ -4,7 +4,7 @@ import argparse
 import json
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -150,11 +150,34 @@ def resolve_plots(plots: list[str]) -> list[str]:
 
 
 def load_json(path: Path) -> dict[str, Any]:
-    with path.open() as file:
-        return json.load(file)
+    """Load and validate one benchmark result JSON file."""
+
+    try:
+        with path.open() as file:
+            payload = json.load(file)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON in result file {path}: {exc}") from exc
+    except OSError as exc:
+        raise OSError(f"Could not read result file {path}: {exc}") from exc
+
+    if not isinstance(payload, dict):
+        raise TypeError(
+            f"Expected top-level JSON object in result file {path}, "
+            f"got {type(payload).__name__}"
+        )
+
+    return payload
 
 
 def iter_result_files(results_dir: Path) -> list[Path]:
+    """Return benchmark result JSON files from a results directory."""
+
+    if not results_dir.exists():
+        raise FileNotFoundError(f"Results directory does not exist: {results_dir}")
+
+    if not results_dir.is_dir():
+        raise NotADirectoryError(f"Results path is not a directory: {results_dir}")
+
     return sorted(results_dir.glob("*/*_result.json"))
 
 
@@ -181,8 +204,14 @@ def get_workspace_label(result: dict[str, Any]) -> str:
 
 
 def extract_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract valid result rows from a benchmark result payload."""
+
     results = payload.get("results", [])
-    return results if isinstance(results, list) else []
+
+    if not isinstance(results, list):
+        return []
+
+    return [result for result in results if isinstance(result, dict)]
 
 
 def maybe_to_float(value: Any) -> float | None:
@@ -197,83 +226,123 @@ def maybe_to_float(value: Any) -> float | None:
     return value_float
 
 
-def collect_overview_records(results_dir: Path) -> list[dict[str, Any]]:
+def collect_overview_records(
+    results_dir: Path,
+    *,
+    strict: bool = False,
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """
+    Collect normalized benchmark records from result JSON files.
+
+    Invalid files or malformed result rows are skipped by default, so one bad
+    result does not prevent overview plotting. Use strict=True to fail fast.
+    """
+
     records = []
+    skipped_items: list[dict[str, str]] = []
 
     for result_file in iter_result_files(results_dir):
-        payload = load_json(result_file)
+        try:
+            payload = load_json(result_file)
+        except (OSError, TypeError, ValueError) as exc:
+            skipped_items.append(
+                {
+                    "path": str(result_file),
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                }
+            )
+            if strict:
+                raise
+            print(f"Skipping result file {result_file}: {type(exc).__name__}: {exc}")
+            continue
+
         benchmark = payload.get("benchmark", result_file.parent.name)
 
         for result in extract_results(payload):
-            record: dict[str, Any] = {
-                "benchmark": benchmark,
-                "benchmark_label": normalize_benchmark_name(benchmark),
-                "workspace": result.get("workspace"),
-                "workspace_label": get_workspace_label(result),
-                "target": result.get("target"),
-                "mode": result.get("mode"),
-                "source_file": str(result_file),
-                "status": result.get("status", "unknown"),
-                "n_runs": result.get("n_runs"),
-                "n_evaluations": result.get("n_evaluations"),
-                "n_scan_points": result.get("n_scan_points"),
-            }
+            try:
+                record: dict[str, Any] = {
+                    "benchmark": benchmark,
+                    "benchmark_label": normalize_benchmark_name(str(benchmark)),
+                    "workspace": result.get("workspace"),
+                    "workspace_label": get_workspace_label(result),
+                    "target": result.get("target"),
+                    "mode": result.get("mode"),
+                    "source_file": str(result_file),
+                    "status": result.get("status", "unknown"),
+                    "n_runs": result.get("n_runs"),
+                    "n_evaluations": result.get("n_evaluations"),
+                    "n_scan_points": result.get("n_scan_points"),
+                }
 
-            metric_candidates = {
-                "wall_time_seconds_mean": result.get("wall_time_seconds_mean"),
-                "average_runtime_seconds_per_evaluation": result.get(
-                    "average_runtime_seconds_per_evaluation"
-                ),
-                "runtime_per_scan_point_seconds": result.get(
-                    "runtime_per_scan_point_seconds"
-                ),
-                "total_runtime_seconds": result.get("total_runtime_seconds"),
-                "total_setup_time_seconds": result.get("total_setup_time_seconds"),
-                "current_rss_delta_mb": result.get("current_rss_delta_mb"),
-                "peak_rss_delta_mb": result.get("peak_rss_delta_mb"),
-                "total_peak_rss_delta_mb": result.get("total_peak_rss_delta_mb"),
-            }
-            record.update(metric_candidates)
+                metric_candidates = {
+                    "wall_time_seconds_mean": result.get("wall_time_seconds_mean"),
+                    "average_runtime_seconds_per_evaluation": result.get(
+                        "average_runtime_seconds_per_evaluation"
+                    ),
+                    "runtime_per_scan_point_seconds": result.get(
+                        "runtime_per_scan_point_seconds"
+                    ),
+                    "total_runtime_seconds": result.get("total_runtime_seconds"),
+                    "total_setup_time_seconds": result.get("total_setup_time_seconds"),
+                    "current_rss_delta_mb": result.get("current_rss_delta_mb"),
+                    "peak_rss_delta_mb": result.get("peak_rss_delta_mb"),
+                    "total_peak_rss_delta_mb": result.get("total_peak_rss_delta_mb"),
+                }
+                record.update(metric_candidates)
 
-            for stage_name, key in STAGE_TIME_KEYS.items():
-                value = maybe_to_float(result.get(key))
-                if value is not None:
-                    record[f"{stage_name}_time_ms"] = value * 1000.0
+                for stage_name, key in STAGE_TIME_KEYS.items():
+                    value = maybe_to_float(result.get(key))
+                    if value is not None:
+                        record[f"{stage_name}_time_ms"] = value * 1000.0
 
-            for stage_name, key in STAGE_MEMORY_KEYS.items():
-                value = maybe_to_float(result.get(key))
-                if value is not None:
-                    record[f"{stage_name}_peak_rss_delta_mb"] = value
+                for stage_name, key in STAGE_MEMORY_KEYS.items():
+                    value = maybe_to_float(result.get(key))
+                    if value is not None:
+                        record[f"{stage_name}_peak_rss_delta_mb"] = value
 
-            if record["wall_time_seconds_mean"] is not None:
-                value = maybe_to_float(record["wall_time_seconds_mean"])
-                if value is not None:
-                    record["wall_time_ms"] = value * 1000.0
+                if record["wall_time_seconds_mean"] is not None:
+                    value = maybe_to_float(record["wall_time_seconds_mean"])
+                    if value is not None:
+                        record["wall_time_ms"] = value * 1000.0
 
-            if record["average_runtime_seconds_per_evaluation"] is not None:
-                value = maybe_to_float(record["average_runtime_seconds_per_evaluation"])
-                if value is not None:
-                    record["average_runtime_ms_per_evaluation"] = value * 1000.0
+                if record["average_runtime_seconds_per_evaluation"] is not None:
+                    value = maybe_to_float(record["average_runtime_seconds_per_evaluation"])
+                    if value is not None:
+                        record["average_runtime_ms_per_evaluation"] = value * 1000.0
 
-            if record["runtime_per_scan_point_seconds"] is not None:
-                value = maybe_to_float(record["runtime_per_scan_point_seconds"])
-                if value is not None:
-                    record["runtime_ms_per_scan_point"] = value * 1000.0
+                if record["runtime_per_scan_point_seconds"] is not None:
+                    value = maybe_to_float(record["runtime_per_scan_point_seconds"])
+                    if value is not None:
+                        record["runtime_ms_per_scan_point"] = value * 1000.0
 
-            if record["total_runtime_seconds"] is not None:
-                value = maybe_to_float(record["total_runtime_seconds"])
-                if value is not None:
-                    record["total_runtime_ms"] = value * 1000.0
+                if record["total_runtime_seconds"] is not None:
+                    value = maybe_to_float(record["total_runtime_seconds"])
+                    if value is not None:
+                        record["total_runtime_ms"] = value * 1000.0
 
-            if record["total_setup_time_seconds"] is not None:
-                value = maybe_to_float(record["total_setup_time_seconds"])
-                if value is not None:
-                    record["total_setup_time_ms"] = value * 1000.0
+                if record["total_setup_time_seconds"] is not None:
+                    value = maybe_to_float(record["total_setup_time_seconds"])
+                    if value is not None:
+                        record["total_setup_time_ms"] = value * 1000.0
 
-            records.append(record)
+                records.append(record)
+            except (KeyError, TypeError, ValueError) as exc:
+                skipped_items.append(
+                    {
+                        "path": str(result_file),
+                        "error_type": type(exc).__name__,
+                        "error_message": f"Could not normalize one result row: {exc}",
+                    }
+                )
+                if strict:
+                    raise
+                print(
+                    f"Skipping malformed result row in {result_file}: "
+                    f"{type(exc).__name__}: {exc}"
+                )
 
-    return records
-
+    return records, skipped_items
 
 def values_match(actual: Any, expected_values: list[str] | None) -> bool:
     if not expected_values:
@@ -336,9 +405,19 @@ def has_metric(records: list[dict[str, Any]], metric_key: str) -> bool:
 
 
 def save_figure(fig: plt.Figure, output_path: Path) -> None:
+    """Save a matplotlib figure and verify that the file was created."""
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, bbox_inches="tight")
-    plt.close(fig)
+
+    try:
+        fig.savefig(output_path, bbox_inches="tight")
+    except OSError as exc:
+        raise OSError(f"Could not save plot to {output_path}: {exc}") from exc
+    finally:
+        plt.close(fig)
+
+    if not output_path.exists() or not output_path.is_file():
+        raise FileNotFoundError(f"Plot file was not created: {output_path}")
 
 
 def annotate_horizontal_bars(
@@ -814,6 +893,26 @@ def make_diagnostics_plot(records: list[dict[str, Any]], plot_dir: Path) -> None
     save_figure(fig, plot_dir / "benchmark_overview_diagnostics_status.png")
 
 
+
+def run_plot_builder(
+    plot_name: str,
+    builder: Callable[[], None],
+    *,
+    strict: bool,
+) -> bool:
+    """Run one plot builder and report whether it completed successfully."""
+
+    try:
+        builder()
+    except Exception as exc:
+        if strict:
+            raise
+        print(f"Skipping plot '{plot_name}': {type(exc).__name__}: {exc}")
+        return False
+
+    return True
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Create publication-quality overview plots from benchmark result files."
@@ -835,6 +934,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-evaluations", nargs="+", type=int)
     parser.add_argument("--n-scan-points", nargs="+", type=int)
     parser.add_argument("--include-failed", action="store_true")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail immediately instead of skipping malformed result files or failed plots.",
+    )
 
     return parser.parse_args()
 
@@ -843,7 +947,10 @@ def main() -> None:
     args = parse_args()
     apply_cern_style()
 
-    records = collect_overview_records(args.results_dir)
+    records, skipped_items = collect_overview_records(
+        args.results_dir,
+        strict=args.strict,
+    )
     if not records:
         raise ValueError(f"No benchmark results found in {args.results_dir}")
 
@@ -866,27 +973,38 @@ def main() -> None:
     plot_dir.mkdir(parents=True, exist_ok=True)
     selected_plots = resolve_plots(args.plots)
 
-    if "performance_summary" in selected_plots:
-        make_performance_summary_plot(records, plot_dir)
-    if "setup_summary" in selected_plots:
-        make_setup_summary_plot(records, plot_dir)
-    if "evaluation_summary" in selected_plots:
-        make_evaluation_summary_plot(records, plot_dir)
-    if "scan_summary" in selected_plots:
-        make_scan_summary_plot(records, plot_dir)
-    if "stage_timing" in selected_plots:
-        make_stage_timing_plot(records, plot_dir)
-    if "stage_memory" in selected_plots:
-        make_stage_memory_plot(records, plot_dir)
-    if "diagnostics" in selected_plots:
-        make_diagnostics_plot(records, plot_dir)
+    plot_builders: dict[str, Callable[[], None]] = {
+        "performance_summary": lambda: make_performance_summary_plot(records, plot_dir),
+        "setup_summary": lambda: make_setup_summary_plot(records, plot_dir),
+        "evaluation_summary": lambda: make_evaluation_summary_plot(records, plot_dir),
+        "scan_summary": lambda: make_scan_summary_plot(records, plot_dir),
+        "stage_timing": lambda: make_stage_timing_plot(records, plot_dir),
+        "stage_memory": lambda: make_stage_memory_plot(records, plot_dir),
+        "diagnostics": lambda: make_diagnostics_plot(records, plot_dir),
+    }
+
+    completed_plots = []
+    skipped_plots = []
+
+    for plot_name in selected_plots:
+        if run_plot_builder(
+            plot_name=plot_name,
+            builder=plot_builders[plot_name],
+            strict=args.strict,
+        ):
+            completed_plots.append(plot_name)
+        else:
+            skipped_plots.append(plot_name)
 
     print()
     print("=" * 72)
     print("Benchmark overview")
     print("=" * 72)
     print(f"Loaded benchmark records : {len(records)}")
-    print(f"Generated plot set       : {', '.join(selected_plots)}")
+    print(f"Selected plot set        : {', '.join(selected_plots)}")
+    print(f"Completed plot builders  : {', '.join(completed_plots) if completed_plots else 'none'}")
+    print(f"Skipped plot builders    : {', '.join(skipped_plots) if skipped_plots else 'none'}")
+    print(f"Skipped result items     : {len(skipped_items)}")
     print(f"Saved plots to           : {plot_dir}")
 
 
