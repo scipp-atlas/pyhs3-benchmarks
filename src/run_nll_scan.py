@@ -452,13 +452,9 @@ def print_result(result: dict[str, Any]) -> None:
     print()
     print("Timing")
     print(f"  full scan:     {result['total_runtime_seconds'] * 1000:.3f} ms")
+    print(f"  per point:     {result['runtime_per_scan_point_seconds'] * 1000:.6f} ms")
     print(
-        "  per point:     "
-        f"{result['runtime_per_scan_point_seconds'] * 1000:.6f} ms"
-    )
-    print(
-        "  throughput:    "
-        f"{result['throughput_scan_points_per_second']:.3f} points/s"
+        f"  throughput:    {result['throughput_scan_points_per_second']:.3f} points/s"
     )
 
     print()
@@ -529,13 +525,17 @@ def parse_args() -> argparse.Namespace:
         description="Benchmark PyHS3 NLL scans over a parameter grid."
     )
 
-    parser.add_argument("--workspaces", nargs="+", type=Path, default=[DEFAULT_WORKSPACE])
+    parser.add_argument(
+        "--workspaces", nargs="+", type=Path, default=[DEFAULT_WORKSPACE]
+    )
     parser.add_argument("--targets", nargs="+", default=[DEFAULT_TARGET])
     parser.add_argument("--modes", nargs="+", default=[DEFAULT_MODE])
     parser.add_argument("--scan-parameter", default=DEFAULT_SCAN_PARAMETER)
     parser.add_argument("--scan-min", type=float, default=DEFAULT_SCAN_MIN)
     parser.add_argument("--scan-max", type=float, default=DEFAULT_SCAN_MAX)
-    parser.add_argument("--n-scan-points", nargs="+", type=int, default=[DEFAULT_N_SCAN_POINTS])
+    parser.add_argument(
+        "--n-scan-points", nargs="+", type=int, default=[DEFAULT_N_SCAN_POINTS]
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--output-name", default=DEFAULT_OUTPUT_NAME)
     parser.add_argument("--plot", action="store_true")
@@ -550,9 +550,7 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
     """
 
     successful_results = [
-        result
-        for result in results
-        if result.get("status") == "success"
+        result for result in results if result.get("status") == "success"
     ]
 
     if len(successful_results) < 2:
@@ -567,9 +565,7 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
         plot_result["runtime_per_scan_point_ms"] = (
             result["runtime_per_scan_point_seconds"] * 1000.0
         )
-        plot_result["total_runtime_ms"] = (
-            result["total_runtime_seconds"] * 1000.0
-        )
+        plot_result["total_runtime_ms"] = result["total_runtime_seconds"] * 1000.0
         plot_results.append(plot_result)
 
     make_bar_plot(

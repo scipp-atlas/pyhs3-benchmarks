@@ -62,8 +62,7 @@ def validate_timings(timings: list[float]) -> None:
     invalid_timings = [timing for timing in timings if timing <= 0]
     if invalid_timings:
         raise ValueError(
-            "All timing samples must be positive. "
-            f"Invalid samples: {invalid_timings}"
+            f"All timing samples must be positive. Invalid samples: {invalid_timings}"
         )
 
 
@@ -73,14 +72,10 @@ def verify_output_file(output_path: Path) -> None:
     """
 
     if not output_path.exists():
-        raise FileNotFoundError(
-            f"Benchmark output file was not created: {output_path}"
-        )
+        raise FileNotFoundError(f"Benchmark output file was not created: {output_path}")
 
     if not output_path.is_file():
-        raise FileNotFoundError(
-            f"Benchmark output path is not a file: {output_path}"
-        )
+        raise FileNotFoundError(f"Benchmark output path is not a file: {output_path}")
 
 
 def make_error_result(
@@ -391,13 +386,9 @@ def main() -> None:
         "benchmark": BENCHMARK_NAME,
         "n_workspaces": len(results),
         "n_successful_workspaces": sum(
-            result["status"] == "success"
-            for result in results
+            result["status"] == "success" for result in results
         ),
-        "n_failed_workspaces": sum(
-            result["status"] == "failed"
-            for result in results
-        ),
+        "n_failed_workspaces": sum(result["status"] == "failed" for result in results),
         "results": results,
     }
 

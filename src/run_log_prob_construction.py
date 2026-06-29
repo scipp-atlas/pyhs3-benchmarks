@@ -38,7 +38,6 @@ DEFAULT_OUTPUT_NAME = "log_prob_construction_result.json"
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 
 
-
 def validate_workspace_path(workspace_path: Path) -> Path:
     """
     Validate that the workspace path points to an existing JSON file.
@@ -112,9 +111,7 @@ def validate_log_prob(log_prob: TensorVariable) -> dict[str, Any]:
         raise ValueError("log_prob construction returned None")
 
     if not isinstance(log_prob, TensorVariable):
-        raise TypeError(
-            f"Expected TensorVariable, got {type(log_prob).__name__}"
-        )
+        raise TypeError(f"Expected TensorVariable, got {type(log_prob).__name__}")
 
     return {
         "log_prob_type": type(log_prob).__name__,
@@ -125,7 +122,9 @@ def validate_log_prob(log_prob: TensorVariable) -> dict[str, Any]:
     }
 
 
-def measure_log_prob_construction_memory(model: Model) -> tuple[TensorVariable, dict[str, float]]:
+def measure_log_prob_construction_memory(
+    model: Model,
+) -> tuple[TensorVariable, dict[str, float]]:
     """
     Measure memory change for a single log_prob construction.
 
@@ -215,9 +214,7 @@ def run_single_benchmark(
         mode=mode,
     )
 
-    log_prob, memory_summary = measure_log_prob_construction_memory(
-        model_for_memory
-    )
+    log_prob, memory_summary = measure_log_prob_construction_memory(model_for_memory)
     validation_summary = validate_log_prob(log_prob)
 
     del log_prob
@@ -286,7 +283,6 @@ def print_result(result: dict[str, Any]) -> None:
     print(f"  log_prob ndim:     {result['log_prob_ndim']}")
     print(f"  log_prob dtype:    {result['log_prob_dtype']}")
     print(f"  compilable:        {result['can_proceed_to_compilation']}")
-
 
 
 def print_error_result(result: dict[str, Any]) -> None:
@@ -426,7 +422,9 @@ def make_plots(
             metric_label="RSS increase [MB]",
         )
 
-        print(f"Saved plot to {plot_dir / 'log_prob_construction_current_rss_delta.png'}")
+        print(
+            f"Saved plot to {plot_dir / 'log_prob_construction_current_rss_delta.png'}"
+        )
 
     if should_plot_metric(results, "peak_rss_delta_mb"):
         make_bar_plot(

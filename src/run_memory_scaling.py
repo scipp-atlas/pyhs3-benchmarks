@@ -48,6 +48,7 @@ RSS_KEYS = [
     "peak_rss_delta_mb",
 ]
 
+
 def validate_workspace_path(workspace_path: Path) -> Path:
     """
     Validate that the workspace path points to an existing JSON file.
@@ -177,8 +178,7 @@ def validate_stage_records(
     return {
         "n_stages": len(stage_records),
         "all_stages_successful": all(
-            record["status"] == "success"
-            for record in stage_records
+            record["status"] == "success" for record in stage_records
         ),
         "all_rss_fields_present": len(missing_fields) == 0,
         "missing_rss_fields": missing_fields,
@@ -213,9 +213,7 @@ def summarize_memory(
     return {
         "total_current_rss_delta_mb": sum(current_deltas),
         "total_peak_rss_delta_mb": sum(peak_deltas),
-        "max_peak_rss_after_mb": max(peak_after_values)
-        if peak_after_values
-        else None,
+        "max_peak_rss_after_mb": max(peak_after_values) if peak_after_values else None,
     }
 
 
@@ -406,10 +404,7 @@ def make_plot_records(
 
             records.append(
                 {
-                    "plot_label": (
-                        f"{result['workspace']}\n"
-                        f"{stage['stage']}"
-                    ),
+                    "plot_label": (f"{result['workspace']}\n{stage['stage']}"),
                     "workspace": result["workspace"],
                     "stage": stage["stage"],
                     "current_rss_delta_mb": stage["current_rss_delta_mb"],
@@ -494,18 +489,9 @@ def print_result(result: dict[str, Any]) -> None:
 
     print()
     print("Summary")
-    print(
-        "  total current RSS delta: "
-        f"{result['total_current_rss_delta_mb']:.3f} MB"
-    )
-    print(
-        "  total peak RSS delta:    "
-        f"{result['total_peak_rss_delta_mb']:.3f} MB"
-    )
-    print(
-        "  max peak RSS after:      "
-        f"{result['max_peak_rss_after_mb']:.3f} MB"
-    )
+    print(f"  total current RSS delta: {result['total_current_rss_delta_mb']:.3f} MB")
+    print(f"  total peak RSS delta:    {result['total_peak_rss_delta_mb']:.3f} MB")
+    print(f"  max peak RSS after:      {result['max_peak_rss_after_mb']:.3f} MB")
 
 
 def parse_args() -> argparse.Namespace:

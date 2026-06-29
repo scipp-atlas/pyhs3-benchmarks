@@ -168,20 +168,14 @@ def validate_evaluation(
     if len(outputs) == 0:
         raise ValueError("No evaluation outputs were produced")
 
-    all_finite = all(
-        math.isfinite(output)
-        for output in outputs
-    )
+    all_finite = all(math.isfinite(output) for output in outputs)
 
     if not all_finite:
         raise ValueError("Evaluation outputs contain non-finite values")
 
     reference_value = outputs[0]
 
-    max_absolute_deviation = max(
-        abs(output - reference_value)
-        for output in outputs
-    )
+    max_absolute_deviation = max(abs(output - reference_value) for output in outputs)
 
     return {
         "n_outputs": len(outputs),
@@ -272,6 +266,7 @@ def measure_evaluation_memory(
         "peak_rss_delta_mb": peak_rss_after_mb - peak_rss_before_mb,
     }
 
+
 def run_single_benchmark(
     workspace_path: Path,
     target: str,
@@ -333,6 +328,7 @@ def run_single_benchmark(
         **validation_summary,
     }
 
+
 def print_result(result: dict[str, Any]) -> None:
     """
     Print a readable benchmark summary.
@@ -356,8 +352,7 @@ def print_result(result: dict[str, Any]) -> None:
         f"{result['average_runtime_seconds_per_evaluation'] * 1000:.6f} ms"
     )
     print(
-        "  throughput:       "
-        f"{result['throughput_evaluations_per_second']:.3f} eval/s"
+        f"  throughput:       {result['throughput_evaluations_per_second']:.3f} eval/s"
     )
 
     print()
@@ -377,7 +372,6 @@ def print_result(result: dict[str, Any]) -> None:
     print(f"  finite outputs:     {result['all_outputs_finite']}")
     print(f"  max abs deviation:  {result['max_absolute_deviation']}")
     print(f"  stable outputs:     {result['outputs_stable']}")
-
 
 
 def make_error_result(
@@ -480,6 +474,7 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+
 def make_scaling_line_plot(
     results: list[dict[str, Any]],
     output_path: Path,
@@ -518,20 +513,11 @@ def make_scaling_line_plot(
             key=lambda item: item["n_evaluations"],
         )
 
-        x_values = [
-            result["n_evaluations"]
-            for result in workspace_results
-        ]
-        y_values = [
-            result[metric_key]
-            for result in workspace_results
-        ]
+        x_values = [result["n_evaluations"] for result in workspace_results]
+        y_values = [result[metric_key] for result in workspace_results]
 
         if metric_key == "average_runtime_seconds_per_evaluation":
-            y_values = [
-                value * 1000.0
-                for value in y_values
-            ]
+            y_values = [value * 1000.0 for value in y_values]
 
         label = workspace.replace(".json", "")
 

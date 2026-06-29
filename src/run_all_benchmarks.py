@@ -106,7 +106,9 @@ def validate_target_and_mode(target: str, mode: str) -> None:
         raise ValueError("--mode must be a non-empty string")
 
 
-def validate_benchmark_config(n_runs: int, n_evaluations: int, n_scan_points: int, target: str, mode: str) -> None:
+def validate_benchmark_config(
+    n_runs: int, n_evaluations: int, n_scan_points: int, target: str, mode: str
+) -> None:
     """Validate top-level benchmark-suite configuration."""
 
     validate_positive_int(n_runs, "--n-runs")
@@ -119,6 +121,7 @@ def command_has_plot_flag(command: list[str]) -> bool:
     """Return whether a generated command includes --plot."""
 
     return "--plot" in command
+
 
 def format_command(command: list[str]) -> str:
     """Return a shell-readable command string for logging."""
@@ -212,8 +215,7 @@ def save_suite_summary(
         "n_success": sum(result.status == "success" for result in run_results),
         "n_failed": sum(result.status == "failed" for result in run_results),
         "n_skipped_dry_run": sum(
-            result.status == "skipped_dry_run"
-            for result in run_results
+            result.status == "skipped_dry_run" for result in run_results
         ),
         "results": [
             {
@@ -232,7 +234,6 @@ def save_suite_summary(
 
     with output_path.open("w") as file:
         json.dump(payload, file, indent=2, sort_keys=True)
-
 
 
 def build_core_benchmarks(
@@ -516,11 +517,7 @@ def select_benchmarks(
 
     available = {benchmark.name: benchmark for benchmark in all_benchmarks}
 
-    unknown = [
-        name
-        for name in benchmark_names
-        if name not in available
-    ]
+    unknown = [name for name in benchmark_names if name not in available]
 
     if unknown:
         raise ValueError(
@@ -528,10 +525,8 @@ def select_benchmarks(
             f"Available benchmarks: {sorted(available)}"
         )
 
-    return [
-        available[name]
-        for name in benchmark_names
-    ]
+    return [available[name] for name in benchmark_names]
+
 
 def apply_preset(args: argparse.Namespace) -> argparse.Namespace:
     """
@@ -559,10 +554,9 @@ def apply_preset(args: argparse.Namespace) -> argparse.Namespace:
 
     return args
 
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run the PyHS3 benchmark suite."
-    )
+    parser = argparse.ArgumentParser(description="Run the PyHS3 benchmark suite.")
 
     parser.add_argument(
         "--benchmarks",

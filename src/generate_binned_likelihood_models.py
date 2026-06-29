@@ -320,8 +320,7 @@ def validate_workspace(
 
     if len(model.distributions) != n_bins:
         raise ValueError(
-            f"Expected {n_bins} distributions, "
-            f"got {len(model.distributions)}"
+            f"Expected {n_bins} distributions, got {len(model.distributions)}"
         )
 
     print(

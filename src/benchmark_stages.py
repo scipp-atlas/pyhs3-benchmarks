@@ -58,8 +58,7 @@ def resolve_stages(
 
     if unknown_stages:
         raise ValueError(
-            f"Unknown stages: {unknown_stages}. "
-            f"Available stages: {available_stages}"
+            f"Unknown stages: {unknown_stages}. Available stages: {available_stages}"
         )
 
     return list(stages)
@@ -124,10 +123,7 @@ def build_stage_specs(
         ),
     }
 
-    return [
-        (stage, specs[stage][0], specs[stage][1])
-        for stage in resolved_stages
-    ]
+    return [(stage, specs[stage][0], specs[stage][1]) for stage in resolved_stages]
 
 
 def make_stage_error_result(
@@ -190,8 +186,7 @@ def run_stage_isolated(
             "status": "failed",
             "error_type": "TypeError",
             "error_message": (
-                "Stage returned a non-dictionary result: "
-                f"{type(result).__name__}"
+                f"Stage returned a non-dictionary result: {type(result).__name__}"
             ),
         }
 

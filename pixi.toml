@@ -35,6 +35,12 @@ plot = "python -m src.plot_benchmark_overview"
 # Profiling
 profile-model-creation = "scalene --outfile results/scalene/model_creation.html src/run_model_creation.py"
 
+lint = "ruff check src tests"
+format = "ruff format src tests"
+format-check = "ruff format --check src tests"
+pre-commit = "pre-commit run --all-files"
+ci = "python -m compileall src tests && ruff check src tests && ruff format --check src tests"
+
 [dependencies]
 python = "3.12.*"
 numpy = "*"

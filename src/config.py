@@ -6,11 +6,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-DEFAULT_WORKSPACE = (
-    REPO_ROOT
-    / "inputs"
-    / "simple_workspace_nonp.json"
-)
+DEFAULT_WORKSPACE = REPO_ROOT / "inputs" / "simple_workspace_nonp.json"
 
 DEFAULT_TARGET = "L_ch0"
 DEFAULT_MODE = "FAST_RUN"

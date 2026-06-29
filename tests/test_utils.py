@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -76,7 +75,9 @@ def test_run_repeated_timing_wraps_function_error() -> None:
         ([1.0, 2.0, 3.0], {"mean": 2.0, "median": 2.0}),
     ],
 )
-def test_summarize_timings_success(timings: list[float], expected: dict[str, float]) -> None:
+def test_summarize_timings_success(
+    timings: list[float], expected: dict[str, float]
+) -> None:
     summary = utils.summarize_timings(timings)
 
     assert summary["wall_time_seconds_mean"] == pytest.approx(expected["mean"])
@@ -93,7 +94,9 @@ def test_summarize_timings_rejects_empty_list() -> None:
 
 
 @pytest.mark.parametrize("timings", [[0.0], [-1.0], [float("nan")], [float("inf")]])
-def test_summarize_timings_rejects_non_positive_or_non_finite(timings: list[float]) -> None:
+def test_summarize_timings_rejects_non_positive_or_non_finite(
+    timings: list[float],
+) -> None:
     with pytest.raises(ValueError, match="positive finite"):
         utils.summarize_timings(timings)
 
@@ -116,7 +119,9 @@ def test_save_json_rejects_non_serializable_data(tmp_path: Path) -> None:
         utils.save_json({"bad": {1, 2, 3}}, output_path)
 
 
-def test_save_json_wraps_os_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_save_json_wraps_os_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     output_path = tmp_path / "result.json"
 
     def fail_open(*args: Any, **kwargs: Any) -> Any:
@@ -139,7 +144,9 @@ def test_save_json_wraps_os_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
         ([{"status": "success", "x": float("nan")}], "x", False),
     ],
 )
-def test_should_plot_metric(results: list[dict[str, Any]], metric_key: str, expected: bool) -> None:
+def test_should_plot_metric(
+    results: list[dict[str, Any]], metric_key: str, expected: bool
+) -> None:
     assert utils.should_plot_metric(results, metric_key) is expected
 
 
@@ -229,13 +236,17 @@ def test_scaled_metric_rejects_missing_metric() -> None:
 @pytest.mark.parametrize("value", ["abc", object()])
 def test_scaled_metric_rejects_non_numeric_values(value: Any) -> None:
     with pytest.raises(ValueError, match="contains non-numeric"):
-        utils._scaled_metric([{"workspace": "a.json", "metric": value}], "metric", "Metric")
+        utils._scaled_metric(
+            [{"workspace": "a.json", "metric": value}], "metric", "Metric"
+        )
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf")])
 def test_scaled_metric_rejects_non_finite_values(value: float) -> None:
     with pytest.raises(ValueError, match="contains non-finite"):
-        utils._scaled_metric([{"workspace": "a.json", "metric": value}], "metric", "Metric")
+        utils._scaled_metric(
+            [{"workspace": "a.json", "metric": value}], "metric", "Metric"
+        )
 
 
 @pytest.mark.parametrize(
@@ -330,7 +341,9 @@ def test_make_bar_plot_handles_negative_values(tmp_path: Path) -> None:
     assert output_path.exists()
 
 
-def test_make_bar_plot_wraps_save_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_make_bar_plot_wraps_save_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     def fail_savefig(self: Any, *args: Any, **kwargs: Any) -> None:
         raise OSError("cannot write")
 
@@ -415,7 +428,9 @@ def test_make_grouped_bar_plot_requires_n_evaluations(tmp_path: Path) -> None:
         )
 
 
-def test_make_grouped_bar_plot_wraps_save_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_make_grouped_bar_plot_wraps_save_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     def fail_savefig(self: Any, *args: Any, **kwargs: Any) -> None:
         raise OSError("cannot write")
 
@@ -461,7 +476,9 @@ def test_make_line_plot_by_evaluations_without_log_x(tmp_path: Path) -> None:
     assert output_path.exists()
 
 
-def test_make_line_plot_by_evaluations_rejects_no_successful_results(tmp_path: Path) -> None:
+def test_make_line_plot_by_evaluations_rejects_no_successful_results(
+    tmp_path: Path,
+) -> None:
     with pytest.raises(ValueError, match="without successful benchmark results"):
         utils.make_line_plot_by_evaluations(
             results=[{"status": "failed", "metric": 1.0}],
@@ -483,7 +500,9 @@ def test_make_line_plot_by_evaluations_requires_n_evaluations(tmp_path: Path) ->
         )
 
 
-def test_make_line_plot_by_evaluations_wraps_save_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_make_line_plot_by_evaluations_wraps_save_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     def fail_savefig(self: Any, *args: Any, **kwargs: Any) -> None:
         raise OSError("cannot write")
 
@@ -499,7 +518,9 @@ def test_make_line_plot_by_evaluations_wraps_save_error(monkeypatch: pytest.Monk
         )
 
 
-def test_load_workspace_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_load_workspace_success(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     workspace_path = tmp_path / "workspace.json"
     workspace_path.write_text("{}")
     loaded = object()
@@ -519,7 +540,9 @@ def test_load_workspace_rejects_directory(tmp_path: Path) -> None:
         utils.load_workspace(tmp_path)
 
 
-def test_load_workspace_wraps_load_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_load_workspace_wraps_load_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     workspace_path = tmp_path / "workspace.json"
     workspace_path.write_text("{}")
 
@@ -567,7 +590,9 @@ def test_create_model_wraps_model_error() -> None:
         utils.create_model(workspace, target="analysis", mode="FAST_RUN")
 
 
-def test_build_log_prob_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_build_log_prob_success(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     model = SimpleNamespace(log_prob="log_prob")
 
     monkeypatch.setattr(utils, "load_workspace", lambda workspace_path: "workspace")
@@ -587,20 +612,28 @@ def test_build_log_prob_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert log_prob == "log_prob"
 
 
-def test_build_log_prob_wraps_property_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_build_log_prob_wraps_property_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     class BadModel:
         @property
         def log_prob(self) -> Any:
             raise RuntimeError("missing likelihood")
 
     monkeypatch.setattr(utils, "load_workspace", lambda workspace_path: "workspace")
-    monkeypatch.setattr(utils, "create_model", lambda workspace, target, mode: BadModel())
+    monkeypatch.setattr(
+        utils, "create_model", lambda workspace, target, mode: BadModel()
+    )
 
     with pytest.raises(RuntimeError, match="Failed to build log_prob"):
-        utils.build_log_prob(tmp_path / "workspace.json", target="analysis", mode="FAST_RUN")
+        utils.build_log_prob(
+            tmp_path / "workspace.json", target="analysis", mode="FAST_RUN"
+        )
 
 
-def test_build_log_prob_rejects_none_log_prob(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_build_log_prob_rejects_none_log_prob(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(utils, "load_workspace", lambda workspace_path: "workspace")
     monkeypatch.setattr(
         utils,
@@ -609,7 +642,9 @@ def test_build_log_prob_rejects_none_log_prob(monkeypatch: pytest.MonkeyPatch, t
     )
 
     with pytest.raises(ValueError, match="log_prob construction returned None"):
-        utils.build_log_prob(tmp_path / "workspace.json", target="analysis", mode="FAST_RUN")
+        utils.build_log_prob(
+            tmp_path / "workspace.json", target="analysis", mode="FAST_RUN"
+        )
 
 
 def test_compile_log_prob_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -657,7 +692,11 @@ def test_build_validation_inputs_success() -> None:
     ("model", "compiled", "message"),
     [
         (None, SimpleNamespace(input_names=[]), "model must not be None"),
-        (SimpleNamespace(data={}, free_params={}), None, "compiled graph must not be None"),
+        (
+            SimpleNamespace(data={}, free_params={}),
+            None,
+            "compiled graph must not be None",
+        ),
     ],
 )
 def test_build_validation_inputs_rejects_none_inputs(

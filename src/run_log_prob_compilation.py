@@ -10,9 +10,7 @@ from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
 
-from pyhs3 import jaxify
 from pyhs3.transpile import JaxifiedGraph
-from pyhs3.workspace import Workspace
 from .utils import (
     get_current_rss_mb,
     get_peak_rss_mb,
@@ -20,8 +18,6 @@ from .utils import (
     save_json,
     summarize_timings,
     should_plot_metric,
-    load_workspace,
-    create_model,
     build_log_prob,
     compile_log_prob,
     build_validation_inputs,
@@ -107,9 +103,7 @@ def validate_compiled_graph(
         raise ValueError("Compilation returned None")
 
     if not isinstance(compiled, JaxifiedGraph):
-        raise TypeError(
-            f"Expected JaxifiedGraph, got {type(compiled).__name__}"
-        )
+        raise TypeError(f"Expected JaxifiedGraph, got {type(compiled).__name__}")
 
     validation_inputs = build_validation_inputs(
         model=model,
@@ -175,15 +169,19 @@ def measure_compilation_memory(
     current_rss_after_mb = get_current_rss_mb()
     peak_rss_after_mb = get_peak_rss_mb()
 
-    return model, compiled, {
-        "memory_n_runs": 1,
-        "current_rss_before_mb": current_rss_before_mb,
-        "current_rss_after_mb": current_rss_after_mb,
-        "current_rss_delta_mb": current_rss_after_mb - current_rss_before_mb,
-        "peak_rss_before_mb": peak_rss_before_mb,
-        "peak_rss_after_mb": peak_rss_after_mb,
-        "peak_rss_delta_mb": peak_rss_after_mb - peak_rss_before_mb,
-    }
+    return (
+        model,
+        compiled,
+        {
+            "memory_n_runs": 1,
+            "current_rss_before_mb": current_rss_before_mb,
+            "current_rss_after_mb": current_rss_after_mb,
+            "current_rss_delta_mb": current_rss_after_mb - current_rss_before_mb,
+            "peak_rss_before_mb": peak_rss_before_mb,
+            "peak_rss_after_mb": peak_rss_after_mb,
+            "peak_rss_delta_mb": peak_rss_after_mb - peak_rss_before_mb,
+        },
+    )
 
 
 def measure_compilation_timing(
@@ -362,10 +360,7 @@ def print_error_result(result: dict[str, Any]) -> None:
     print(f"Mode:      {result['mode']}")
     print(f"Runs:      {result['n_runs']}")
     print(f"Status:    {result['status']}")
-    print(
-        "Error:     "
-        f"{result['error_type']}: {result['error_message']}"
-    )
+    print(f"Error:     {result['error_type']}: {result['error_message']}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -423,6 +418,7 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+
 def make_plots(
     results: list[dict[str, Any]],
     plot_dir: Path,
@@ -431,11 +427,7 @@ def make_plots(
     Create standard plots for the successful log_prob compilation results.
     """
 
-    results = [
-        result
-        for result in results
-        if result.get("status") == "success"
-    ]
+    results = [result for result in results if result.get("status") == "success"]
 
     if len(results) < 2:
         print("Skipping plots: at least two successful result entries are needed.")
@@ -463,7 +455,9 @@ def make_plots(
             metric_label="RSS increase [MB]",
         )
 
-        print(f"Saved plot to {plot_dir / 'log_prob_compilation_current_rss_delta.png'}")
+        print(
+            f"Saved plot to {plot_dir / 'log_prob_compilation_current_rss_delta.png'}"
+        )
     else:
         print("Skipping current RSS plot: all values are zero.")
 
@@ -547,9 +541,7 @@ def main() -> None:
     if args.plot:
         make_plots(results=results, plot_dir=args.plot_dir)
         successful_results = [
-            result
-            for result in results
-            if result.get("status") == "success"
+            result for result in results if result.get("status") == "success"
         ]
         if len(successful_results) >= 2:
             print(f"Saved plots to {args.plot_dir}")

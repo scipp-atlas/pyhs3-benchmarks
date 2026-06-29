@@ -8,7 +8,6 @@ from typing import Any, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Patch
 
 from .config import PLOTS_DIR, RESULTS_DIR
 
@@ -307,7 +306,9 @@ def collect_overview_records(
                         record["wall_time_ms"] = value * 1000.0
 
                 if record["average_runtime_seconds_per_evaluation"] is not None:
-                    value = maybe_to_float(record["average_runtime_seconds_per_evaluation"])
+                    value = maybe_to_float(
+                        record["average_runtime_seconds_per_evaluation"]
+                    )
                     if value is not None:
                         record["average_runtime_ms_per_evaluation"] = value * 1000.0
 
@@ -343,6 +344,7 @@ def collect_overview_records(
                 )
 
     return records, skipped_items
+
 
 def values_match(actual: Any, expected_values: list[str] | None) -> bool:
     if not expected_values:
@@ -468,7 +470,9 @@ def make_ranked_horizontal_plot(
     if not plot_records:
         return
 
-    plot_records = sorted(plot_records, key=lambda item: item[1], reverse=True)[:max_rows]
+    plot_records = sorted(plot_records, key=lambda item: item[1], reverse=True)[
+        :max_rows
+    ]
     plot_records = list(reversed(plot_records))
 
     labels = [
@@ -558,7 +562,9 @@ def make_grouped_metric_plot(
     all_values: list[float] = []
     for series_index, (label, rows) in enumerate(series_rows):
         value_by_workspace = {row["workspace"]: row["value"] for row in rows}
-        values = [value_by_workspace.get(workspace, 0.0) for workspace in workspace_order]
+        values = [
+            value_by_workspace.get(workspace, 0.0) for workspace in workspace_order
+        ]
         all_values.extend([value for value in values if value > 0])
         offsets = x + (series_index - (len(series_rows) - 1) / 2) * width
         ax.bar(offsets, values, width=width, label=label)
@@ -577,7 +583,9 @@ def make_grouped_metric_plot(
     save_figure(fig, output_path)
 
 
-def make_performance_summary_plot(records: list[dict[str, Any]], plot_dir: Path) -> None:
+def make_performance_summary_plot(
+    records: list[dict[str, Any]], plot_dir: Path
+) -> None:
     """Main overview: the few metrics that are safe to compare at a glance."""
 
     panels = [
@@ -617,7 +625,9 @@ def make_performance_summary_plot(records: list[dict[str, Any]], plot_dir: Path)
             and maybe_to_float(record.get(metric_key)) != 0.0
         ]
         if panel_records:
-            available_panels.append((title, metric_key, benchmark_filter, unit, panel_records))
+            available_panels.append(
+                (title, metric_key, benchmark_filter, unit, panel_records)
+            )
 
     if not available_panels:
         return
@@ -658,12 +668,20 @@ def make_performance_summary_plot(records: list[dict[str, Any]], plot_dir: Path)
         ax.set_yticklabels(labels)
         ax.invert_yaxis()
         ax.set_xlabel(unit)
-        annotate_horizontal_bars(ax, values, unit, precision=3 if max(values) < 1 else 1)
+        annotate_horizontal_bars(
+            ax, values, unit, precision=3 if max(values) < 1 else 1
+        )
         if values:
             ax.set_xlim(0, max(values) * 1.28)
         finalize_axes(ax)
 
-    fig.suptitle("Benchmark performance summary", x=0.02, ha="left", fontsize=23, fontweight="bold")
+    fig.suptitle(
+        "Benchmark performance summary",
+        x=0.02,
+        ha="left",
+        fontsize=23,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     save_figure(fig, plot_dir / "benchmark_overview_performance_summary.png")
 
@@ -870,7 +888,9 @@ def make_diagnostics_plot(records: list[dict[str, Any]], plot_dir: Path) -> None
 
     status_counts: dict[str, int] = {}
     for record in records:
-        key = f"{normalize_benchmark_name(str(record['benchmark']))} · {record['status']}"
+        key = (
+            f"{normalize_benchmark_name(str(record['benchmark']))} · {record['status']}"
+        )
         status_counts[key] = status_counts.get(key, 0) + 1
 
     if not status_counts:
@@ -891,7 +911,6 @@ def make_diagnostics_plot(records: list[dict[str, Any]], plot_dir: Path) -> None
     ax.set_xlim(0, max(values) * 1.18)
     finalize_axes(ax)
     save_figure(fig, plot_dir / "benchmark_overview_diagnostics_status.png")
-
 
 
 def run_plot_builder(
@@ -1002,8 +1021,12 @@ def main() -> None:
     print("=" * 72)
     print(f"Loaded benchmark records : {len(records)}")
     print(f"Selected plot set        : {', '.join(selected_plots)}")
-    print(f"Completed plot builders  : {', '.join(completed_plots) if completed_plots else 'none'}")
-    print(f"Skipped plot builders    : {', '.join(skipped_plots) if skipped_plots else 'none'}")
+    print(
+        f"Completed plot builders  : {', '.join(completed_plots) if completed_plots else 'none'}"
+    )
+    print(
+        f"Skipped plot builders    : {', '.join(skipped_plots) if skipped_plots else 'none'}"
+    )
     print(f"Skipped result items     : {len(skipped_items)}")
     print(f"Saved plots to           : {plot_dir}")
 

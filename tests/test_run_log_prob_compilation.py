@@ -138,7 +138,9 @@ def test_verify_output_file_success(tmp_path: Path) -> None:
 def test_verify_output_file_missing(tmp_path: Path) -> None:
     output_path = tmp_path / "missing.json"
 
-    with pytest.raises(FileNotFoundError, match="Benchmark output file was not created"):
+    with pytest.raises(
+        FileNotFoundError, match="Benchmark output file was not created"
+    ):
         benchmark.verify_output_file(output_path)
 
 
@@ -172,9 +174,7 @@ def test_validate_compiled_graph_success(
         "validation_first_value": 1.25,
         "validation_result_is_finite": True,
     }
-    assert fake_compiled_graph.calls == [
-        {"x": np.array([1.0]), "mu": np.array([1.0])}
-    ]
+    assert fake_compiled_graph.calls == [{"x": np.array([1.0]), "mu": np.array([1.0])}]
 
 
 def test_validate_compiled_graph_rejects_none(fake_model: SimpleNamespace) -> None:
@@ -182,7 +182,9 @@ def test_validate_compiled_graph_rejects_none(fake_model: SimpleNamespace) -> No
         benchmark.validate_compiled_graph(model=fake_model, compiled=None)
 
 
-def test_validate_compiled_graph_rejects_wrong_type(fake_model: SimpleNamespace) -> None:
+def test_validate_compiled_graph_rejects_wrong_type(
+    fake_model: SimpleNamespace,
+) -> None:
     with pytest.raises(TypeError, match="Expected JaxifiedGraph"):
         benchmark.validate_compiled_graph(model=fake_model, compiled=object())
 
@@ -192,7 +194,9 @@ def test_validate_compiled_graph_rejects_non_tuple_result(
     fake_model: SimpleNamespace,
 ) -> None:
     monkeypatch.setattr(benchmark, "JaxifiedGraph", FakeCompiledGraph)
-    monkeypatch.setattr(benchmark, "build_validation_inputs", lambda model, compiled: {})
+    monkeypatch.setattr(
+        benchmark, "build_validation_inputs", lambda model, compiled: {}
+    )
 
     compiled = FakeCompiledGraph(result=np.array([1.0]))
 
@@ -205,7 +209,9 @@ def test_validate_compiled_graph_rejects_empty_tuple(
     fake_model: SimpleNamespace,
 ) -> None:
     monkeypatch.setattr(benchmark, "JaxifiedGraph", FakeCompiledGraph)
-    monkeypatch.setattr(benchmark, "build_validation_inputs", lambda model, compiled: {})
+    monkeypatch.setattr(
+        benchmark, "build_validation_inputs", lambda model, compiled: {}
+    )
 
     compiled = FakeCompiledGraph(result=())
 
@@ -218,7 +224,9 @@ def test_validate_compiled_graph_rejects_non_finite_result(
     fake_model: SimpleNamespace,
 ) -> None:
     monkeypatch.setattr(benchmark, "JaxifiedGraph", FakeCompiledGraph)
-    monkeypatch.setattr(benchmark, "build_validation_inputs", lambda model, compiled: {})
+    monkeypatch.setattr(
+        benchmark, "build_validation_inputs", lambda model, compiled: {}
+    )
 
     compiled = FakeCompiledGraph(result=(np.array([np.inf]),))
 
@@ -264,8 +272,12 @@ def test_measure_compilation_memory_success(
         "build_log_prob",
         lambda workspace_path, target, mode: (fake_model, log_prob),
     )
-    monkeypatch.setattr(benchmark, "compile_log_prob", lambda graph: fake_compiled_graph)
-    monkeypatch.setattr(benchmark, "get_current_rss_mb", lambda: next(current_rss_values))
+    monkeypatch.setattr(
+        benchmark, "compile_log_prob", lambda graph: fake_compiled_graph
+    )
+    monkeypatch.setattr(
+        benchmark, "get_current_rss_mb", lambda: next(current_rss_values)
+    )
     monkeypatch.setattr(benchmark, "get_peak_rss_mb", lambda: next(peak_rss_values))
 
     model, compiled, memory_summary = benchmark.measure_compilation_memory(
@@ -340,7 +352,9 @@ def test_measure_compilation_timing_success(
     build_calls = []
     compile_calls = []
 
-    def fake_build_log_prob(workspace_path: Path, target: str, mode: str) -> tuple[Any, Any]:
+    def fake_build_log_prob(
+        workspace_path: Path, target: str, mode: str
+    ) -> tuple[Any, Any]:
         log_prob = object()
         build_calls.append((workspace_path, target, mode, log_prob))
         return fake_model, log_prob
@@ -349,7 +363,9 @@ def test_measure_compilation_timing_success(
         compile_calls.append(log_prob)
         return fake_compiled_graph
 
-    monkeypatch.setattr(benchmark.time, "perf_counter", lambda: next(perf_counter_values))
+    monkeypatch.setattr(
+        benchmark.time, "perf_counter", lambda: next(perf_counter_values)
+    )
     monkeypatch.setattr(benchmark, "build_log_prob", fake_build_log_prob)
     monkeypatch.setattr(benchmark, "compile_log_prob", fake_compile_log_prob)
 
@@ -510,7 +526,9 @@ def test_run_single_benchmark_rejects_empty_timings(
         "measure_compilation_memory",
         lambda workspace_path, target, mode: (fake_model, fake_compiled_graph, {}),
     )
-    monkeypatch.setattr(benchmark, "validate_compiled_graph", lambda model, compiled: {})
+    monkeypatch.setattr(
+        benchmark, "validate_compiled_graph", lambda model, compiled: {}
+    )
     monkeypatch.setattr(
         benchmark,
         "measure_compilation_timing",
@@ -537,7 +555,9 @@ def test_run_single_benchmark_rejects_non_positive_timings(
         "measure_compilation_memory",
         lambda workspace_path, target, mode: (fake_model, fake_compiled_graph, {}),
     )
-    monkeypatch.setattr(benchmark, "validate_compiled_graph", lambda model, compiled: {})
+    monkeypatch.setattr(
+        benchmark, "validate_compiled_graph", lambda model, compiled: {}
+    )
     monkeypatch.setattr(
         benchmark,
         "measure_compilation_timing",
@@ -753,7 +773,9 @@ def test_main_saves_json_and_verifies_output(
             output_name,
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     def fake_save_json(payload: dict[str, Any], output_path: Path) -> None:
@@ -852,12 +874,16 @@ def test_main_skips_plots_for_single_result(
             "--plot",
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(parents=True, exist_ok=True)
+        lambda payload, output_path: output_path.parent.mkdir(
+            parents=True, exist_ok=True
+        )
         or output_path.write_text("{}"),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
@@ -897,12 +923,16 @@ def test_main_creates_plots_for_multiple_results(
             "--plot",
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(parents=True, exist_ok=True)
+        lambda payload, output_path: output_path.parent.mkdir(
+            parents=True, exist_ok=True
+        )
         or output_path.write_text("{}"),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
@@ -995,13 +1025,14 @@ def test_make_plots_real_png_files_created(
     assert (tmp_path / "log_prob_compilation_peak_rss_delta.png").exists()
 
 
-
 def test_validate_compiled_graph_rejects_empty_array(
     monkeypatch: pytest.MonkeyPatch,
     fake_model: SimpleNamespace,
 ) -> None:
     monkeypatch.setattr(benchmark, "JaxifiedGraph", FakeCompiledGraph)
-    monkeypatch.setattr(benchmark, "build_validation_inputs", lambda model, compiled: {})
+    monkeypatch.setattr(
+        benchmark, "build_validation_inputs", lambda model, compiled: {}
+    )
 
     compiled = FakeCompiledGraph(result=(np.array([]),))
 
@@ -1182,12 +1213,16 @@ def test_main_with_multiple_results_invokes_plots_and_prints_message(
             str(plot_dir),
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(parents=True, exist_ok=True)
+        lambda payload, output_path: output_path.parent.mkdir(
+            parents=True, exist_ok=True
+        )
         or output_path.write_text("{}"),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)

@@ -132,7 +132,9 @@ def measure_graph_optimization_memory(
 ) -> tuple[FunctionGraph, dict[str, float | int]]:
     gc.collect()
 
-    _, log_prob = build_log_prob(workspace_path=workspace_path, target=target, mode=mode)
+    _, log_prob = build_log_prob(
+        workspace_path=workspace_path, target=target, mode=mode
+    )
     fgraph = build_function_graph(log_prob)
     n_apply_nodes_before = len(fgraph.apply_nodes)
 
@@ -166,7 +168,9 @@ def measure_graph_optimization_timing(
     timings: list[float] = []
 
     for _ in range(n_runs):
-        _, log_prob = build_log_prob(workspace_path=workspace_path, target=target, mode=mode)
+        _, log_prob = build_log_prob(
+            workspace_path=workspace_path, target=target, mode=mode
+        )
         fgraph = build_function_graph(log_prob)
 
         start = time.perf_counter()
@@ -300,7 +304,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark PyTensor graph optimization for pyHS3 log_prob graphs."
     )
-    parser.add_argument("--workspaces", nargs="+", type=Path, default=[DEFAULT_WORKSPACE])
+    parser.add_argument(
+        "--workspaces", nargs="+", type=Path, default=[DEFAULT_WORKSPACE]
+    )
     parser.add_argument("--targets", nargs="+", default=[DEFAULT_TARGET])
     parser.add_argument("--modes", nargs="+", default=[DEFAULT_MODE])
     parser.add_argument("--n-runs", type=int, default=DEFAULT_N_RUNS)
@@ -313,9 +319,7 @@ def parse_args() -> argparse.Namespace:
 
 def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
     successful_results = [
-        result
-        for result in results
-        if result.get("status") == "success"
+        result for result in results if result.get("status") == "success"
     ]
 
     if len(successful_results) < 2:

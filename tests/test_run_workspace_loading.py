@@ -99,7 +99,9 @@ def test_verify_output_file_success(tmp_path: Path) -> None:
 def test_verify_output_file_missing(tmp_path: Path) -> None:
     output_path = tmp_path / "missing.json"
 
-    with pytest.raises(FileNotFoundError, match="Benchmark output file was not created"):
+    with pytest.raises(
+        FileNotFoundError, match="Benchmark output file was not created"
+    ):
         benchmark.verify_output_file(output_path)
 
 
@@ -121,7 +123,9 @@ def test_validate_workspace_success(valid_workspace: SimpleNamespace) -> None:
     }
 
 
-def test_validate_workspace_allows_missing_domains(valid_workspace: SimpleNamespace) -> None:
+def test_validate_workspace_allows_missing_domains(
+    valid_workspace: SimpleNamespace,
+) -> None:
     valid_workspace.domains = None
 
     result = benchmark.validate_workspace(valid_workspace)
@@ -175,14 +179,18 @@ def test_validate_workspace_rejects_empty_likelihoods(
         benchmark.validate_workspace(valid_workspace)
 
 
-def test_validate_workspace_rejects_missing_data(valid_workspace: SimpleNamespace) -> None:
+def test_validate_workspace_rejects_missing_data(
+    valid_workspace: SimpleNamespace,
+) -> None:
     valid_workspace.data = None
 
     with pytest.raises(ValueError, match="Workspace does not contain data"):
         benchmark.validate_workspace(valid_workspace)
 
 
-def test_validate_workspace_rejects_empty_data(valid_workspace: SimpleNamespace) -> None:
+def test_validate_workspace_rejects_empty_data(
+    valid_workspace: SimpleNamespace,
+) -> None:
     valid_workspace.data = []
 
     with pytest.raises(ValueError, match="Workspace does not contain data"):
@@ -198,7 +206,9 @@ def test_measure_single_load_memory_success(
     peak_rss_values = iter([120.0, 130.0])
 
     monkeypatch.setattr(benchmark, "load_workspace", lambda path: valid_workspace)
-    monkeypatch.setattr(benchmark, "get_current_rss_mb", lambda: next(current_rss_values))
+    monkeypatch.setattr(
+        benchmark, "get_current_rss_mb", lambda: next(current_rss_values)
+    )
     monkeypatch.setattr(benchmark, "get_peak_rss_mb", lambda: next(peak_rss_values))
 
     result = benchmark.measure_single_load_memory(workspace_path)
@@ -252,7 +262,9 @@ def test_run_single_benchmark_success(
         "wall_time_seconds_std": 0.08165,
     }
 
-    monkeypatch.setattr(benchmark, "measure_single_load_memory", lambda path: memory_summary)
+    monkeypatch.setattr(
+        benchmark, "measure_single_load_memory", lambda path: memory_summary
+    )
     monkeypatch.setattr(
         benchmark,
         "run_repeated_timing",
@@ -469,7 +481,9 @@ def test_main_saves_json_and_verifies_output(
             output_name,
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     def fake_save_json(payload: dict[str, Any], output_path: Path) -> None:
@@ -552,7 +566,10 @@ def test_main_records_missing_workspace_as_failed_result(
     assert saved_payloads[0]["n_failed_workspaces"] == 1
     assert saved_payloads[0]["results"][0]["status"] == "failed"
     assert saved_payloads[0]["results"][0]["error_type"] == "FileNotFoundError"
-    assert "Workspace file does not exist" in saved_payloads[0]["results"][0]["error_message"]
+    assert (
+        "Workspace file does not exist"
+        in saved_payloads[0]["results"][0]["error_message"]
+    )
 
 
 def test_main_skips_plots_for_single_workspace(
@@ -575,16 +592,22 @@ def test_main_skips_plots_for_single_workspace(
             "--plot",
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(parents=True, exist_ok=True)
+        lambda payload, output_path: output_path.parent.mkdir(
+            parents=True, exist_ok=True
+        )
         or output_path.write_text("{}"),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
-    monkeypatch.setattr(benchmark, "make_plots", lambda *args, **kwargs: make_plots_calls.append(args))
+    monkeypatch.setattr(
+        benchmark, "make_plots", lambda *args, **kwargs: make_plots_calls.append(args)
+    )
 
     benchmark.main()
 
@@ -615,12 +638,16 @@ def test_main_creates_plots_for_multiple_workspaces(
             "--plot",
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(parents=True, exist_ok=True)
+        lambda payload, output_path: output_path.parent.mkdir(
+            parents=True, exist_ok=True
+        )
         or output_path.write_text("{}"),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
@@ -711,7 +738,6 @@ def test_make_plots_real_png_files_created(
     assert (tmp_path / "workspace_loading_wall_time.png").exists()
     assert (tmp_path / "workspace_loading_peak_rss_delta.png").exists()
     assert (tmp_path / "workspace_loading_current_rss_delta.png").exists()
-
 
 
 def test_validate_workspace_rejects_none_workspace() -> None:
@@ -808,7 +834,9 @@ def test_main_wraps_json_write_error(
             str(output_dir),
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
     monkeypatch.setattr(
         benchmark,
@@ -840,12 +868,16 @@ def test_main_wraps_plot_error(
             "--plot",
         ],
     )
-    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(valid_result))
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
     monkeypatch.setattr(benchmark, "print_result", lambda result: None)
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(parents=True, exist_ok=True)
+        lambda payload, output_path: output_path.parent.mkdir(
+            parents=True, exist_ok=True
+        )
         or output_path.write_text("{}"),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)

@@ -245,9 +245,7 @@ def summarize_stage(
         ]
 
     if "total_runtime_seconds" in result:
-        summary[f"{stage_name}_total_runtime_seconds"] = result[
-            "total_runtime_seconds"
-        ]
+        summary[f"{stage_name}_total_runtime_seconds"] = result["total_runtime_seconds"]
 
     return summary
 
@@ -337,42 +335,27 @@ def run_single_scaling_benchmark(
         )
 
         if stage_name == "compiled_evaluation" and result.get("status") == "success":
-            row["compiled_evaluation_reference_output"] = result[
-                "reference_output"
-            ]
-            row["compiled_evaluation_all_outputs_finite"] = result[
-                "all_outputs_finite"
-            ]
+            row["compiled_evaluation_reference_output"] = result["reference_output"]
+            row["compiled_evaluation_all_outputs_finite"] = result["all_outputs_finite"]
 
         if stage_name == "nll_scan":
-            row["nll_scan_minimum_scan_value"] = result[
-                "minimum_scan_value"
-            ]
-            row["nll_scan_minimum_nll_value"] = result[
-                "minimum_nll_value"
-            ]
-            row["nll_scan_all_values_finite"] = result[
-                "all_nll_values_finite"
-            ]
+            row["nll_scan_minimum_scan_value"] = result["minimum_scan_value"]
+            row["nll_scan_minimum_nll_value"] = result["minimum_nll_value"]
+            row["nll_scan_all_values_finite"] = result["all_nll_values_finite"]
 
     row["stage_results"] = stage_results
 
     row["total_setup_time_seconds"] = sum(
-        row.get(f"{stage}_wall_time_seconds_mean", 0.0)
-        for stage in SETUP_STAGES
+        row.get(f"{stage}_wall_time_seconds_mean", 0.0) for stage in SETUP_STAGES
     )
 
     row["total_peak_rss_delta_mb"] = sum(
-        row.get(f"{stage}_peak_rss_delta_mb", 0.0)
-        for stage in selected_stages
+        row.get(f"{stage}_peak_rss_delta_mb", 0.0) for stage in selected_stages
     )
 
     row["status"] = (
         "success"
-        if all(
-            row.get(f"{stage}_status") == "success"
-            for stage in selected_stages
-        )
+        if all(row.get(f"{stage}_status") == "success" for stage in selected_stages)
         else "failed"
     )
 
@@ -423,8 +406,7 @@ def print_result(result: dict[str, Any]) -> None:
         )
 
     print(
-        "  total setup:           "
-        f"{result['total_setup_time_seconds'] * 1000:.3f} ms"
+        f"  total setup:           {result['total_setup_time_seconds'] * 1000:.3f} ms"
     )
 
     if "compiled_evaluation_average_runtime_seconds_per_evaluation" in result:
@@ -447,10 +429,7 @@ def print_result(result: dict[str, Any]) -> None:
 
     print()
     print("Memory")
-    print(
-        "  total peak RSS delta:  "
-        f"{result['total_peak_rss_delta_mb']:.3f} MB"
-    )
+    print(f"  total peak RSS delta:  {result['total_peak_rss_delta_mb']:.3f} MB")
 
     print()
     print("Validation")
@@ -462,14 +441,8 @@ def print_result(result: dict[str, Any]) -> None:
         )
 
     if "nll_scan_all_values_finite" in result:
-        print(
-            "  NLL values finite:      "
-            f"{result['nll_scan_all_values_finite']}"
-        )
-        print(
-            "  NLL minimum at:         "
-            f"{result['nll_scan_minimum_scan_value']}"
-        )
+        print(f"  NLL values finite:      {result['nll_scan_all_values_finite']}")
+        print(f"  NLL minimum at:         {result['nll_scan_minimum_scan_value']}")
 
 
 def write_summary_csv(
@@ -486,12 +459,7 @@ def write_summary_csv(
     )
 
     fieldnames = sorted(
-        {
-            key
-            for row in results
-            for key in row.keys()
-            if key != "stage_results"
-        }
+        {key for row in results for key in row.keys() if key != "stage_results"}
     )
 
     with output_path.open(
@@ -508,11 +476,7 @@ def write_summary_csv(
 
         for row in results:
             writer.writerow(
-                {
-                    key: value
-                    for key, value in row.items()
-                    if key != "stage_results"
-                }
+                {key: value for key, value in row.items() if key != "stage_results"}
             )
 
 
@@ -616,9 +580,7 @@ def make_plots(
     """
 
     successful_results = [
-        result
-        for result in results
-        if result.get("status") == "success"
+        result for result in results if result.get("status") == "success"
     ]
 
     if len(successful_results) < 2:
@@ -635,27 +597,18 @@ def make_plots(
     for result in successful_results:
         plot_result = dict(result)
 
-        plot_result["workspace_size_kb"] = (
-            result["workspace_size_bytes"] / 1024.0
-        )
-        plot_result["total_setup_time_ms"] = (
-            result["total_setup_time_seconds"] * 1000.0
-        )
+        plot_result["workspace_size_kb"] = result["workspace_size_bytes"] / 1024.0
+        plot_result["total_setup_time_ms"] = result["total_setup_time_seconds"] * 1000.0
 
         if "compiled_evaluation_average_runtime_seconds_per_evaluation" in result:
             plot_result["compiled_evaluation_ms_per_eval"] = (
-                result[
-                    "compiled_evaluation_average_runtime_seconds_per_evaluation"
-                ]
+                result["compiled_evaluation_average_runtime_seconds_per_evaluation"]
                 * 1000.0
             )
 
         if "pdf_evaluation_average_runtime_seconds_per_evaluation" in result:
             plot_result["pdf_evaluation_ms_per_eval"] = (
-                result[
-                    "pdf_evaluation_average_runtime_seconds_per_evaluation"
-                ]
-                * 1000.0
+                result["pdf_evaluation_average_runtime_seconds_per_evaluation"] * 1000.0
             )
 
         if "nll_scan_runtime_per_scan_point_seconds" in result:
@@ -833,7 +786,10 @@ def main() -> None:
             results=results,
             plot_dir=args.plot_dir,
         )
-        if len([result for result in results if result.get("status") == "success"]) >= 2:
+        if (
+            len([result for result in results if result.get("status") == "success"])
+            >= 2
+        ):
             print(f"Saved plots to {args.plot_dir}")
 
 

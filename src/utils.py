@@ -95,9 +95,7 @@ def summarize_timings(timings: list[float]) -> dict[str, float]:
         raise ValueError("Cannot summarize an empty timing list")
 
     invalid_timings = [
-        timing
-        for timing in timings
-        if not math.isfinite(timing) or timing <= 0
+        timing for timing in timings if not math.isfinite(timing) or timing <= 0
     ]
 
     if invalid_timings:
@@ -110,9 +108,7 @@ def summarize_timings(timings: list[float]) -> dict[str, float]:
         "wall_time_seconds_mean": statistics.mean(timings),
         "wall_time_seconds_median": statistics.median(timings),
         "wall_time_seconds_std": (
-            statistics.stdev(timings)
-            if len(timings) > 1
-            else 0.0
+            statistics.stdev(timings) if len(timings) > 1 else 0.0
         ),
     }
 
@@ -316,11 +312,7 @@ def make_bar_plot(
     Create a bar plot for a benchmark metric.
     """
 
-    results = [
-        result
-        for result in results
-        if result.get("status") != "failed"
-    ]
+    results = [result for result in results if result.get("status") != "failed"]
 
     if len(results) == 0:
         raise ValueError("Cannot create a plot without successful benchmark results")
@@ -372,10 +364,7 @@ def make_bar_plot(
     ymax = max(values)
 
     if errors is not None:
-        ymax = max(
-            value + error
-            for value, error in zip(values, errors, strict=False)
-        )
+        ymax = max(value + error for value, error in zip(values, errors, strict=False))
 
     span = ymax - ymin
 
@@ -387,9 +376,8 @@ def make_bar_plot(
         ymax + 0.35 * span,
     )
 
-    has_nonzero_errors = (
-        errors is not None
-        and any(error_value != 0 for error_value in errors)
+    has_nonzero_errors = errors is not None and any(
+        error_value != 0 for error_value in errors
     )
 
     for index, (bar, value) in enumerate(zip(bars, values, strict=False)):
@@ -437,7 +425,6 @@ def make_bar_plot(
         plt.close(fig)
 
 
-
 def _grouped_result_parts(result: dict[str, Any]) -> tuple[str, int | None]:
     """
     Return workspace label and n_evaluations for grouped benchmark plots.
@@ -462,11 +449,7 @@ def make_grouped_bar_plot(
     values are bars inside each group.
     """
 
-    results = [
-        result
-        for result in results
-        if result.get("status") != "failed"
-    ]
+    results = [result for result in results if result.get("status") != "failed"]
 
     if len(results) == 0:
         raise ValueError("Cannot create a plot without successful benchmark results")
@@ -589,11 +572,7 @@ def make_line_plot_by_evaluations(
     workspace.
     """
 
-    results = [
-        result
-        for result in results
-        if result.get("status") != "failed"
-    ]
+    results = [result for result in results if result.get("status") != "failed"]
 
     if len(results) == 0:
         raise ValueError("Cannot create a plot without successful benchmark results")
@@ -805,9 +784,7 @@ def build_validation_inputs(
     }
 
     missing_inputs = [
-        name
-        for name in compiled.input_names
-        if name not in available_inputs
+        name for name in compiled.input_names if name not in available_inputs
     ]
 
     if missing_inputs:
@@ -816,7 +793,4 @@ def build_validation_inputs(
             f"{missing_inputs}. Available inputs: {list(available_inputs.keys())}"
         )
 
-    return {
-        name: available_inputs[name]
-        for name in compiled.input_names
-    }
+    return {name: available_inputs[name] for name in compiled.input_names}

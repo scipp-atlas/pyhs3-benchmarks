@@ -23,7 +23,6 @@ from .utils import (
     get_current_rss_mb,
     get_peak_rss_mb,
     load_workspace,
-    make_bar_plot,
     make_grouped_bar_plot,
     make_line_plot_by_evaluations,
     save_json,
@@ -186,10 +185,7 @@ def validate_pdf_outputs(outputs: list[float]) -> dict[str, Any]:
 
     reference_value = outputs[0]
 
-    max_absolute_deviation = max(
-        abs(output - reference_value)
-        for output in outputs
-    )
+    max_absolute_deviation = max(abs(output - reference_value) for output in outputs)
 
     return {
         "n_outputs": len(outputs),
@@ -318,8 +314,7 @@ def run_single_benchmark(
     available_distributions = list(model.distributions.keys())
 
     print(
-        f"Available distributions for {workspace_path.name}: "
-        f"{available_distributions}",
+        f"Available distributions for {workspace_path.name}: {available_distributions}",
         flush=True,
     )
 
@@ -412,8 +407,7 @@ def print_result(result: dict[str, Any]) -> None:
         f"{result['average_runtime_seconds_per_evaluation'] * 1000:.6f} ms"
     )
     print(
-        "  throughput:       "
-        f"{result['throughput_evaluations_per_second']:.3f} eval/s"
+        f"  throughput:       {result['throughput_evaluations_per_second']:.3f} eval/s"
     )
 
     print()
@@ -665,9 +659,7 @@ def main() -> None:
         "n_successful_results": sum(
             result.get("status") == "success" for result in results
         ),
-        "n_failed_results": sum(
-            result.get("status") == "failed" for result in results
-        ),
+        "n_failed_results": sum(result.get("status") == "failed" for result in results),
         "results": results,
     }
 
