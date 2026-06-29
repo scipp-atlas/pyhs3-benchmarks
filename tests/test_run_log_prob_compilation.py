@@ -881,10 +881,10 @@ def test_main_skips_plots_for_single_result(
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(
-            parents=True, exist_ok=True
-        )
-        or output_path.write_text("{}"),
+        lambda payload, output_path: (
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            or output_path.write_text("{}")
+        ),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
     monkeypatch.setattr(
@@ -930,10 +930,10 @@ def test_main_creates_plots_for_multiple_results(
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(
-            parents=True, exist_ok=True
-        )
-        or output_path.write_text("{}"),
+        lambda payload, output_path: (
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            or output_path.write_text("{}")
+        ),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
     monkeypatch.setattr(
@@ -1220,10 +1220,10 @@ def test_main_with_multiple_results_invokes_plots_and_prints_message(
     monkeypatch.setattr(
         benchmark,
         "save_json",
-        lambda payload, output_path: output_path.parent.mkdir(
-            parents=True, exist_ok=True
-        )
-        or output_path.write_text("{}"),
+        lambda payload, output_path: (
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            or output_path.write_text("{}")
+        ),
     )
     monkeypatch.setattr(benchmark, "verify_output_file", lambda output_path: None)
     monkeypatch.setattr(
