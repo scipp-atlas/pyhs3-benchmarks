@@ -9,6 +9,39 @@ venv/
 
 .DS_Store
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Pixi
+.pixi/
+
+# Tool caches
+.ruff_cache/
+.mypy_cache/
+.cache/
+
+# Local environments
+.env
+.venv/
+venv/
+.envrc
+
+# Generated benchmark outputs
+results/scalene/
+profile.html
+profile.json
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
 results/*
 !results/.gitkeep
 !results/scalene/

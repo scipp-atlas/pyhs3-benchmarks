@@ -1,0 +1,56 @@
+[workspace]
+authors = ["Daryna Shevchuk"]
+channels = ["conda-forge"]
+name = "pyhs3-benchmarks"
+platforms = ["linux-64", "osx-arm64"]
+version = "0.1.0"
+preview = ["pixi-build"]
+
+[tasks]
+# Development and validation
+test = "pytest"
+smoke = "python -m compileall src tests"
+generate-inputs = "python -m src.generate_scalar_pdf_workspaces && python -m src.generate_binned_likelihood_models"
+validate = "python -m src.generate_scalar_pdf_workspaces --validate && python -m src.generate_binned_likelihood_models --validate"
+
+# Individual benchmarks
+workspace-loading = "python -m src.run_workspace_loading"
+model-creation = "python -m src.run_model_creation"
+log-prob-construction = "python -m src.run_log_prob_construction"
+log-prob-compilation = "python -m src.run_log_prob_compilation"
+compiled-evaluation = "python -m src.run_compiled_evaluation"
+pdf-evaluation = "python -m src.run_pdf_evaluation"
+nll-scan = "python -m src.run_nll_scan"
+memory-scaling = "python -m src.run_memory_scaling"
+model-complexity = "python -m src.run_model_complexity_scaling"
+graph-canonicalization = "python -m src.run_graph_canonicalization"
+graph-optimization = "python -m src.run_graph_optimization"
+
+# Suite-level commands
+benchmark = "python -m src.run_all_benchmarks --preset smoke"
+benchmark-default = "python -m src.run_all_benchmarks --preset default"
+benchmark-full = "python -m src.run_all_benchmarks --preset full"
+plot = "python -m src.plot_benchmark_overview"
+
+# Profiling
+profile-model-creation = "scalene --outfile results/scalene/model_creation.html src/run_model_creation.py"
+
+[dependencies]
+python = "3.12.*"
+numpy = "*"
+matplotlib-base = "*"
+scipy = "*"
+psutil = "*"
+pytensor = "*"
+jax = "*"
+jaxlib = "*"
+pyhf = "*"
+numba-stats = "*"
+pytest = "*"
+pytest-cov = "*"
+pre-commit = "*"
+ruff = "*"
+scalene = "*"
+
+pyhs3.git = "https://github.com/scipp-atlas/pyhs3.git"
+pyhs3.rev = "main"
