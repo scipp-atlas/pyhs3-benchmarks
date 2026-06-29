@@ -24,7 +24,7 @@ The repository is designed to:
 
 ---
 
-## Developing PyHS3 and the Benchmark Suite Together
+## Developing PyHS3 and the Benchmark Suite
 
 The default Pixi environment installs PyHS3 directly from the specified Git revision to ensure reproducible benchmark results.
 
@@ -46,6 +46,32 @@ pixi add --pypi "pyhs3 @ file:///absolute/path/to/pyhs3" --editable
 This allows changes made to the local PyHS3 source tree to be reflected immediately without reinstalling the package.
 
 For published benchmark results and reproducible performance studies, the Git-based dependency is recommended.
+
+---
+
+## Code Quality
+
+The repository uses `pre-commit` and GitHub Actions to perform lightweight quality checks.
+
+Install the hooks:
+
+```bash
+pixi run pre-commit install
+```
+
+Run all checks locally:
+
+```bash
+pixi run ci
+```
+
+The CI workflow automatically runs on every push and pull request. It currently performs lightweight checks including:
+
+- Python syntax compilation
+- Ruff linting
+- Ruff formatting checks
+
+Heavy benchmark suites (e.g. ROOT and zfit) are intentionally excluded from CI and can be run locally when needed.
 
 ---
 

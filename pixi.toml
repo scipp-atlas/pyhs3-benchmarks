@@ -40,6 +40,7 @@ format = "ruff format src tests"
 format-check = "ruff format --check src tests"
 pre-commit = "pre-commit run --all-files"
 ci = "python -m compileall src tests && ruff check src tests && ruff format --check src tests"
+install-hooks = "pre-commit install"
 
 [dependencies]
 python = "3.12.*"
