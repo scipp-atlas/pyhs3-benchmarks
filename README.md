@@ -3364,3 +3364,121 @@ plots/cross_scalar_pdf_evaluation/
 ## Interpretation
 
 This benchmark isolates the cost of scalar PDF evaluation by ensuring that every framework performs the same point-by-point workload. It provides a fair comparison of scalar execution performance and serves as a baseline for evaluating the impact of future vectorization efforts in PyHS3.
+
+---
+
+# Cross-Framework Binned Likelihood Evaluation Benchmark
+
+## Purpose
+
+Evaluates the performance and numerical agreement of equivalent binned Poisson likelihood models across multiple statistical frameworks.
+
+The benchmark compares identical binned likelihood models implemented in:
+
+- PyHS3;
+- pyhf;
+- RooFit;
+- a manual reference implementation.
+
+It measures both execution performance and numerical consistency for negative log-likelihood (NLL) evaluation using equivalent binned statistical models.
+
+---
+
+## Benchmarked Operation
+
+For each framework the benchmark performs:
+
+1. model construction;
+2. cold first NLL evaluation;
+3. repeated warm NLL evaluations;
+4. memory usage measurement;
+5. numerical comparison against the manual reference implementation.
+
+Both raw NLL values and ΔNLL values are validated for numerical agreement.
+
+---
+
+## Validation
+
+The benchmark compares the computed likelihood values against the manual reference implementation.
+
+The following quantities are validated:
+
+- raw NLL value;
+- ΔNLL value;
+- absolute numerical difference;
+- validation status within the configured tolerances.
+
+Frameworks are reported as successful only if both the raw NLL and ΔNLL agree with the reference implementation.
+
+---
+
+## Outputs
+
+Benchmark results are written to
+
+```text
+results/cross_binned_likelihood_evaluation/
+```
+
+Generated figures are written to
+
+```text
+plots/cross_binned_likelihood_evaluation/
+```
+
+---
+
+## Example Plots
+
+### Timing Profile
+
+![Timing Profile](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_timing_profile.png)
+
+*Compares model construction, cold evaluation, and warm evaluation time across all supported frameworks.*
+
+---
+
+### Warm Evaluation Performance
+
+![Warm Evaluation](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_warm_evaluation.png)
+
+*Shows steady-state performance for repeated binned likelihood evaluation.*
+
+---
+
+### Memory Usage
+
+![Memory Usage](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_memory.png)
+
+*Compares memory consumption during model construction and likelihood evaluation.*
+
+---
+
+### Numerical Agreement
+
+![Numerical Agreement](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_numerical_agreement.png)
+
+*Verifies agreement of both raw NLL and ΔNLL values with the manual reference implementation.*
+
+---
+
+### Raw NLL Values
+
+![Raw NLL Values](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_nll_values.png)
+
+*Compares the negative log-likelihood values produced by each framework.*
+
+---
+
+### Summary Table
+
+![Summary Table](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_summary_table.png)
+
+*Summarizes timing, memory usage, numerical agreement, and validation status for all supported frameworks.*
+
+---
+
+## Interpretation
+
+This benchmark evaluates both the computational cost and numerical correctness of binned Poisson likelihood evaluation across multiple statistical frameworks. It provides a reference for comparing implementation efficiency while ensuring that all frameworks produce statistically equivalent negative log-likelihood values.

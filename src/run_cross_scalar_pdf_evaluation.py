@@ -218,13 +218,13 @@ def reference_values(scenario: str, x: np.ndarray) -> np.ndarray:
 def evaluate_pyhs3(
     scenario: str, x: np.ndarray, pyhs3_workspace_dir: Path
 ) -> np.ndarray:
-    from pyhs3.workspace import Workspace
-
     workspace_path = pyhs3_workspace_dir / f"{scenario}_pdf_workspace.json"
     if not workspace_path.exists():
         raise FileNotFoundError(
             f"PyHS3 workspace not found for scenario '{scenario}': {workspace_path}"
         )
+
+    from pyhs3.workspace import Workspace
 
     workspace = Workspace.load(workspace_path)
     model = workspace.model("analysis", progress=False, mode="FAST_RUN")

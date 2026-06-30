@@ -59,6 +59,7 @@ pytest-cov = "*"
 pre-commit = "*"
 ruff = "*"
 scalene = "*"
+pandas = "*"
 
 pyhs3.git = "https://github.com/scipp-atlas/pyhs3.git"
 pyhs3.rev = "main"
