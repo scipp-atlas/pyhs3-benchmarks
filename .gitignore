@@ -101,6 +101,8 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/cross_nll_scan/
 
+!plots/cross_nll_regression/
+
 reports/*
 !reports/.gitkeep
 

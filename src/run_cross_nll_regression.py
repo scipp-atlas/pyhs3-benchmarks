@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean, stdev
 from typing import Any, Callable, Iterable
+from matplotlib.patches import Patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,7 +34,7 @@ except ImportError:
     ROOT = None
 
 
-BENCHMARK_NAME = "cross_nll_scan"
+BENCHMARK_NAME = "cross_nll_regression"
 DEFAULT_FRAMEWORKS = ["manual", "pyhs3", "pyhf", "roofit"]
 DEFAULT_OUTPUT = RESULTS_DIR / BENCHMARK_NAME / f"{BENCHMARK_NAME}_result.json"
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
@@ -44,6 +45,19 @@ class FrameworkSpec:
     name: str
     build_func: Callable[[], Any]
     eval_func: Callable[[Any, float], float]
+
+
+FRAMEWORK_STYLE = {
+    "manual": {
+        "label": "Manual reference",
+        "color": "#1f1f1f",
+        "marker": "o",
+        "linestyle": "-",
+    },
+    "pyhs3": {"label": "PyHS3", "color": "#0055A4", "marker": "s", "linestyle": "--"},
+    "pyhf": {"label": "pyhf", "color": "#E57200", "marker": "^", "linestyle": "-."},
+    "roofit": {"label": "RooFit", "color": "#009E73", "marker": "D", "linestyle": ":"},
+}
 
 
 def validate_workspace_path(workspace_path: Path) -> Path:
@@ -69,23 +83,30 @@ def validate_benchmark_config(
     mu_min: float,
     mu_max: float,
     n_points: int,
-    warmup_iterations: int,
-    shape_tolerance: float,
+    rtol: float,
+    atol: float,
+    delta_tolerance: float,
     minimum_tolerance: float,
     frameworks: list[str],
 ) -> None:
     validate_positive_int(n_points, "n_points", minimum=2)
     validate_finite_float(mu_min, "mu_min")
     validate_finite_float(mu_max, "mu_max")
-    validate_finite_float(shape_tolerance, "shape_tolerance")
+    validate_finite_float(rtol, "rtol")
+    validate_finite_float(atol, "atol")
+    validate_finite_float(delta_tolerance, "delta_tolerance")
     validate_finite_float(minimum_tolerance, "minimum_tolerance")
 
     if mu_min >= mu_max:
         raise ValueError(
             f"mu_min must be smaller than mu_max, got {mu_min} >= {mu_max}"
         )
-    if shape_tolerance <= 0.0:
-        raise ValueError("shape_tolerance must be positive")
+    if rtol < 0.0:
+        raise ValueError("rtol must be non-negative")
+    if atol < 0.0:
+        raise ValueError("atol must be non-negative")
+    if delta_tolerance <= 0.0:
+        raise ValueError("delta_tolerance must be positive")
     if minimum_tolerance <= 0.0:
         raise ValueError("minimum_tolerance must be positive")
     if not frameworks:
@@ -128,10 +149,11 @@ def validate_parameters(parameters: dict[str, float], n_bins: int) -> None:
         )
 
 
-def validate_scan_values(values: list[float], name: str) -> None:
-    if not values:
+def validate_scan_values(values: Iterable[float], name: str) -> None:
+    values_list = list(values)
+    if not values_list:
         raise ValueError(f"{name} must not be empty")
-    if not all(math.isfinite(value) for value in values):
+    if not all(math.isfinite(float(value)) for value in values_list):
         raise ValueError(f"{name} contains non-finite values")
 
 
@@ -155,7 +177,6 @@ def infer_n_bins_from_parameters(parameters: dict[str, float]) -> int:
         for name in parameters
         if name.startswith("signal_") and name.removeprefix("signal_").isdigit()
     )
-
     if not signal_indices:
         raise ValueError(
             "Could not infer n_bins: no signal_<index> parameters found "
@@ -175,13 +196,11 @@ def infer_n_bins_from_parameters(parameters: dict[str, float]) -> int:
             name = f"{prefix}_{index}"
             if name not in parameters:
                 missing.append(name)
-
     if missing:
         raise ValueError(
             "Could not infer n_bins: matching background_<index> and obs_<index> "
             f"parameters are missing: {missing}"
         )
-
     return len(signal_indices)
 
 
@@ -194,8 +213,7 @@ def poisson_nll(observed: float, expected: float) -> float:
 
 
 def get_vectors(
-    parameters: dict[str, float],
-    n_bins: int | None,
+    parameters: dict[str, float], n_bins: int
 ) -> tuple[list[float], list[float], list[float]]:
     validate_parameters(parameters, n_bins)
     signal = [parameters[f"signal_{i}"] for i in range(n_bins)]
@@ -205,16 +223,12 @@ def get_vectors(
 
 
 def build_manual_model(
-    parameters: dict[str, float],
-    n_bins: int,
+    parameters: dict[str, float], n_bins: int
 ) -> tuple[list[float], list[float], list[float]]:
     return get_vectors(parameters, n_bins)
 
 
-def manual_nll(
-    model: tuple[list[float], list[float], list[float]],
-    mu: float,
-) -> float:
+def manual_nll(model: tuple[list[float], list[float], list[float]], mu: float) -> float:
     signal, background, observed = model
     return sum(
         poisson_nll(obs, mu * sig + bkg)
@@ -230,13 +244,11 @@ def build_pyhs3_model(workspace_path: Path) -> Any:
 def pyhs3_nll(model: Any, n_bins: int, mu_value: float) -> float:
     mu = np.asarray(mu_value, dtype=np.float64)
     log_likelihood = 0.0
-
     for i in range(n_bins):
         value = float(np.asarray(model.pdf(f"poisson_{i}", mu=mu)).reshape(-1)[0])
         if value <= 0.0 or not math.isfinite(value):
             raise ValueError(f"PyHS3 returned invalid PDF value for bin {i}: {value}")
         log_likelihood += math.log(value)
-
     return -log_likelihood
 
 
@@ -251,35 +263,16 @@ def build_pyhf_spec(parameters: dict[str, float], n_bins: int) -> dict[str, Any]
                         "name": "signal",
                         "data": signal,
                         "modifiers": [
-                            {
-                                "name": "mu",
-                                "type": "normfactor",
-                                "data": None,
-                            }
+                            {"name": "mu", "type": "normfactor", "data": None}
                         ],
                     },
-                    {
-                        "name": "background",
-                        "data": background,
-                        "modifiers": [],
-                    },
+                    {"name": "background", "data": background, "modifiers": []},
                 ],
             }
         ],
-        "observations": [
-            {
-                "name": "channel",
-                "data": observed,
-            }
-        ],
+        "observations": [{"name": "channel", "data": observed}],
         "measurements": [
-            {
-                "name": "measurement",
-                "config": {
-                    "poi": "mu",
-                    "parameters": [],
-                },
-            }
+            {"name": "measurement", "config": {"poi": "mu", "parameters": []}}
         ],
         "version": "1.0.0",
     }
@@ -288,7 +281,6 @@ def build_pyhf_spec(parameters: dict[str, float], n_bins: int) -> dict[str, Any]
 def build_pyhf_model(parameters: dict[str, float], n_bins: int) -> tuple[Any, Any]:
     if pyhf is None:
         raise RuntimeError("pyhf is not available in this environment")
-
     workspace = pyhf.Workspace(build_pyhf_spec(parameters, n_bins))
     model = workspace.model()
     data = workspace.data(model)
@@ -300,7 +292,6 @@ def pyhf_nll(model_and_data: tuple[Any, Any], mu_value: float) -> float:
     pars = model.config.suggested_init()
     mu_index = model.config.par_order.index("mu")
     pars[mu_index] = mu_value
-
     logpdf = model.logpdf(pars, data)
     value = -float(np.asarray(logpdf).squeeze())
     if not math.isfinite(value):
@@ -309,67 +300,38 @@ def pyhf_nll(model_and_data: tuple[Any, Any], mu_value: float) -> float:
 
 
 def build_roofit_model(
-    parameters: dict[str, float],
-    n_bins: int,
-    mu_value: float,
+    parameters: dict[str, float], n_bins: int, mu_value: float
 ) -> dict[str, Any]:
     if ROOT is None:
         raise RuntimeError("ROOT is not available in this environment")
 
     ROOT.RooMsgService.instance().setGlobalKillBelow(ROOT.RooFit.ERROR)
-
     signal, background, observed = get_vectors(parameters, n_bins)
     mu = ROOT.RooRealVar("mu", "mu", mu_value)
     mu.setConstant(False)
-
-    pdfs = ROOT.RooArgList()
     keepalive = [mu]
     poissons = []
-
     upper_bound = max(100.0, max(observed + background + signal) * 5.0)
 
     for i, (sig, bkg, obs_value) in enumerate(
         zip(signal, background, observed, strict=True)
     ):
-        obs = ROOT.RooRealVar(
-            f"obs_{i}",
-            f"obs_{i}",
-            obs_value,
-            0.0,
-            upper_bound,
-        )
+        obs = ROOT.RooRealVar(f"obs_{i}", f"obs_{i}", obs_value, 0.0, upper_bound)
         obs.setConstant(True)
-
         expected = ROOT.RooFormulaVar(
             f"expected_{i}",
             f"@0 * {sig:.17g} + {bkg:.17g}",
             ROOT.RooArgList(mu),
         )
-        poisson = ROOT.RooPoisson(
-            f"poisson_{i}",
-            f"poisson_{i}",
-            obs,
-            expected,
-        )
-
-        pdfs.add(poisson)
+        poisson = ROOT.RooPoisson(f"poisson_{i}", f"poisson_{i}", obs, expected)
         poissons.append(poisson)
         keepalive.extend([obs, expected, poisson])
 
-    likelihood = ROOT.RooProdPdf("likelihood", "likelihood", pdfs)
-    keepalive.append(likelihood)
-
-    return {
-        "mu": mu,
-        "poissons": poissons,
-        "likelihood": likelihood,
-        "keepalive": keepalive,
-    }
+    return {"mu": mu, "poissons": poissons, "keepalive": keepalive}
 
 
 def roofit_nll(model: dict[str, Any], mu_value: float) -> float:
     model["mu"].setVal(mu_value)
-
     total = 0.0
     for index, poisson in enumerate(model["poissons"]):
         value = float(poisson.getVal())
@@ -378,8 +340,45 @@ def roofit_nll(model: dict[str, Any], mu_value: float) -> float:
                 f"RooFit returned invalid PDF value for bin {index}: {value}"
             )
         total -= math.log(value)
-
     return total
+
+
+def build_mu_grid(mu_min: float, mu_max: float, n_points: int) -> list[float]:
+    validate_benchmark_config(
+        mu_min=mu_min,
+        mu_max=mu_max,
+        n_points=n_points,
+        rtol=0.0,
+        atol=0.0,
+        delta_tolerance=1.0,
+        minimum_tolerance=1.0,
+        frameworks=["manual"],
+    )
+    return [float(value) for value in np.linspace(mu_min, mu_max, n_points)]
+
+
+def run_scan(
+    model: Any, eval_func: Callable[[Any, float], float], mu_grid: list[float]
+) -> list[float]:
+    validate_scan_values(mu_grid, "mu_grid")
+    values = [float(eval_func(model, mu)) for mu in mu_grid]
+    validate_scan_values(values, "nll_values")
+    return values
+
+
+def delta_nll(values: np.ndarray) -> np.ndarray:
+    if values.size == 0:
+        raise ValueError("Cannot compute delta NLL for an empty array")
+    if not np.all(np.isfinite(values)):
+        raise ValueError("Cannot compute delta NLL for non-finite values")
+    return values - np.min(values)
+
+
+def minimum_position(mu_grid: list[float], nll_values: list[float]) -> float:
+    if len(mu_grid) != len(nll_values):
+        raise ValueError("mu_grid and nll_values must have the same length")
+    validate_scan_values(nll_values, "nll_values")
+    return float(mu_grid[int(np.argmin(np.asarray(nll_values, dtype=float)))])
 
 
 def summarize_values(values: list[float]) -> dict[str, float]:
@@ -392,66 +391,123 @@ def summarize_values(values: list[float]) -> dict[str, float]:
     }
 
 
-def build_mu_grid(mu_min: float, mu_max: float, n_points: int) -> list[float]:
-    validate_benchmark_config(
-        mu_min=mu_min,
-        mu_max=mu_max,
-        n_points=n_points,
-        warmup_iterations=0,
-        shape_tolerance=1.0,
-        minimum_tolerance=1.0,
-        frameworks=["manual"],
-    )
-    return [float(value) for value in np.linspace(mu_min, mu_max, n_points)]
+def make_framework_specs(
+    frameworks: Iterable[str],
+    parameters: dict[str, float],
+    workspace_path: Path,
+    n_bins: int,
+    mu_min: float,
+) -> list[FrameworkSpec]:
+    specs: list[FrameworkSpec] = []
+    for framework in frameworks:
+        if framework == "manual":
+            specs.append(
+                FrameworkSpec(
+                    name="manual",
+                    build_func=lambda parameters=parameters: build_manual_model(
+                        parameters, n_bins
+                    ),
+                    eval_func=lambda model, mu: manual_nll(model, mu),
+                )
+            )
+        elif framework == "pyhs3":
+            specs.append(
+                FrameworkSpec(
+                    name="pyhs3",
+                    build_func=lambda workspace_path=workspace_path: build_pyhs3_model(
+                        workspace_path
+                    ),
+                    eval_func=lambda model, mu: pyhs3_nll(model, n_bins, mu),
+                )
+            )
+        elif framework == "pyhf":
+            specs.append(
+                FrameworkSpec(
+                    name="pyhf",
+                    build_func=lambda parameters=parameters: build_pyhf_model(
+                        parameters, n_bins
+                    ),
+                    eval_func=lambda model, mu: pyhf_nll(model, mu),
+                )
+            )
+        elif framework == "roofit":
+            specs.append(
+                FrameworkSpec(
+                    name="roofit",
+                    build_func=lambda parameters=parameters: build_roofit_model(
+                        parameters, n_bins, mu_min
+                    ),
+                    eval_func=lambda model, mu: roofit_nll(model, mu),
+                )
+            )
+        else:  # pragma: no cover - protected by validation
+            raise ValueError(f"Unknown framework: {framework}")
+    return specs
 
 
-def run_scan(
-    model: Any,
-    eval_func: Callable[[Any, float], float],
+def compute_metrics(
+    *,
+    framework: str,
+    reference_values: list[float],
+    values: list[float],
     mu_grid: list[float],
-) -> list[float]:
-    validate_scan_values(mu_grid, "mu_grid")
-    values = [float(eval_func(model, mu)) for mu in mu_grid]
-    validate_scan_values(values, "nll_values")
-    return values
+    rtol: float,
+    atol: float,
+    delta_tolerance: float,
+    minimum_tolerance: float,
+) -> dict[str, Any]:
+    reference = np.asarray(reference_values, dtype=float)
+    candidate = np.asarray(values, dtype=float)
+    if reference.shape != candidate.shape:
+        raise ValueError("Cannot compare scans with different shapes")
+
+    diff = candidate - reference
+    abs_diff = np.abs(diff)
+    rel_diff = abs_diff / np.maximum(np.abs(reference), 1e-12)
+    reference_delta = delta_nll(reference)
+    candidate_delta = delta_nll(candidate)
+    delta_diff = candidate_delta - reference_delta
+
+    reference_minimum_mu = minimum_position(mu_grid, reference_values)
+    candidate_minimum_mu = minimum_position(mu_grid, values)
+    minimum_mu_abs_diff = abs(candidate_minimum_mu - reference_minimum_mu)
+    constant_offset = float(np.mean(diff))
+    centered_residual = diff - constant_offset
+
+    allclose_passed = bool(np.allclose(candidate, reference, rtol=rtol, atol=atol))
+    finite_values = bool(np.all(np.isfinite(candidate)))
+    delta_nll_max_abs_diff = float(np.max(np.abs(delta_diff)))
+    minimum_mu_success = minimum_mu_abs_diff <= minimum_tolerance
+    delta_shape_success = delta_nll_max_abs_diff <= delta_tolerance
+
+    return {
+        "framework": framework,
+        "max_abs_diff": float(np.max(abs_diff)),
+        "max_rel_diff": float(np.max(rel_diff)),
+        "mean_abs_diff": float(np.mean(abs_diff)),
+        "std_abs_diff": float(np.std(abs_diff)),
+        "constant_offset": constant_offset,
+        "centered_residual_max_abs_diff": float(np.max(np.abs(centered_residual))),
+        "delta_nll_max_abs_diff": delta_nll_max_abs_diff,
+        "minimum_mu": candidate_minimum_mu,
+        "reference_minimum_mu": reference_minimum_mu,
+        "minimum_mu_abs_diff": minimum_mu_abs_diff,
+        "allclose_passed": allclose_passed,
+        "finite_values": finite_values,
+        "delta_shape_success": delta_shape_success,
+        "minimum_mu_success": minimum_mu_success,
+        "validation_status": "success"
+        if finite_values and delta_shape_success and minimum_mu_success
+        else "failed",
+    }
 
 
-def minimum_position(mu_grid: list[float], nll_values: list[float]) -> float:
-    if len(mu_grid) != len(nll_values):
-        raise ValueError("mu_grid and nll_values must have the same length")
-    validate_scan_values(nll_values, "nll_values")
-    index = int(np.argmin(nll_values))
-    return float(mu_grid[index])
-
-
-def delta_nll_shape(nll_values: list[float]) -> list[float]:
-    validate_scan_values(nll_values, "nll_values")
-    minimum = min(nll_values)
-    return [float(value - minimum) for value in nll_values]
-
-
-def max_abs_difference(left: list[float], right: list[float]) -> float:
-    if len(left) != len(right):
-        raise ValueError("Cannot compare arrays with different lengths")
-    return max(abs(a - b) for a, b in zip(left, right, strict=True))
-
-
-def mean_offset(reference: list[float], values: list[float]) -> float:
-    if len(reference) != len(values):
-        raise ValueError("Cannot compare arrays with different lengths")
-    return mean(value - ref for ref, value in zip(reference, values, strict=True))
-
-
-def measure_framework_scan(
+def measure_framework_regression(
     name: str,
     build_func: Callable[[], Any],
     eval_func: Callable[[Any, float], float],
     mu_grid: list[float],
-    warmup_iterations: int = 1,
 ) -> dict[str, Any]:
-    validate_scan_values(mu_grid, "mu_grid")
-    validate_positive_int(warmup_iterations, "warmup_iterations", minimum=0)
-
     current_rss_before_mb = get_current_rss_mb()
     peak_rss_before_mb = get_peak_rss_mb()
 
@@ -459,44 +515,22 @@ def measure_framework_scan(
     model = build_func()
     build_end = time.perf_counter()
 
-    cold_first_start = time.perf_counter()
-    cold_first_nll = float(eval_func(model, mu_grid[0]))
-    cold_first_end = time.perf_counter()
-
-    warmup_mu = mu_grid[len(mu_grid) // 2]
-    warmup_start = time.perf_counter()
-    for _ in range(warmup_iterations):
-        _ = float(eval_func(model, warmup_mu))
-    warmup_end = time.perf_counter()
-
-    first_start = time.perf_counter()
-    first_nll = float(eval_func(model, mu_grid[0]))
-    first_end = time.perf_counter()
-
     scan_start = time.perf_counter()
     nll_values = run_scan(model, eval_func, mu_grid)
     scan_end = time.perf_counter()
 
     current_rss_after_mb = get_current_rss_mb()
     peak_rss_after_mb = get_peak_rss_mb()
-
-    delta_shape = delta_nll_shape(nll_values)
     full_scan_time = scan_end - scan_start
 
     result = {
         "framework": name,
-        "plot_label": name,
+        "status": "success",
         "n_points": len(mu_grid),
-        "warmup_iterations": warmup_iterations,
-        "cold_first_nll": cold_first_nll,
-        "first_nll": first_nll,
         "nll_values": nll_values,
-        "delta_nll_shape": delta_shape,
+        "delta_nll_shape": delta_nll(np.asarray(nll_values, dtype=float)).tolist(),
         "minimum_mu": minimum_position(mu_grid, nll_values),
         "model_build_time_seconds": build_end - build_start,
-        "cold_first_evaluation_time_seconds": cold_first_end - cold_first_start,
-        "warmup_time_seconds": warmup_end - warmup_start,
-        "first_evaluation_time_seconds": first_end - first_start,
         "full_scan_time_seconds": full_scan_time,
         "time_per_scan_point_seconds": full_scan_time / len(mu_grid),
         "current_rss_before_mb": current_rss_before_mb,
@@ -505,24 +539,16 @@ def measure_framework_scan(
         "peak_rss_before_mb": peak_rss_before_mb,
         "peak_rss_after_mb": peak_rss_after_mb,
         "peak_rss_delta_mb": max(0.0, peak_rss_after_mb - peak_rss_before_mb),
-        "rss_delta_mb": max(0.0, current_rss_after_mb - current_rss_before_mb),
         "nll_summary": summarize_values(nll_values),
-        "delta_nll_summary": summarize_values(delta_shape),
-        "status": "success",
     }
-
     validate_framework_result(result)
     return result
 
 
 def validate_framework_result(result: dict[str, Any]) -> None:
     required_finite_fields = [
-        "first_nll",
         "minimum_mu",
         "model_build_time_seconds",
-        "cold_first_evaluation_time_seconds",
-        "warmup_time_seconds",
-        "first_evaluation_time_seconds",
         "full_scan_time_seconds",
         "time_per_scan_point_seconds",
         "current_rss_delta_mb",
@@ -534,173 +560,59 @@ def validate_framework_result(result: dict[str, Any]) -> None:
             raise ValueError(
                 f"{result['framework']} result field {field} is not finite"
             )
-
     if result["model_build_time_seconds"] < 0.0:
         raise ValueError("model_build_time_seconds must be non-negative")
-    if result["cold_first_evaluation_time_seconds"] < 0.0:
-        raise ValueError("cold_first_evaluation_time_seconds must be non-negative")
-    if result["warmup_time_seconds"] < 0.0:
-        raise ValueError("warmup_time_seconds must be non-negative")
-    if result["first_evaluation_time_seconds"] < 0.0:
-        raise ValueError("first_evaluation_time_seconds must be non-negative")
     if result["full_scan_time_seconds"] <= 0.0:
         raise ValueError("full_scan_time_seconds must be positive")
     validate_scan_values(result["nll_values"], "nll_values")
     validate_scan_values(result["delta_nll_shape"], "delta_nll_shape")
 
 
-def add_scan_validation(
-    results: list[dict[str, Any]],
-    shape_tolerance: float,
-    minimum_tolerance: float,
-) -> None:
-    if not results:
-        raise ValueError("Cannot validate empty benchmark results")
-
-    successful_results = [
-        result for result in results if result.get("status") == "success"
-    ]
-    reference = next(
-        (result for result in successful_results if result["framework"] == "manual"),
-        None,
-    )
-    if reference is None:
-        raise ValueError("Cannot validate cross-framework scan without manual result")
-
-    reference_values = reference["nll_values"]
-    reference_shape = reference["delta_nll_shape"]
-    reference_minimum = reference["minimum_mu"]
-
-    for result in results:
-        if result.get("status") != "success":
-            result["constant_offset_estimate"] = None
-            result["delta_nll_shape_max_abs_diff"] = None
-            result["minimum_mu_abs_diff"] = None
-            result["delta_nll_shape_success"] = False
-            result["minimum_mu_success"] = False
-            result["validation_status"] = "not_run"
-            continue
-
-        result["constant_offset_estimate"] = mean_offset(
-            reference_values,
-            result["nll_values"],
-        )
-        result["delta_nll_shape_max_abs_diff"] = max_abs_difference(
-            reference_shape,
-            result["delta_nll_shape"],
-        )
-        result["minimum_mu_abs_diff"] = abs(result["minimum_mu"] - reference_minimum)
-        result["delta_nll_shape_success"] = (
-            result["delta_nll_shape_max_abs_diff"] <= shape_tolerance
-        )
-        result["minimum_mu_success"] = (
-            result["minimum_mu_abs_diff"] <= minimum_tolerance
-        )
-        result["validation_status"] = (
-            "success"
-            if result["delta_nll_shape_success"] and result["minimum_mu_success"]
-            else "failed"
-        )
-
-
-def failed_framework_result(
-    framework: str,
-    exc: BaseException,
-) -> dict[str, Any]:
+def failed_framework_result(framework: str, exc: BaseException) -> dict[str, Any]:
     return {
         "framework": framework,
-        "plot_label": framework,
         "status": "failed",
         "error_type": type(exc).__name__,
         "error_message": str(exc),
         "traceback": traceback.format_exc(),
+        "validation_status": "not_run",
     }
 
 
-def make_framework_specs(
-    frameworks: Iterable[str],
-    parameters: dict[str, float],
-    workspace_path: Path,
-    n_bins: int,
-    mu_min: float,
-) -> list[FrameworkSpec]:
-    specs: list[FrameworkSpec] = []
+def add_regression_metrics(
+    *,
+    results: list[dict[str, Any]],
+    mu_grid: list[float],
+    rtol: float,
+    atol: float,
+    delta_tolerance: float,
+    minimum_tolerance: float,
+) -> None:
+    successful = [result for result in results if result.get("status") == "success"]
+    reference = next(
+        (result for result in successful if result["framework"] == "manual"), None
+    )
+    if reference is None:
+        raise ValueError("Cannot validate numerical regression without manual result")
 
-    for framework in frameworks:
-        if framework == "manual":
-            specs.append(
-                FrameworkSpec(
-                    name="manual",
-                    build_func=lambda parameters=parameters: build_manual_model(
-                        parameters,
-                        n_bins,
-                    ),
-                    eval_func=lambda model, mu: manual_nll(model, mu),
-                )
-            )
-        elif framework == "pyhs3":
-            specs.append(
-                FrameworkSpec(
-                    name="pyhs3",
-                    build_func=lambda workspace_path=workspace_path: build_pyhs3_model(
-                        workspace_path,
-                    ),
-                    eval_func=lambda model, mu: pyhs3_nll(model, n_bins, mu),
-                )
-            )
-        elif framework == "pyhf":
-            specs.append(
-                FrameworkSpec(
-                    name="pyhf",
-                    build_func=lambda parameters=parameters: build_pyhf_model(
-                        parameters,
-                        n_bins,
-                    ),
-                    eval_func=lambda model, mu: pyhf_nll(model, mu),
-                )
-            )
-        elif framework == "roofit":
-            specs.append(
-                FrameworkSpec(
-                    name="roofit",
-                    build_func=lambda parameters=parameters: build_roofit_model(
-                        parameters,
-                        n_bins,
-                        mu_min,
-                    ),
-                    eval_func=lambda model, mu: roofit_nll(model, mu),
-                )
-            )
-        else:
-            raise ValueError(f"Unknown framework: {framework}")
-
-    return specs
-
-
-def _framework_order(results: list[dict[str, Any]]) -> list[str]:
-    """Return successful framework names in execution order."""
-
-    return [
-        result["framework"] for result in results if result.get("status") == "success"
-    ]
-
-
-FRAMEWORK_STYLE = {
-    "manual": {
-        "label": "Manual reference",
-        "color": "#1f1f1f",
-        "marker": "o",
-        "linestyle": "-",
-    },
-    "pyhs3": {"label": "PyHS3", "color": "#0055A4", "marker": "s", "linestyle": "--"},
-    "pyhf": {"label": "pyhf", "color": "#E57200", "marker": "^", "linestyle": "-."},
-    "roofit": {"label": "RooFit", "color": "#009E73", "marker": "D", "linestyle": ":"},
-}
+    for result in results:
+        if result.get("status") != "success":
+            result["metrics"] = None
+            continue
+        result["metrics"] = compute_metrics(
+            framework=result["framework"],
+            reference_values=reference["nll_values"],
+            values=result["nll_values"],
+            mu_grid=mu_grid,
+            rtol=rtol,
+            atol=atol,
+            delta_tolerance=delta_tolerance,
+            minimum_tolerance=minimum_tolerance,
+        )
+        result["validation_status"] = result["metrics"]["validation_status"]
 
 
 def _apply_cern_style() -> None:
-    """Apply a clean HEP-paper style for benchmark plots."""
-
     plt.rcParams.update(
         {
             "figure.facecolor": "white",
@@ -733,10 +645,6 @@ def _apply_cern_style() -> None:
     )
 
 
-def _successful_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [result for result in results if result.get("status") == "success"]
-
-
 def _style_for(framework: str) -> dict[str, str]:
     return FRAMEWORK_STYLE.get(
         framework,
@@ -746,6 +654,34 @@ def _style_for(framework: str) -> dict[str, str]:
 
 def _framework_label(framework: str) -> str:
     return _style_for(framework)["label"]
+
+
+def _successful_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [result for result in results if result.get("status") == "success"]
+
+
+def _reference_result(results: list[dict[str, Any]]) -> dict[str, Any]:
+    reference = next(
+        (
+            result
+            for result in results
+            if result.get("framework") == "manual" and result.get("status") == "success"
+        ),
+        None,
+    )
+    if reference is None:
+        raise ValueError("Manual reference result is required for plotting")
+    return reference
+
+
+def _save_figure(fig: Any, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fig.savefig(output_path.with_suffix(".png"), dpi=300)
+    except OSError as exc:
+        raise OSError(f"Failed to save plot to {output_path}") from exc
+    finally:
+        plt.close(fig)
 
 
 def _format_metric(value: float, unit: str = "") -> str:
@@ -763,41 +699,9 @@ def _format_metric(value: float, unit: str = "") -> str:
     return f"{value:.1f}{unit}"
 
 
-def _save_figure(fig: Any, output_path: Path) -> None:
-    """Save a plot as a high-resolution PNG image."""
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    png_path = output_path.with_suffix(".png")
-
-    try:
-        fig.savefig(png_path, dpi=300)
-    except OSError as exc:
-        raise OSError(f"Failed to save plot to {png_path}") from exc
-    finally:
-        plt.close(fig)
-
-
-def _reference_result(results: list[dict[str, Any]]) -> dict[str, Any]:
-    reference = next(
-        (
-            result
-            for result in results
-            if result.get("framework") == "manual" and result.get("status") == "success"
-        ),
-        None,
-    )
-    if reference is None:
-        raise ValueError("Manual reference result is required for plotting")
-    return reference
-
-
-def make_nll_profile_plot(
-    results: list[dict[str, Any]],
-    mu_grid: list[float],
-    output_path: Path,
+def make_regression_profile_plot(
+    results: list[dict[str, Any]], mu_grid: list[float], output_path: Path
 ) -> None:
-    """Create the main physics plot: ΔNLL overlay plus residuals to manual."""
-
     _apply_cern_style()
     successful = _successful_results(results)
     reference = _reference_result(successful)
@@ -817,20 +721,14 @@ def make_nll_profile_plot(
         style = _style_for(framework)
         values = np.asarray(result["delta_nll_shape"], dtype=float)
         residual = values - reference_delta
-
-        zorder = 5 if framework == "manual" else 4
-        linewidth = 2.8 if framework == "manual" else 2.2
-        alpha = 1.0 if framework == "manual" else 0.88
-
         ax.plot(
             x,
             values,
             color=style["color"],
             linestyle=style["linestyle"],
-            linewidth=linewidth,
-            alpha=alpha,
+            linewidth=2.8 if framework == "manual" else 2.2,
             label=style["label"],
-            zorder=zorder,
+            zorder=5 if framework == "manual" else 4,
         )
         ax.scatter(
             x[:: max(1, len(x) // 14)],
@@ -838,9 +736,8 @@ def make_nll_profile_plot(
             color=style["color"],
             marker=style["marker"],
             s=28,
-            zorder=zorder + 1,
+            zorder=6 if framework == "manual" else 5,
         )
-
         if framework != "manual":
             residual_ax.plot(
                 x,
@@ -852,184 +749,85 @@ def make_nll_profile_plot(
             )
 
     ax.set_ylabel(r"$\Delta$NLL")
-    ax.set_title("Cross-framework NLL scan agreement", loc="left", weight="bold")
+    ax.set_title(
+        "Numerical regression: ΔNLL profile agreement", loc="left", weight="bold"
+    )
     ax.text(
         0.02,
         0.94,
-        "PyHS3 benchmark · binned Poisson likelihood",
+        "Cross-framework regression check · manual implementation is the reference",
         transform=ax.transAxes,
         ha="left",
         va="top",
         fontsize=12,
     )
-    ax.legend(frameon=False, ncol=2, loc="upper center", bbox_to_anchor=(0.62, 1.02))
+    ax.legend(
+        frameon=False,
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        borderaxespad=0.0,
+        title="Framework",
+    )
     ax.margins(x=0.015)
+    fig.subplots_adjust(right=0.78)
 
     residual_ax.axhline(0.0, color="black", linewidth=1.2, alpha=0.75)
     residual_ax.set_xlabel(r"Signal strength $\mu$")
     residual_ax.set_ylabel("Residual\nvs manual")
     residual_ax.ticklabel_format(axis="y", style="sci", scilimits=(-2, 2))
     residual_ax.margins(x=0.015)
-
     fig.align_ylabels([ax, residual_ax])
     _save_figure(fig, output_path)
 
 
-def make_timing_profile_plot(results: list[dict[str, Any]], output_path: Path) -> None:
-    """Compare setup and scan timings on one log-scale dot plot."""
-
+def make_error_envelope_plot(
+    results: list[dict[str, Any]], mu_grid: list[float], output_path: Path
+) -> None:
     _apply_cern_style()
-    successful = _successful_results(results)
-    metrics = [
-        ("Model build", "model_build_time_seconds", 1000.0, "ms"),
-        ("Cold first eval", "cold_first_evaluation_time_seconds", 1000.0, "ms"),
-        ("Warm first eval", "first_evaluation_time_seconds", 1000.0, "ms"),
-        ("Full scan", "full_scan_time_seconds", 1000.0, "ms"),
-        ("Per scan point", "time_per_scan_point_seconds", 1e6, "µs"),
+    successful = [
+        result
+        for result in _successful_results(results)
+        if result["framework"] != "manual"
     ]
+    reference = _reference_result(results)
+    reference_delta = np.asarray(reference["delta_nll_shape"], dtype=float)
+    x = np.asarray(mu_grid, dtype=float)
 
-    fig, ax = plt.subplots(figsize=(11.5, 7.0))
-    y_positions = np.arange(len(metrics))
-    offsets = np.linspace(-0.24, 0.24, max(1, len(successful)))
-
-    for framework_index, result in enumerate(successful):
+    fig, ax = plt.subplots(figsize=(11.2, 6.6))
+    for result in successful:
         framework = result["framework"]
         style = _style_for(framework)
-        values = [max(float(result[key]) * scale, 1e-9) for _, key, scale, _ in metrics]
-        y = y_positions + offsets[framework_index]
-        ax.scatter(
-            values,
-            y,
-            s=95,
+        values = np.asarray(result["delta_nll_shape"], dtype=float)
+        abs_error = np.abs(values - reference_delta)
+        ax.plot(
+            x,
+            np.maximum(abs_error, 1e-16),
             color=style["color"],
-            marker=style["marker"],
+            linestyle=style["linestyle"],
+            linewidth=2.2,
             label=style["label"],
-            zorder=4,
         )
-        for value, y_value, (_, _key, _scale, unit) in zip(
-            values, y, metrics, strict=True
-        ):
-            ax.text(
-                value * 1.12,
-                y_value,
-                _format_metric(value, f" {unit}"),
-                va="center",
-                fontsize=10,
-                color=style["color"],
-            )
-
-    ax.set_xscale("log")
-    ax.set_yticks(y_positions)
-    ax.set_yticklabels([name for name, *_ in metrics])
-    ax.invert_yaxis()
-    ax.set_xlabel("Runtime (log scale; units shown in labels)")
-    ax.set_title("Runtime profile by framework", loc="left", weight="bold")
-    ax.legend(frameon=False, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.10))
-    ax.grid(True, which="both", axis="x", alpha=0.45)
-    ax.grid(False, axis="y")
-
-    _save_figure(fig, output_path)
-
-
-def make_relative_runtime_plot(
-    results: list[dict[str, Any]], output_path: Path
-) -> None:
-    """Rank frameworks by warm scan throughput relative to the fastest one."""
-
-    _apply_cern_style()
-    successful = sorted(
-        _successful_results(results),
-        key=lambda result: result["time_per_scan_point_seconds"],
-    )
-    fastest = successful[0]["time_per_scan_point_seconds"]
-
-    labels = [_framework_label(result["framework"]) for result in successful]
-    relative = [
-        result["time_per_scan_point_seconds"] / fastest for result in successful
-    ]
-    raw_us = [result["time_per_scan_point_seconds"] * 1e6 for result in successful]
-    colors = [_style_for(result["framework"])["color"] for result in successful]
-
-    fig, ax = plt.subplots(figsize=(10.5, 6.5))
-    y = np.arange(len(successful))
-    bars = ax.barh(y, relative, color=colors, alpha=0.92)
-
-    ax.set_yticks(y)
-    ax.set_yticklabels(labels)
-    ax.invert_yaxis()
-    ax.set_xlabel("Relative time per scan point (fastest = 1×)")
-    ax.set_title("NLL scan throughput ranking", loc="left", weight="bold")
-    ax.grid(True, axis="x", alpha=0.45)
-    ax.grid(False, axis="y")
-
-    for bar, rel_value, us_value in zip(bars, relative, raw_us, strict=True):
-        ax.text(
-            bar.get_width() * 1.02,
-            bar.get_y() + bar.get_height() / 2,
-            f"{rel_value:.2f}×  ({us_value:.1f} µs/point)",
-            va="center",
-            fontsize=11,
-            weight="bold",
-        )
-
-    ax.set_xlim(0.0, max(relative) * 1.35)
-    _save_figure(fig, output_path)
-
-
-def make_memory_profile_plot(results: list[dict[str, Any]], output_path: Path) -> None:
-    """Plot current and peak RSS deltas without letting zero-valued bars dominate."""
-
-    _apply_cern_style()
-    successful = _successful_results(results)
-    labels = [_framework_label(result["framework"]) for result in successful]
-    current = [float(result["rss_delta_mb"]) for result in successful]
-    peak = [float(result["peak_rss_delta_mb"]) for result in successful]
-
-    x = np.arange(len(successful))
-    width = 0.36
-    fig, ax = plt.subplots(figsize=(10.8, 6.6))
-    current_plot = [max(value, 1e-3) for value in current]
-    peak_plot = [max(value, 1e-3) for value in peak]
-
-    current_bars = ax.bar(
-        x - width / 2, current_plot, width, label="Current RSS delta", alpha=0.85
-    )
-    peak_bars = ax.bar(
-        x + width / 2, peak_plot, width, label="Peak RSS delta", alpha=0.85
-    )
 
     ax.set_yscale("log")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=0)
-    ax.set_ylabel("Memory delta [MB] (log scale)")
-    ax.set_title("Memory footprint during NLL scan", loc="left", weight="bold")
-    ax.legend(frameon=False)
+    ax.set_xlabel(r"Signal strength $\mu$")
+    ax.set_ylabel(r"absolute $\Delta$NLL residual vs manual")
+    ax.set_title("Regression residual envelope", loc="left", weight="bold")
+    ax.legend(
+        frameon=False,
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        borderaxespad=0.0,
+        title="Framework",
+    )
+    fig.subplots_adjust(right=0.78)
     ax.grid(True, which="both", axis="y", alpha=0.45)
-    ax.grid(False, axis="x")
-
-    for bars, raw_values in ((current_bars, current), (peak_bars, peak)):
-        for bar, raw in zip(bars, raw_values, strict=True):
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                bar.get_height() * 1.15,
-                _format_metric(raw, " MB"),
-                ha="center",
-                va="bottom",
-                fontsize=10,
-                weight="bold",
-                rotation=0,
-            )
-
+    ax.grid(True, which="major", axis="x", alpha=0.25)
     _save_figure(fig, output_path)
 
 
-def make_numerical_agreement_plot(
-    results: list[dict[str, Any]],
-    shape_tolerance: float,
-    output_path: Path,
+def make_metric_summary_plot(
+    results: list[dict[str, Any]], delta_tolerance: float, output_path: Path
 ) -> None:
-    """Show numerical agreement in a way that remains readable near machine precision."""
-
     _apply_cern_style()
     successful = [
         result
@@ -1037,32 +835,35 @@ def make_numerical_agreement_plot(
         if result["framework"] != "manual"
     ]
     labels = [_framework_label(result["framework"]) for result in successful]
-    diffs = [float(result["delta_nll_shape_max_abs_diff"]) for result in successful]
-    floor = max(shape_tolerance * 1e-6, 1e-16)
-    plot_values = [max(value, floor) for value in diffs]
+    values = [
+        float(result["metrics"]["delta_nll_max_abs_diff"]) for result in successful
+    ]
+    floor = max(delta_tolerance * 1e-6, 1e-16)
+    plot_values = [max(value, floor) for value in values]
     colors = [_style_for(result["framework"])["color"] for result in successful]
 
     fig, ax = plt.subplots(figsize=(10.5, 6.2))
     x = np.arange(len(successful))
     bars = ax.bar(x, plot_values, color=colors, alpha=0.92)
     ax.axhline(
-        shape_tolerance,
+        delta_tolerance,
         color="black",
         linestyle="--",
         linewidth=1.4,
-        label=f"tolerance = {shape_tolerance:.0e}",
+        label=f"tolerance = {delta_tolerance:.0e}",
     )
 
     ax.set_yscale("log")
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel(r"max $|\Delta$NLL$_{framework}$ - $\Delta$NLL$_{manual}|$")
-    ax.set_title("Numerical agreement with manual reference", loc="left", weight="bold")
-    ax.legend(frameon=False)
+    ax.set_title("Numerical regression agreement", loc="left", weight="bold")
+    ax.legend(frameon=False, loc="upper right")
     ax.grid(True, which="both", axis="y", alpha=0.45)
     ax.grid(False, axis="x")
+    ax.set_ylim(top=max(max(plot_values) * 12.0, delta_tolerance * 1.8))
 
-    for bar, raw_value in zip(bars, diffs, strict=True):
+    for bar, raw_value in zip(bars, values, strict=True):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
             bar.get_height() * 1.25,
@@ -1072,52 +873,147 @@ def make_numerical_agreement_plot(
             fontsize=10,
             weight="bold",
         )
+    _save_figure(fig, output_path)
+
+
+def make_offset_vs_shape_plot(results: list[dict[str, Any]], output_path: Path) -> None:
+    _apply_cern_style()
+    successful = [
+        result
+        for result in _successful_results(results)
+        if result["framework"] != "manual"
+    ]
+
+    labels = [_framework_label(result["framework"]) for result in successful]
+    constant_offsets = [
+        abs(float(result["metrics"]["constant_offset"])) for result in successful
+    ]
+    shape_residuals = [
+        float(result["metrics"]["delta_nll_max_abs_diff"]) for result in successful
+    ]
+    colors = [_style_for(result["framework"])["color"] for result in successful]
+
+    x = np.arange(len(successful))
+    width = 0.34
+
+    offset_plot = [max(value, 1e-16) for value in constant_offsets]
+    shape_plot = [max(value, 1e-16) for value in shape_residuals]
+
+    fig, ax = plt.subplots(figsize=(11.2, 6.5))
+
+    offset_bars = ax.bar(
+        x - width / 2,
+        offset_plot,
+        width,
+        color=colors,
+        alpha=0.45,
+        edgecolor="black",
+        linewidth=0.8,
+        label="Raw constant offset",
+    )
+
+    shape_bars = ax.bar(
+        x + width / 2,
+        shape_plot,
+        width,
+        color=colors,
+        alpha=0.95,
+        edgecolor="black",
+        linewidth=0.8,
+        hatch="///",
+        label="ΔNLL shape residual",
+    )
+
+    ax.set_yscale("log")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("Absolute difference (log scale)")
+    ax.set_title("Raw NLL offset vs shape agreement", loc="left", weight="bold")
+
+    ax.grid(True, which="both", axis="y", alpha=0.45)
+    ax.grid(False, axis="x")
+    ax.set_ylim(top=max(max(offset_plot + shape_plot) * 8.0, 1e-12))
+
+    framework_handles = [
+        Patch(
+            facecolor=_style_for(result["framework"])["color"],
+            edgecolor="black",
+            label=_framework_label(result["framework"]),
+        )
+        for result in successful
+    ]
+
+    framework_legend = ax.legend(
+        handles=framework_handles,
+        title="Framework",
+        frameon=False,
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1.0),
+        borderaxespad=0.0,
+    )
+
+    ax.add_artist(framework_legend)
+    fig.subplots_adjust(right=0.72)
+
+    for bars, raw_values in (
+        (offset_bars, constant_offsets),
+        (shape_bars, shape_residuals),
+    ):
+        for bar, raw in zip(bars, raw_values, strict=True):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() * 1.25,
+                f"{raw:.1e}",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+                weight="bold",
+            )
 
     _save_figure(fig, output_path)
 
 
-def make_summary_table_plot(
-    results: list[dict[str, Any]],
-    output_path: Path,
-) -> None:
-    """Create a compact report-card style summary for quick inspection."""
-
+def make_summary_table_plot(results: list[dict[str, Any]], output_path: Path) -> None:
     _apply_cern_style()
     successful = _successful_results(results)
     columns = [
         "Framework",
         "Validation",
-        "Build [ms]",
-        "Cold eval [ms]",
-        "Warm eval [ms]",
-        "Scan [ms]",
-        "µs / point",
-        "RSS Δ [MB]",
+        "min μ",
         "max ΔNLL diff",
+        "constant offset",
+        "max abs diff",
+        "scan [ms]",
+        "RSS Δ [MB]",
     ]
     rows = []
     for result in successful:
+        metrics = result["metrics"]
         rows.append(
             [
                 _framework_label(result["framework"]),
-                result.get("validation_status", "n/a"),
-                f"{result['model_build_time_seconds'] * 1000.0:.2f}",
-                f"{result['cold_first_evaluation_time_seconds'] * 1000.0:.2f}",
-                f"{result['first_evaluation_time_seconds'] * 1000.0:.2f}",
+                metrics["validation_status"],
+                f"{metrics['minimum_mu']:.4f}",
+                f"{metrics['delta_nll_max_abs_diff']:.2e}",
+                f"{metrics['constant_offset']:.2e}",
+                f"{metrics['max_abs_diff']:.2e}",
                 f"{result['full_scan_time_seconds'] * 1000.0:.2f}",
-                f"{result['time_per_scan_point_seconds'] * 1e6:.2f}",
-                f"{result['rss_delta_mb']:.2f}",
-                f"{result.get('delta_nll_shape_max_abs_diff', 0.0):.2e}",
+                f"{result['current_rss_delta_mb']:.2f}",
             ]
         )
 
     fig, ax = plt.subplots(figsize=(13.5, 3.6 + 0.35 * len(rows)))
     ax.axis("off")
-    ax.set_title("Cross-framework NLL scan summary", loc="left", weight="bold", pad=16)
+    ax.set_title(
+        "Cross-framework numerical regression summary",
+        loc="left",
+        weight="bold",
+        pad=16,
+    )
     ax.text(
         0.0,
         0.94,
-        "Generated from one common binned Poisson workspace; manual implementation is the validation reference.",
+        "Checks whether each framework reproduces the manual NLL scan shape and best-fit μ.",
         transform=ax.transAxes,
         ha="left",
         va="top",
@@ -1145,7 +1041,6 @@ def make_summary_table_plot(
             cell.set_text_props(weight="bold", color=_style_for(framework)["color"])
         elif col == 1 and cell.get_text().get_text() == "success":
             cell.set_text_props(weight="bold", color="#00843D")
-
     _save_figure(fig, output_path)
 
 
@@ -1153,46 +1048,33 @@ def make_plots(
     results: list[dict[str, Any]],
     mu_grid: list[float],
     plot_dir: Path,
-    shape_tolerance: float = 1e-9,
+    delta_tolerance: float,
 ) -> None:
-    """Create the production plot set for the cross-framework NLL scan.
-
-    This intentionally omits low-information plots such as raw constant offsets
-    and best-fit mu bars when all frameworks agree exactly. The retained figures
-    answer the questions that matter for the report: numerical agreement,
-    runtime profile, throughput ranking, and memory footprint.
-    """
-
     plot_dir.mkdir(parents=True, exist_ok=True)
     if not _successful_results(results):
         raise ValueError("No successful benchmark results available for plotting")
 
-    make_nll_profile_plot(
-        results=results,
-        mu_grid=mu_grid,
-        output_path=plot_dir / "cross_nll_scan_profile.png",
+    make_regression_profile_plot(
+        results, mu_grid, plot_dir / "cross_nll_regression_profile.png"
     )
-    make_timing_profile_plot(
-        results=results,
-        output_path=plot_dir / "cross_nll_timing_profile.png",
+    make_error_envelope_plot(
+        results, mu_grid, plot_dir / "cross_nll_regression_residual_envelope.png"
     )
-    make_relative_runtime_plot(
-        results=results,
-        output_path=plot_dir / "cross_nll_relative_runtime.png",
+    make_metric_summary_plot(
+        results, delta_tolerance, plot_dir / "cross_nll_regression_agreement.png"
     )
-    make_memory_profile_plot(
-        results=results,
-        output_path=plot_dir / "cross_nll_memory_profile.png",
-    )
-    make_numerical_agreement_plot(
-        results=results,
-        shape_tolerance=shape_tolerance,
-        output_path=plot_dir / "cross_nll_numerical_agreement.png",
+    make_offset_vs_shape_plot(
+        results, plot_dir / "cross_nll_regression_offset_vs_shape.png"
     )
     make_summary_table_plot(
-        results=results,
-        output_path=plot_dir / "cross_nll_summary_table.png",
+        results, plot_dir / "cross_nll_regression_summary_table.png"
     )
+
+
+def _framework_order(results: list[dict[str, Any]]) -> list[str]:
+    return [
+        result["framework"] for result in results if result.get("status") == "success"
+    ]
 
 
 def print_result(result: dict[str, Any]) -> None:
@@ -1200,7 +1082,6 @@ def print_result(result: dict[str, Any]) -> None:
     print("-" * 72)
     print(result["framework"])
     print("-" * 72)
-
     if result.get("status") != "success":
         print(f"status:                  {result.get('status')}")
         print(
@@ -1208,32 +1089,24 @@ def print_result(result: dict[str, Any]) -> None:
         )
         return
 
+    metrics = result["metrics"]
     print(f"status:                  {result['status']}")
-    print(f"validation:              {result['validation_status']}")
-    print(f"minimum mu:              {result['minimum_mu']:.15f}")
-    print(f"minimum mu abs diff:     {result['minimum_mu_abs_diff']:.15e}")
-    print(f"shape max abs diff:      {result['delta_nll_shape_max_abs_diff']:.15e}")
-    print(f"constant offset:         {result['constant_offset_estimate']:.15e}")
+    print(f"validation:              {metrics['validation_status']}")
+    print(f"minimum mu:              {metrics['minimum_mu']:.15f}")
+    print(f"minimum mu abs diff:     {metrics['minimum_mu_abs_diff']:.15e}")
+    print(f"max abs diff:            {metrics['max_abs_diff']:.15e}")
+    print(f"max rel diff:            {metrics['max_rel_diff']:.15e}")
+    print(f"constant offset:         {metrics['constant_offset']:.15e}")
+    print(f"centered residual max:   {metrics['centered_residual_max_abs_diff']:.15e}")
+    print(f"delta-NLL max diff:      {metrics['delta_nll_max_abs_diff']:.15e}")
+    print(f"allclose passed:         {metrics['allclose_passed']}")
     print(
-        f"model build:             {result['model_build_time_seconds'] * 1000.0:.3f} ms"
-    )
-    print(
-        f"cold first evaluation:   {result['cold_first_evaluation_time_seconds'] * 1000.0:.3f} ms"
-    )
-    print(
-        f"warm-up evaluations:     {result['warmup_iterations']} ({result['warmup_time_seconds'] * 1000.0:.3f} ms total)"
-    )
-    print(
-        f"warm first evaluation:   {result['first_evaluation_time_seconds'] * 1e6:.3f} us"
-    )
-    print(
-        f"full scan:               {result['full_scan_time_seconds'] * 1000.0:.3f} ms"
+        f"scan time:               {result['full_scan_time_seconds'] * 1000.0:.3f} ms"
     )
     print(
         f"time per scan point:     {result['time_per_scan_point_seconds'] * 1e6:.3f} us"
     )
-    print(f"current RSS delta:       {result['rss_delta_mb']:.3f} MB")
-    print(f"peak RSS delta:          {result['peak_rss_delta_mb']:.3f} MB")
+    print(f"current RSS delta:       {result['current_rss_delta_mb']:.3f} MB")
 
 
 def build_failed_output(
@@ -1243,8 +1116,9 @@ def build_failed_output(
     mu_min: float,
     mu_max: float,
     n_points: int,
-    warmup_iterations: int,
-    shape_tolerance: float,
+    rtol: float,
+    atol: float,
+    delta_tolerance: float,
     minimum_tolerance: float,
     frameworks: list[str],
     exc: BaseException,
@@ -1257,8 +1131,9 @@ def build_failed_output(
         "mu_min": mu_min,
         "mu_max": mu_max,
         "n_points": n_points,
-        "warmup_iterations": warmup_iterations,
-        "shape_tolerance": shape_tolerance,
+        "rtol": rtol,
+        "atol": atol,
+        "delta_tolerance": delta_tolerance,
         "minimum_tolerance": minimum_tolerance,
         "frameworks": frameworks,
         "status": "failed",
@@ -1277,11 +1152,12 @@ def run(
     output: Path,
     plot: bool,
     plot_dir: Path,
-    shape_tolerance: float,
+    rtol: float,
+    atol: float,
+    delta_tolerance: float,
     minimum_tolerance: float,
     frameworks: list[str] | None = None,
     continue_on_framework_error: bool = True,
-    warmup_iterations: int = 1,
 ) -> dict[str, Any]:
     selected_frameworks = frameworks or list(DEFAULT_FRAMEWORKS)
     n_bins: int | None = None
@@ -1292,51 +1168,50 @@ def run(
             mu_min=mu_min,
             mu_max=mu_max,
             n_points=n_points,
-            warmup_iterations=warmup_iterations,
-            shape_tolerance=shape_tolerance,
+            rtol=rtol,
+            atol=atol,
+            delta_tolerance=delta_tolerance,
             minimum_tolerance=minimum_tolerance,
             frameworks=selected_frameworks,
         )
-        validate_positive_int(warmup_iterations, "warmup_iterations", minimum=0)
 
         workspace = Workspace.load(workspace_path)
         parameters = extract_parameters(workspace)
         n_bins = infer_n_bins_from_parameters(parameters)
         validate_parameters(parameters, n_bins)
         mu_grid = build_mu_grid(mu_min=mu_min, mu_max=mu_max, n_points=n_points)
-
-        results = []
         specs = make_framework_specs(
-            selected_frameworks,
-            parameters,
-            workspace_path,
-            n_bins,
-            mu_min,
+            selected_frameworks, parameters, workspace_path, n_bins, mu_min
         )
 
+        rss_before = get_current_rss_mb()
+        results: list[dict[str, Any]] = []
         for spec in specs:
             try:
                 results.append(
-                    measure_framework_scan(
+                    measure_framework_regression(
                         name=spec.name,
                         build_func=spec.build_func,
                         eval_func=spec.eval_func,
                         mu_grid=mu_grid,
-                        warmup_iterations=warmup_iterations,
                     )
                 )
             except Exception as exc:
                 if not continue_on_framework_error:
                     raise RuntimeError(
-                        f"Framework benchmark failed for {spec.name}"
+                        f"Framework regression failed for {spec.name}"
                     ) from exc
                 results.append(failed_framework_result(spec.name, exc))
 
-        add_scan_validation(
+        add_regression_metrics(
             results=results,
-            shape_tolerance=shape_tolerance,
+            mu_grid=mu_grid,
+            rtol=rtol,
+            atol=atol,
+            delta_tolerance=delta_tolerance,
             minimum_tolerance=minimum_tolerance,
         )
+        rss_after = get_current_rss_mb()
 
         successful_results = [
             result for result in results if result.get("status") == "success"
@@ -1346,7 +1221,6 @@ def run(
             for result in successful_results
             if result.get("validation_status") == "success"
         ]
-
         status = (
             "success"
             if len(successful_validation) == len(selected_frameworks)
@@ -1361,8 +1235,9 @@ def run(
             "mu_min": mu_min,
             "mu_max": mu_max,
             "n_points": n_points,
-            "warmup_iterations": warmup_iterations,
-            "shape_tolerance": shape_tolerance,
+            "rtol": rtol,
+            "atol": atol,
+            "delta_tolerance": delta_tolerance,
             "minimum_tolerance": minimum_tolerance,
             "frameworks": selected_frameworks,
             "successful_frameworks": _framework_order(results),
@@ -1372,19 +1247,17 @@ def run(
                 if result.get("status") != "success"
             ],
             "status": status,
+            "rss_delta_mb": max(0.0, rss_after - rss_before),
             "mu_grid": mu_grid,
             "results": results,
         }
 
         print("=" * 80)
-        print("Cross-framework NLL scan benchmark")
+        print("Cross-framework numerical regression benchmark")
         print("=" * 80)
         print(f"Workspace:  {workspace_path.name}")
         print(f"Bins:       {n_bins}")
         print(f"Grid:       [{mu_min}, {mu_max}] with {n_points} points")
-        print(
-            f"Warm-up:    {warmup_iterations} unmeasured evaluation(s) after cold first call"
-        )
         print(f"Frameworks: {', '.join(selected_frameworks)}")
         print(f"Status:     {status}")
 
@@ -1396,7 +1269,7 @@ def run(
         print(f"Saved result to {output}")
 
         if plot:
-            make_plots(results, mu_grid, plot_dir, shape_tolerance=shape_tolerance)
+            make_plots(results, mu_grid, plot_dir, delta_tolerance=delta_tolerance)
             print(f"Saved plots to {plot_dir}")
 
         return output_data
@@ -1408,8 +1281,9 @@ def run(
             mu_min=mu_min,
             mu_max=mu_max,
             n_points=n_points,
-            warmup_iterations=warmup_iterations,
-            shape_tolerance=shape_tolerance,
+            rtol=rtol,
+            atol=atol,
+            delta_tolerance=delta_tolerance,
             minimum_tolerance=minimum_tolerance,
             frameworks=selected_frameworks,
             exc=exc,
@@ -1421,13 +1295,15 @@ def run(
                 "Failed to save benchmark failure report:\n" + traceback.format_exc(),
                 file=sys.stderr,
             )
-        raise RuntimeError("Cross-framework NLL scan benchmark failed") from exc
+        raise RuntimeError(
+            "Cross-framework numerical regression benchmark failed"
+        ) from exc
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run a cross-framework NLL scan benchmark for the generated "
+            "Run a cross-framework numerical regression benchmark for generated "
             "binned Poisson likelihood models."
         )
     )
@@ -1435,29 +1311,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mu-min", type=float, default=0.0)
     parser.add_argument("--mu-max", type=float, default=2.0)
     parser.add_argument("--n-points", type=int, default=101)
-    parser.add_argument(
-        "--warmup-iterations",
-        type=int,
-        default=1,
-        help=(
-            "Number of unmeasured warm-up evaluations to run after measuring "
-            "the cold first call and before the timed scan."
-        ),
-    )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--plot", action="store_true")
     parser.add_argument("--plot-dir", type=Path, default=DEFAULT_PLOT_DIR)
-    parser.add_argument("--shape-tolerance", type=float, default=1e-9)
+    parser.add_argument("--rtol", type=float, default=1e-9)
+    parser.add_argument("--atol", type=float, default=1e-9)
+    parser.add_argument("--delta-tolerance", type=float, default=1e-9)
     parser.add_argument("--minimum-tolerance", type=float, default=1e-12)
     parser.add_argument(
         "--frameworks",
         nargs="+",
         choices=DEFAULT_FRAMEWORKS,
         default=DEFAULT_FRAMEWORKS,
-        help=(
-            "Frameworks to run. manual is required because it is used as "
-            "the numerical reference."
-        ),
+        help="Frameworks to run. manual is required because it is used as the reference.",
     )
     parser.add_argument(
         "--fail-fast",
@@ -1477,11 +1343,12 @@ def main() -> None:
         output=args.output,
         plot=args.plot,
         plot_dir=args.plot_dir,
-        shape_tolerance=args.shape_tolerance,
+        rtol=args.rtol,
+        atol=args.atol,
+        delta_tolerance=args.delta_tolerance,
         minimum_tolerance=args.minimum_tolerance,
         frameworks=args.frameworks,
         continue_on_framework_error=not args.fail_fast,
-        warmup_iterations=args.warmup_iterations,
     )
 
 

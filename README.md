@@ -2811,3 +2811,119 @@ First, it provides a direct performance comparison between PyHS3 and established
 Second, it verifies that optimization work does not alter the numerical properties of the likelihood scan.
 
 Together, these measurements make the benchmark suitable for regression testing, optimization studies, and future cross-version performance tracking.
+
+---
+
+# Cross-Framework Negative Log-Likelihood Regression Benchmark
+
+## Purpose
+
+Validates the numerical consistency of equivalent negative log-likelihood scans across multiple statistical frameworks.
+
+The benchmark compares identical statistical models implemented in:
+
+- PyHS3;
+- pyhf;
+- RooFit;
+- a manual reference implementation.
+
+Unlike the runtime benchmark, this benchmark focuses on numerical regression rather than execution speed.
+
+Its primary goal is to ensure that future optimizations preserve the statistical behavior of the likelihood function.
+
+---
+
+## Validation Procedure
+
+For each framework the benchmark:
+
+1. constructs an equivalent statistical model;
+2. performs a complete negative log-likelihood scan;
+3. compares the resulting scan against the manual reference implementation;
+4. computes numerical regression metrics;
+5. reports whether the framework satisfies the configured validation tolerances.
+
+The benchmark verifies both the overall NLL profile and the location of the best-fit parameter.
+
+---
+
+## Regression Metrics
+
+The benchmark evaluates several complementary numerical agreement metrics, including:
+
+- maximum absolute NLL difference;
+- maximum relative NLL difference;
+- constant likelihood offset;
+- ΔNLL profile agreement;
+- residual envelope;
+- best-fit parameter agreement.
+
+These metrics distinguish harmless constant offsets from genuine changes in the likelihood shape.
+
+---
+
+## Outputs
+
+Benchmark results are written to
+
+```text
+results/cross_nll_regression/
+```
+
+Generated figures are written to
+
+```text
+plots/cross_nll_regression/
+```
+
+---
+
+## Example Plots
+
+### Regression Profile
+
+![Regression Profile](plots/cross_nll_regression/cross_nll_regression_profile.png)
+
+*Compares the ΔNLL profiles produced by each framework relative to the manual reference implementation.*
+
+---
+
+### Residual Envelope
+
+![Residual Envelope](plots/cross_nll_regression/cross_nll_regression_residual_envelope.png)
+
+*Shows the absolute residual between each framework and the manual reference across the full likelihood scan.*
+
+---
+
+### Numerical Agreement
+
+![Numerical Agreement](plots/cross_nll_regression/cross_nll_regression_agreement.png)
+
+*Summarizes the maximum ΔNLL deviation for each framework and verifies agreement within the configured validation tolerance.*
+
+---
+
+### Constant Offset vs Shape Agreement
+
+![Offset vs Shape](plots/cross_nll_regression/cross_nll_regression_offset_vs_shape.png)
+
+*Separates constant likelihood offsets from genuine changes in the ΔNLL profile.*
+
+---
+
+### Summary Table
+
+![Summary Table](plots/cross_nll_regression/cross_nll_regression_summary_table.png)
+
+*Summarizes validation status, numerical agreement metrics, scan runtime, and memory usage for all supported frameworks.*
+
+---
+
+## Interpretation
+
+This benchmark is intended for numerical regression testing rather than performance evaluation.
+
+It provides an automated way to verify that changes to PyHS3 preserve the expected likelihood profile and best-fit parameter while maintaining agreement with independent statistical frameworks.
+
+Together with the runtime benchmark, it forms the foundation for validating future optimization work and detecting unintended numerical regressions.
