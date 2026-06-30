@@ -3482,3 +3482,106 @@ plots/cross_binned_likelihood_evaluation/
 ## Interpretation
 
 This benchmark evaluates both the computational cost and numerical correctness of binned Poisson likelihood evaluation across multiple statistical frameworks. It provides a reference for comparing implementation efficiency while ensuring that all frameworks produce statistically equivalent negative log-likelihood values.
+
+---
+
+# PyHS3 Model Complexity Scaling Benchmark
+
+## Purpose
+
+Evaluates how the performance of PyHS3 changes as the complexity of statistical models increases.
+
+The benchmark executes identical workflows on multiple HS3 workspaces with increasing structural complexity, allowing the scalability of PyHS3 to be evaluated independently of other statistical frameworks.
+
+It measures both execution time and memory consumption while tracking how model complexity influences each stage of the workflow.
+
+---
+
+## Benchmarked Operation
+
+For each workspace the benchmark performs:
+
+1. workspace loading;
+2. model construction;
+3. cold first negative log-likelihood evaluation;
+4. repeated warm evaluations;
+5. complete negative log-likelihood scan.
+
+The benchmark records timing, memory usage, and the location of the minimum NLL for every model.
+
+---
+
+## Validation
+
+The benchmark verifies that all evaluated negative log-likelihood values remain finite throughout the scan.
+
+For each workspace it reports:
+
+- NLL scan profile;
+- minimum parameter value;
+- validation status;
+- successful completion of every benchmark stage.
+
+---
+
+## Outputs
+
+Benchmark results are written to
+
+```text
+results/pyhs3_model_complexity_scaling/
+```
+
+Generated figures are written to
+
+```text
+plots/pyhs3_model_complexity_scaling/
+```
+
+---
+
+## Example Plots
+
+### Runtime Scaling
+
+![Runtime Scaling](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_runtime_scaling.png)
+
+*Shows how the average evaluation time changes as workspace complexity increases.*
+
+---
+
+### Timing Profile
+
+![Timing Profile](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_timing_profile.png)
+
+*Breaks down workspace loading, model construction, and NLL evaluation time for each benchmark case.*
+
+---
+
+### Memory Scaling
+
+![Memory Scaling](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_memory_scaling.png)
+
+*Illustrates how the PyHS3 memory footprint changes with increasing model complexity.*
+
+---
+
+### NLL Profile Examples
+
+![NLL Profiles](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_profile_examples.png)
+
+*Shows representative ΔNLL profiles for several benchmark workspaces.*
+
+---
+
+### Summary Table
+
+![Summary Table](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_summary_table.png)
+
+*Summarizes runtime, memory usage, and NLL scan characteristics across all benchmark cases.*
+
+---
+
+## Interpretation
+
+This benchmark evaluates the internal scalability of PyHS3 as statistical models become more complex. It helps identify how workspace complexity affects loading time, model construction, likelihood evaluation, memory consumption, and overall execution performance, providing a baseline for future optimization work.
