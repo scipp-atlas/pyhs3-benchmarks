@@ -2927,3 +2927,106 @@ This benchmark is intended for numerical regression testing rather than performa
 It provides an automated way to verify that changes to PyHS3 preserve the expected likelihood profile and best-fit parameter while maintaining agreement with independent statistical frameworks.
 
 Together with the runtime benchmark, it forms the foundation for validating future optimization work and detecting unintended numerical regressions.
+
+---
+
+# Cross-Framework Model Complexity Scaling Benchmark
+
+## Purpose
+
+Evaluates how model complexity affects the performance and numerical agreement of equivalent statistical models implemented in PyHS3 and RooFit.
+
+The benchmark executes the same workflow on a collection of workspaces with increasing structural complexity, allowing scalability trends to be measured rather than the performance of a single model.
+
+It measures both runtime and memory consumption while verifying that both frameworks continue to produce numerically equivalent negative log-likelihood scans.
+
+---
+
+## Benchmarked Operation
+
+For each benchmark case the workflow performs:
+
+1. model construction;
+2. first (cold) likelihood evaluation;
+3. repeated warm evaluations;
+4. a complete negative log-likelihood scan;
+5. numerical comparison between PyHS3 and RooFit.
+
+The benchmark is repeated for multiple workspace configurations representing increasing model complexity.
+
+---
+
+## Validation
+
+For every benchmark case the resulting NLL scans are compared using several numerical agreement metrics, including:
+
+- ΔNLL profile agreement;
+- best-fit parameter agreement;
+- constant likelihood offset;
+- maximum residual between frameworks.
+
+Each benchmark case is reported as successful only if all numerical agreement checks satisfy the configured validation tolerances.
+
+---
+
+## Outputs
+
+Benchmark results are written to
+
+```text
+results/cross_model_complexity_scaling/
+```
+
+Generated figures are written to
+
+```text
+plots/cross_model_complexity_scaling/
+```
+
+---
+
+## Example Plots
+
+### Runtime Scaling
+
+![Runtime Scaling](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_runtime_scaling.png)
+
+*Shows how steady-state evaluation time changes as model complexity increases.*
+
+---
+
+### Timing Breakdown
+
+![Timing Breakdown](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_timing_breakdown.png)
+
+*Compares model construction, cold evaluation, and warm evaluation times across all benchmark cases.*
+
+---
+
+### Memory Scaling
+
+![Memory Scaling](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_memory_scaling.png)
+
+*Illustrates how memory consumption scales with increasing model complexity.*
+
+---
+
+### Numerical Agreement
+
+![Numerical Agreement](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_agreement.png)
+
+*Verifies that PyHS3 and RooFit remain numerically consistent across all benchmark cases.*
+
+---
+
+### NLL Profile Examples
+
+![NLL Profiles](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_profile_examples.png)
+
+*Example ΔNLL scans demonstrating agreement between PyHS3 and RooFit for representative benchmark cases.*
+
+---
+
+## Interpretation
+
+This benchmark evaluates the scalability of PyHS3 relative to RooFit as statistical models become more complex. It combines runtime, memory usage, and numerical validation to identify performance trends while ensuring that increasing model complexity does not compromise numerical correctness.
