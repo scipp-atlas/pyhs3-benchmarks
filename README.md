@@ -3247,3 +3247,120 @@ plots/cross_vectorized_pdf_evaluation/
 ## Interpretation
 
 This benchmark evaluates how native vectorization influences PDF evaluation performance across different statistical frameworks. It provides a baseline for future PyHS3 optimizations by quantifying the performance gap between its current point-wise evaluation strategy and frameworks that support native vectorized execution.
+
+---
+
+# Cross-Framework Scalar PDF Evaluation Benchmark
+
+## Purpose
+
+Evaluates the performance of repeated scalar probability density function (PDF) evaluation across multiple statistical frameworks.
+
+The benchmark compares equivalent probability density functions implemented in:
+
+- PyHS3;
+- numba-stats;
+- RooFit;
+- zfit.
+
+Unlike the vectorized PDF benchmark, every framework performs identical point-by-point PDF evaluations, allowing the overhead of scalar execution to be compared directly.
+
+---
+
+## Benchmarked Operation
+
+For each framework the benchmark performs:
+
+1. model setup;
+2. cold first PDF evaluation;
+3. repeated scalar PDF evaluations;
+4. throughput measurement for increasing numbers of evaluations;
+5. numerical comparison with a reference implementation.
+
+Both execution time and memory consumption are recorded throughout the benchmark.
+
+---
+
+## Validation
+
+The computed PDF values are compared against a reference implementation to verify numerical correctness.
+
+The benchmark reports:
+
+- maximum absolute difference;
+- maximum relative difference;
+- numerical agreement status.
+
+Frameworks are considered valid only if all evaluated PDF values satisfy the configured numerical tolerances.
+
+---
+
+## Outputs
+
+Benchmark results are written to
+
+```text
+results/cross_scalar_pdf_evaluation/
+```
+
+Generated figures are written to
+
+```text
+plots/cross_scalar_pdf_evaluation/
+```
+
+---
+
+## Example Plots
+
+### Throughput Scaling
+
+![Throughput Scaling](plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_throughput_scaling.png)
+
+*Compares scalar PDF evaluation throughput as the number of repeated evaluations increases.*
+
+---
+
+### Evaluation Latency
+
+![Evaluation Latency](plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_latency.png)
+
+*Compares cold-start latency and steady-state scalar evaluation latency across frameworks.*
+
+---
+
+### Time per Value
+
+![Time per Value](plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_time_per_value.png)
+
+*Shows the average computation time required for a single scalar PDF value.*
+
+---
+
+### Memory Usage
+
+![Memory Usage](plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_memory.png)
+
+*Compares memory consumption during repeated scalar PDF evaluation.*
+
+---
+
+### Numerical Agreement
+
+![Numerical Agreement](plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_numerical_agreement.png)
+
+*Verifies that all frameworks produce numerically equivalent scalar PDF values.*
+
+---
+
+### Summary Table
+
+![Summary Table](plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_summary_table.png)
+
+*Summarizes throughput, latency, memory usage, and numerical agreement for all supported frameworks.*
+
+---
+
+## Interpretation
+
+This benchmark isolates the cost of scalar PDF evaluation by ensuring that every framework performs the same point-by-point workload. It provides a fair comparison of scalar execution performance and serves as a baseline for evaluating the impact of future vectorization efforts in PyHS3.

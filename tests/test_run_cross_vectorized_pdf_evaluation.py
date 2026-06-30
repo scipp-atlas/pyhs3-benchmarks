@@ -96,11 +96,6 @@ def plot_results() -> list[dict[str, Any]]:
     ]
 
 
-# ---------------------------------------------------------------------------
-# Formatting, labels, and basic validation
-# ---------------------------------------------------------------------------
-
-
 def test_label_helpers_use_known_and_fallback_values() -> None:
     assert benchmark._framework_label("pyhs3") == "PyHS3"
     assert benchmark._framework_label("unknown") == "unknown"
@@ -287,11 +282,6 @@ def test_validate_config_rejects_missing_pyhs3_workspace_dir(tmp_path: Path) -> 
             atol=0.0,
             pyhs3_workspace_dir=tmp_path / "missing",
         )
-
-
-# ---------------------------------------------------------------------------
-# Inputs, references, evaluator factories
-# ---------------------------------------------------------------------------
 
 
 def test_make_input_grid_normal_and_poisson() -> None:
@@ -505,11 +495,6 @@ def test_create_evaluator_dispatches_and_rejects_unknown(
     ]
     with pytest.raises(ValueError, match="Unknown framework"):
         benchmark.create_evaluator("bad", "normal", np.asarray([1.0]), tmp_path)
-
-
-# ---------------------------------------------------------------------------
-# Agreement, timing, worker, and benchmark execution
-# ---------------------------------------------------------------------------
 
 
 def test_validate_values_success_and_failures() -> None:
@@ -753,11 +738,6 @@ def test_values_for_sorts_by_n_points() -> None:
     )
     assert xs == [100, 1000]
     assert ys[0] > 0.0
-
-
-# ---------------------------------------------------------------------------
-# Plots and output helpers
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
