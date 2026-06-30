@@ -111,6 +111,10 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/cross_scalar_pdf_evaluation/
 
+!plots/cross_binned_likelihood_evaluation/
+
+!plots/pyhs3_model_complexity_scaling/
+
 reports/*
 !reports/.gitkeep
 
