@@ -78,11 +78,6 @@ class CaseSpec:
     root_path: Path
 
 
-# ---------------------------------------------------------------------------
-# Validation helpers
-# ---------------------------------------------------------------------------
-
-
 def validate_existing_dir(path: Path, name: str) -> Path:
     if not path.exists():
         raise FileNotFoundError(f"{name} does not exist: {path}")
@@ -196,11 +191,6 @@ def validate_framework_result(result: dict[str, Any]) -> None:
         raise ValueError("scan_time_seconds must be positive")
     validate_scan_values(result["scan_nll_values"], "scan_nll_values")
     validate_scan_values(result["delta_nll_shape"], "delta_nll_shape")
-
-
-# ---------------------------------------------------------------------------
-# Case discovery and model helpers
-# ---------------------------------------------------------------------------
 
 
 def channel_from_analysis(analysis_name: str) -> str:
@@ -394,11 +384,6 @@ def roofit_nll(case: dict[str, Any], mu_sig_value: float) -> float:
             )
         total -= math.log(value)
     return total
-
-
-# ---------------------------------------------------------------------------
-# Timing, scans, agreement
-# ---------------------------------------------------------------------------
 
 
 def summarize_timings(values: list[float]) -> dict[str, float]:
@@ -675,11 +660,6 @@ def measure_case(
         "roofit": roofit_result,
         "agreement": agreement,
     }
-
-
-# ---------------------------------------------------------------------------
-# Plotting
-# ---------------------------------------------------------------------------
 
 
 def _apply_cern_style() -> None:
@@ -1243,11 +1223,6 @@ def make_plots(
     make_summary_table_plot(
         results, plot_dir / "cross_model_complexity_summary_table.png"
     )
-
-
-# ---------------------------------------------------------------------------
-# Output and CLI
-# ---------------------------------------------------------------------------
 
 
 def print_case(result: dict[str, Any]) -> None:

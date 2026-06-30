@@ -556,9 +556,6 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
             "peak_rss_delta_mb": result["peak_rss_delta_mb"],
         }
         plot_results.append(plot_result)
-
-    # Cold start is mainly a first-call/setup metric, so a grouped bar plot
-    # is easier to read than one long sequence of bars.
     make_grouped_bar_plot(
         results=plot_results,
         output_path=plot_dir / "pdf_evaluation_cold_start_time_grouped.png",
@@ -567,8 +564,6 @@ def make_plots(results: list[dict[str, Any]], plot_dir: Path) -> None:
         metric_label="Cold-start time [ms]",
     )
 
-    # Warm timing and throughput naturally depend on n_evaluations, so line
-    # plots show the scaling trend more clearly than many separate bars.
     make_line_plot_by_evaluations(
         results=plot_results,
         output_path=plot_dir / "pdf_evaluation_average_time_lines.png",

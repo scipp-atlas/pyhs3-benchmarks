@@ -157,7 +157,7 @@ def test_optimize_graph_success(
     fake_jax_mode = SimpleNamespace(optimizer=FakeOptimizer())
     monkeypatch.setattr(benchmark._ptmode, "JAX", fake_jax_mode)
 
-    result = benchmark.optimize_graph(fake_fgraph)  # type: ignore[arg-type]
+    result = benchmark.optimize_graph(fake_fgraph)
 
     assert result is fake_fgraph
     assert calls == [fake_fgraph]
@@ -165,7 +165,7 @@ def test_optimize_graph_success(
 
 def test_optimize_graph_rejects_none() -> None:
     with pytest.raises(ValueError, match="FunctionGraph must not be None"):
-        benchmark.optimize_graph(None)  # type: ignore[arg-type]
+        benchmark.optimize_graph(None)
 
 
 def test_optimize_graph_propagates_rewrite_error(
@@ -180,12 +180,12 @@ def test_optimize_graph_propagates_rewrite_error(
     monkeypatch.setattr(benchmark._ptmode, "JAX", fake_jax_mode)
 
     with pytest.raises(RuntimeError, match="rewrite failed"):
-        benchmark.optimize_graph(fake_fgraph)  # type: ignore[arg-type]
+        benchmark.optimize_graph(fake_fgraph)
 
 
 def test_validate_optimized_graph_success(fake_fgraph: SimpleNamespace) -> None:
     result = benchmark.validate_optimized_graph(
-        fake_fgraph,  # type: ignore[arg-type]
+        fake_fgraph,
         n_apply_nodes_before=5,
     )
 
@@ -202,14 +202,14 @@ def test_validate_optimized_graph_success(fake_fgraph: SimpleNamespace) -> None:
 
 def test_validate_optimized_graph_rejects_none() -> None:
     with pytest.raises(ValueError, match="Optimized graph is None"):
-        benchmark.validate_optimized_graph(None, 1)  # type: ignore[arg-type]
+        benchmark.validate_optimized_graph(None, 1)
 
 
 def test_validate_optimized_graph_rejects_negative_before(
     fake_fgraph: SimpleNamespace,
 ) -> None:
     with pytest.raises(ValueError, match="n_apply_nodes_before must be non-negative"):
-        benchmark.validate_optimized_graph(fake_fgraph, -1)  # type: ignore[arg-type]
+        benchmark.validate_optimized_graph(fake_fgraph, -1)
 
 
 def test_validate_optimized_graph_rejects_multiple_outputs(
@@ -218,7 +218,7 @@ def test_validate_optimized_graph_rejects_multiple_outputs(
     fake_fgraph.outputs = [object(), object()]
 
     with pytest.raises(ValueError, match="Expected one graph output"):
-        benchmark.validate_optimized_graph(fake_fgraph, 3)  # type: ignore[arg-type]
+        benchmark.validate_optimized_graph(fake_fgraph, 3)
 
 
 def test_validate_optimized_graph_rejects_no_apply_nodes(
@@ -227,7 +227,7 @@ def test_validate_optimized_graph_rejects_no_apply_nodes(
     fake_fgraph.apply_nodes = []
 
     with pytest.raises(ValueError, match="Optimized graph has no apply nodes"):
-        benchmark.validate_optimized_graph(fake_fgraph, 3)  # type: ignore[arg-type]
+        benchmark.validate_optimized_graph(fake_fgraph, 3)
 
 
 def test_measure_graph_optimization_memory_success(

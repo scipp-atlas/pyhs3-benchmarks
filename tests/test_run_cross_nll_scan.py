@@ -136,11 +136,6 @@ class FakePoisson:
         return self.value
 
 
-# ---------------------------------------------------------------------------
-# Basic validation helpers
-# ---------------------------------------------------------------------------
-
-
 def test_validate_workspace_path_success(workspace_path: Path) -> None:
     assert benchmark.validate_workspace_path(workspace_path) == workspace_path
 
@@ -233,11 +228,6 @@ def test_validate_benchmark_config_rejects_invalid_values(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         benchmark.validate_benchmark_config(**valid_config(**overrides))
-
-
-# ---------------------------------------------------------------------------
-# Parameters and mathematical model helpers
-# ---------------------------------------------------------------------------
 
 
 def test_validate_parameters_success(parameters: dict[str, float]) -> None:
@@ -499,11 +489,6 @@ def test_roofit_nll_rejects_invalid_pdf_values(bad_value: float) -> None:
         benchmark.roofit_nll(model, 1.0)
 
 
-# ---------------------------------------------------------------------------
-# Scan helpers and measurement
-# ---------------------------------------------------------------------------
-
-
 def test_summarize_values_single_and_multiple() -> None:
     assert benchmark.summarize_values([2.0]) == {
         "mean": 2.0,
@@ -632,11 +617,6 @@ def test_validate_framework_result_rejects_invalid_fields(
         benchmark.validate_framework_result(result)
 
 
-# ---------------------------------------------------------------------------
-# Cross-framework validation and specs
-# ---------------------------------------------------------------------------
-
-
 def test_add_scan_validation_success_and_failed_result() -> None:
     results = [
         make_result("manual"),
@@ -742,11 +722,6 @@ def test_framework_order_returns_successful_frameworks_only() -> None:
             make_result("pyhs3"),
         ]
     ) == ["manual", "pyhs3"]
-
-
-# ---------------------------------------------------------------------------
-# Plotting helpers
-# ---------------------------------------------------------------------------
 
 
 def test_style_helpers_and_format_metric() -> None:
@@ -874,11 +849,6 @@ def test_make_plots_rejects_no_successful_results(tmp_path: Path) -> None:
         benchmark.make_plots(
             [make_result("pyhf", status="failed")], [0.0, 1.0], tmp_path
         )
-
-
-# ---------------------------------------------------------------------------
-# CLI printing and run orchestration
-# ---------------------------------------------------------------------------
 
 
 def test_print_result_success_and_failure(capsys: pytest.CaptureFixture[str]) -> None:

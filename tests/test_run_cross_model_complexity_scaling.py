@@ -211,11 +211,6 @@ class FakeRootModule:
             return FakeRootModule.TFile.root_file
 
 
-# ---------------------------------------------------------------------------
-# Validation helpers
-# ---------------------------------------------------------------------------
-
-
 def test_validate_existing_dir_and_file_success(tmp_path: Path) -> None:
     directory = tmp_path / "inputs"
     directory.mkdir()
@@ -355,11 +350,6 @@ def test_validate_framework_result_rejects_invalid_fields(
     result[field] = value
     with pytest.raises(ValueError, match=message):
         benchmark.validate_framework_result(result)
-
-
-# ---------------------------------------------------------------------------
-# Case discovery and model helpers
-# ---------------------------------------------------------------------------
 
 
 def test_channel_and_target_from_analysis() -> None:
@@ -705,11 +695,6 @@ def test_roofit_nll_rejects_nonfinite_x_and_invalid_pdf(
         benchmark.roofit_nll(bad_pdf_case, 1.0)
 
 
-# ---------------------------------------------------------------------------
-# Timing, scans, agreement
-# ---------------------------------------------------------------------------
-
-
 def test_summarize_timings_single_and_multiple_values() -> None:
     assert benchmark.summarize_timings([0.1])["std_seconds"] == 0.0
     summary = benchmark.summarize_timings([0.1, 0.3])
@@ -937,11 +922,6 @@ def test_measure_case_returns_failed_validation(
     assert "Numerical agreement check failed" in result["error_message"]
 
 
-# ---------------------------------------------------------------------------
-# Plotting helpers
-# ---------------------------------------------------------------------------
-
-
 def test_style_label_helpers(successful_case: dict[str, Any]) -> None:
     assert benchmark._framework_label("pyhs3") == "PyHS3"
     assert benchmark._framework_label("unknown") == "unknown"
@@ -1072,11 +1052,6 @@ def test_make_plots_rejects_no_success(tmp_path: Path) -> None:
         benchmark.make_plots(
             [{"status": "failed"}], [0.0, 1.0], tmp_path, delta_tolerance=1e-9
         )
-
-
-# ---------------------------------------------------------------------------
-# Output, run, CLI
-# ---------------------------------------------------------------------------
 
 
 def test_print_case_success_and_failure(

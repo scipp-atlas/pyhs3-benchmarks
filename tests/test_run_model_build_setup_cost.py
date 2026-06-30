@@ -200,11 +200,6 @@ def all_success_results(success_result: dict[str, Any]) -> list[dict[str, Any]]:
     return [pyhs3, pyhf, roofit]
 
 
-# ---------------------------------------------------------------------------
-# Validation helpers
-# ---------------------------------------------------------------------------
-
-
 def test_validate_existing_file_success(workspace_file: Path) -> None:
     assert (
         benchmark.validate_existing_file(workspace_file, "Workspace file")
@@ -347,11 +342,6 @@ def test_validate_measurement_result_rejects_invalid(
     result[field] = value
     with pytest.raises(ValueError, match=message):
         benchmark.validate_measurement_result(result)
-
-
-# ---------------------------------------------------------------------------
-# Workspace/statistical helpers
-# ---------------------------------------------------------------------------
 
 
 def test_extract_parameters_success() -> None:
@@ -502,11 +492,6 @@ def test_roofit_first_eval_rejects_invalid_pdf(value: float) -> None:
         benchmark.roofit_first_eval(
             {"mu": FakeRooRealVar("mu", "mu", 1.0), "poissons": [poisson]}, 1.0
         )
-
-
-# ---------------------------------------------------------------------------
-# Measurement helpers
-# ---------------------------------------------------------------------------
 
 
 def test_timed_call_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -672,11 +657,6 @@ def test_measure_framework_returns_failed_for_unknown(workspace_file: Path) -> N
     assert result["error_type"] == "ValueError"
 
 
-# ---------------------------------------------------------------------------
-# Validation/reporting
-# ---------------------------------------------------------------------------
-
-
 def test_add_validation_success_and_failure(
     all_success_results: list[dict[str, Any]],
 ) -> None:
@@ -750,11 +730,6 @@ def test_build_failed_output(workspace_file: Path) -> None:
     assert output["status"] == "failed"
     assert output["error_type"] == "ValueError"
     assert output["results"] == []
-
-
-# ---------------------------------------------------------------------------
-# Plotting
-# ---------------------------------------------------------------------------
 
 
 def test_plot_helpers(success_result: dict[str, Any]) -> None:
@@ -860,11 +835,6 @@ def test_make_plots_creates_expected_pngs(
 def test_make_plots_rejects_no_success(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="No successful"):
         benchmark.make_plots([{"status": "failed"}], tmp_path)
-
-
-# ---------------------------------------------------------------------------
-# Runner / CLI
-# ---------------------------------------------------------------------------
 
 
 def test_run_success(

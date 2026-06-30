@@ -1219,9 +1219,6 @@ def test_collect_overview_records_skips_malformed_result_row(
 ) -> None:
     result_file = write_result_file(tmp_path, "malformed", [])
 
-    # Monkeypatch load_json so the row can contain an object whose __str__
-    # raises during normalization.
-
     monkeypatch_payload = {
         "benchmark": "malformed",
         "results": [

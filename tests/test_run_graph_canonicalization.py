@@ -169,7 +169,7 @@ def test_canonicalize_graph_success(
 
     monkeypatch.setattr(benchmark._ptmode, "optdb", FakeOptDB())
 
-    result = benchmark.canonicalize_graph(fake_fgraph)  # type: ignore[arg-type]
+    result = benchmark.canonicalize_graph(fake_fgraph)
 
     assert result is fake_fgraph
     assert calls == [fake_fgraph]
@@ -177,7 +177,7 @@ def test_canonicalize_graph_success(
 
 def test_canonicalize_graph_rejects_none() -> None:
     with pytest.raises(ValueError, match="FunctionGraph must not be None"):
-        benchmark.canonicalize_graph(None)  # type: ignore[arg-type]
+        benchmark.canonicalize_graph(None)
 
 
 def test_canonicalize_graph_propagates_rewrite_error(
@@ -195,12 +195,12 @@ def test_canonicalize_graph_propagates_rewrite_error(
     monkeypatch.setattr(benchmark._ptmode, "optdb", FakeOptDB())
 
     with pytest.raises(RuntimeError, match="rewrite failed"):
-        benchmark.canonicalize_graph(fake_fgraph)  # type: ignore[arg-type]
+        benchmark.canonicalize_graph(fake_fgraph)
 
 
 def test_validate_canonicalized_graph_success(fake_fgraph: SimpleNamespace) -> None:
     result = benchmark.validate_canonicalized_graph(
-        fake_fgraph,  # type: ignore[arg-type]
+        fake_fgraph,
         n_apply_nodes_before=5,
     )
 
@@ -217,14 +217,14 @@ def test_validate_canonicalized_graph_success(fake_fgraph: SimpleNamespace) -> N
 
 def test_validate_canonicalized_graph_rejects_none() -> None:
     with pytest.raises(ValueError, match="Canonicalized graph is None"):
-        benchmark.validate_canonicalized_graph(None, 1)  # type: ignore[arg-type]
+        benchmark.validate_canonicalized_graph(None, 1)
 
 
 def test_validate_canonicalized_graph_rejects_negative_before(
     fake_fgraph: SimpleNamespace,
 ) -> None:
     with pytest.raises(ValueError, match="n_apply_nodes_before must be non-negative"):
-        benchmark.validate_canonicalized_graph(fake_fgraph, -1)  # type: ignore[arg-type]
+        benchmark.validate_canonicalized_graph(fake_fgraph, -1)
 
 
 def test_validate_canonicalized_graph_rejects_multiple_outputs(
@@ -233,7 +233,7 @@ def test_validate_canonicalized_graph_rejects_multiple_outputs(
     fake_fgraph.outputs = [object(), object()]
 
     with pytest.raises(ValueError, match="Expected one graph output"):
-        benchmark.validate_canonicalized_graph(fake_fgraph, 3)  # type: ignore[arg-type]
+        benchmark.validate_canonicalized_graph(fake_fgraph, 3)
 
 
 def test_validate_canonicalized_graph_rejects_no_apply_nodes(
@@ -242,7 +242,7 @@ def test_validate_canonicalized_graph_rejects_no_apply_nodes(
     fake_fgraph.apply_nodes = []
 
     with pytest.raises(ValueError, match="Canonicalized graph has no apply nodes"):
-        benchmark.validate_canonicalized_graph(fake_fgraph, 3)  # type: ignore[arg-type]
+        benchmark.validate_canonicalized_graph(fake_fgraph, 3)
 
 
 def test_measure_graph_canonicalization_memory_success(
