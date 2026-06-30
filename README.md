@@ -3138,3 +3138,112 @@ plots/model_build_setup_cost/
 ## Interpretation
 
 This benchmark isolates the fixed initialization overhead of each framework before any large-scale statistical analysis begins. It helps identify where time is spent during model setup and whether optimizations reduce startup costs while preserving numerical agreement across implementations.
+
+---
+
+# Cross-Framework Vectorized PDF Evaluation Benchmark
+
+## Purpose
+
+Evaluates the performance of scalar PDF evaluation across statistical frameworks with different levels of vectorization support.
+
+The benchmark compares equivalent probability density functions implemented in:
+
+- PyHS3;
+- numba-stats;
+- RooFit;
+- zfit.
+
+Unlike the previous benchmarks, this study focuses specifically on PDF evaluation throughput and the impact of native vectorized execution. Since PyHS3 currently evaluates scalar PDFs point-by-point, while numba-stats and zfit provide native vectorized APIs, the benchmark highlights the potential performance gains achievable through future vectorization.
+
+---
+
+## Benchmarked Operation
+
+For each framework the benchmark performs:
+
+1. model setup;
+2. cold PDF evaluation;
+3. repeated warm PDF evaluations;
+4. throughput measurement for increasing numbers of evaluation points;
+5. numerical comparison with a reference implementation.
+
+Both execution time and memory consumption are recorded for each framework.
+
+---
+
+## Validation
+
+The evaluated PDF values are compared against a reference implementation to verify numerical correctness.
+
+The benchmark reports:
+
+- maximum absolute difference;
+- maximum relative difference;
+- numerical agreement status.
+
+Frameworks are considered valid only if all evaluated PDF values satisfy the configured numerical tolerances.
+
+---
+
+## Outputs
+
+Benchmark results are written to
+
+```text
+results/cross_vectorized_pdf_evaluation/
+```
+
+Generated figures are written to
+
+```text
+plots/cross_vectorized_pdf_evaluation/
+```
+
+---
+
+## Example Plots
+
+### Throughput Scaling
+
+![Throughput Scaling](plots/cross_vectorized_pdf_evaluation/cross_vectorized_pdf_throughput_scaling.png)
+
+*Compares PDF evaluation throughput as the number of evaluated points increases.*
+
+---
+
+### Time per Value
+
+![Time per Value](plots/cross_vectorized_pdf_evaluation/cross_vectorized_pdf_time_per_value.png)
+
+*Shows the average evaluation cost for a single PDF value.*
+
+---
+
+### Numerical Agreement
+
+![Numerical Agreement](plots/cross_vectorized_pdf_evaluation/cross_vectorized_pdf_numerical_agreement.png)
+
+*Verifies that all frameworks produce numerically equivalent PDF values.*
+
+---
+
+### Memory Usage
+
+![Memory Usage](plots/cross_vectorized_pdf_evaluation/cross_vectorized_pdf_memory.png)
+
+*Compares memory consumption during PDF evaluation.*
+
+---
+
+### Summary Table
+
+![Summary Table](plots/cross_vectorized_pdf_evaluation/cross_vectorized_pdf_summary_table.png)
+
+*Summarizes throughput, evaluation latency, memory usage, and numerical agreement for all supported frameworks.*
+
+---
+
+## Interpretation
+
+This benchmark evaluates how native vectorization influences PDF evaluation performance across different statistical frameworks. It provides a baseline for future PyHS3 optimizations by quantifying the performance gap between its current point-wise evaluation strategy and frameworks that support native vectorized execution.
