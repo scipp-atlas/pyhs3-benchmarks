@@ -3030,3 +3030,111 @@ plots/cross_model_complexity_scaling/
 ## Interpretation
 
 This benchmark evaluates the scalability of PyHS3 relative to RooFit as statistical models become more complex. It combines runtime, memory usage, and numerical validation to identify performance trends while ensuring that increasing model complexity does not compromise numerical correctness.
+
+---
+
+# Cross-Framework Model Build & Setup Cost Benchmark
+
+## Purpose
+
+Measures the one-time setup cost required before performing statistical inference across multiple frameworks.
+
+The benchmark compares equivalent statistical models implemented in:
+
+- PyHS3;
+- pyhf;
+- RooFit.
+
+Unlike the NLL scan benchmarks, this benchmark focuses on initialization overhead rather than repeated likelihood evaluations.
+
+It isolates the cost of loading inputs, constructing the statistical model, performing the first likelihood evaluation, and warming up the execution pipeline.
+
+---
+
+## Benchmarked Operation
+
+For each framework the benchmark measures:
+
+1. input loading;
+2. model construction;
+3. cold first likelihood evaluation;
+4. warm first likelihood evaluation;
+5. memory consumption during setup.
+
+The benchmark also verifies that all frameworks produce numerically consistent negative log-likelihood values after model construction.
+
+---
+
+## Validation
+
+After the setup stage, the first NLL evaluation from each framework is compared against the pyhf reference implementation.
+
+The benchmark reports:
+
+- absolute NLL difference;
+- validation status;
+- numerical agreement within the configured tolerance.
+
+---
+
+## Outputs
+
+Benchmark results are written to
+
+```text
+results/model_build_setup_cost/
+```
+
+Generated figures are written to
+
+```text
+plots/model_build_setup_cost/
+```
+
+---
+
+## Example Plots
+
+### Setup Timing
+
+![Setup Timing](plots/model_build_setup_cost/model_build_setup_timing.png)
+
+*Compares input loading, model construction, and cold first evaluation time across frameworks.*
+
+---
+
+### Evaluation Latency
+
+![Evaluation Latency](plots/model_build_setup_cost/model_build_setup_evaluation_latency.png)
+
+*Compares cold and warm first-evaluation latency after model construction.*
+
+---
+
+### Memory Usage
+
+![Memory Usage](plots/model_build_setup_cost/model_build_setup_memory.png)
+
+*Shows the memory footprint introduced during model setup.*
+
+---
+
+### Numerical Agreement
+
+![Numerical Agreement](plots/model_build_setup_cost/model_build_setup_value_agreement.png)
+
+*Verifies agreement of the first negative log-likelihood evaluation across frameworks.*
+
+---
+
+### Summary Table
+
+![Summary Table](plots/model_build_setup_cost/model_build_setup_summary_table.png)
+
+*Summarizes setup timing, evaluation latency, memory usage, and validation results for all supported frameworks.*
+
+---
+
+## Interpretation
+
+This benchmark isolates the fixed initialization overhead of each framework before any large-scale statistical analysis begins. It helps identify where time is spent during model setup and whether optimizations reduce startup costs while preserving numerical agreement across implementations.

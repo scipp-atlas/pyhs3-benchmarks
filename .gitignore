@@ -105,6 +105,8 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/cross_model_complexity_scaling/
 
+!plots/model_build_setup_cost/
+
 reports/*
 !reports/.gitkeep
 
