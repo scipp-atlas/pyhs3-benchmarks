@@ -99,6 +99,8 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/benchmark_overview/
 
+!plots/cross_nll_scan/
+
 reports/*
 !reports/.gitkeep
 

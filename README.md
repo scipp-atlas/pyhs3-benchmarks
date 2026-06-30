@@ -2692,3 +2692,122 @@ The generated figures are intended for comparing benchmark categories, identifyi
 Because all benchmark results are normalized before plotting, overview figures remain comparable even when benchmark configurations differ.
 
 ---
+
+# Cross-framework benchmarks
+
+---
+
+# Cross-Framework Negative Log-Likelihood Scan Benchmark
+
+## Purpose
+
+Measures the performance and numerical agreement of equivalent negative log-likelihood scans across multiple statistical frameworks.
+
+The benchmark compares identical statistical models implemented in:
+
+- PyHS3;
+- pyhf;
+- RooFit;
+- a manual reference implementation.
+
+Unlike the workflow benchmarks, this benchmark focuses on cross-framework behavior rather than the performance of an individual PyHS3 workflow stage.
+
+It evaluates both execution speed and numerical consistency to ensure that optimization efforts preserve the statistical behavior of the model.
+
+---
+
+## Benchmarked Operation
+
+For each framework the benchmark performs:
+
+1. model construction;
+2. first (cold) likelihood evaluation;
+3. optional warm-up evaluations;
+4. repeated negative log-likelihood scan over the parameter of interest;
+5. numerical comparison against the manual reference implementation.
+
+Timing and memory measurements are collected independently for each framework.
+
+---
+
+## Validation
+
+In addition to runtime measurements, the benchmark validates that every framework produces statistically equivalent results.
+
+The following quantities are compared against the manual reference implementation:
+
+- NLL scan shape;
+- best-fit parameter location;
+- constant likelihood offset.
+
+Frameworks are reported as passing validation only if the numerical agreement falls within the configured tolerances.
+
+---
+
+## Outputs
+
+Benchmark results are written to
+
+```text
+results/cross_nll_scan/
+```
+
+Generated figures are written to
+
+```text
+plots/cross_nll_scan/
+```
+
+---
+
+## Example Plots
+
+### Runtime Profile
+
+![Runtime Profile](plots/cross_nll_scan/cross_nll_runtime_profile.png)
+
+*Compares model construction, first evaluation, and full scan runtime across all supported frameworks.*
+
+---
+
+### Relative Runtime
+
+![Relative Runtime](plots/cross_nll_scan/cross_nll_relative_runtime.png)
+
+*Shows framework performance relative to the manual reference implementation.*
+
+---
+
+### Numerical Agreement
+
+![Numerical Agreement](plots/cross_nll_scan/cross_nll_numerical_agreement.png)
+
+*Verifies that all implementations produce equivalent NLL scan shapes within the configured validation tolerances.*
+
+---
+
+### Scan Profile
+
+![Scan Profile](plots/cross_nll_scan/cross_nll_scan_profile.png)
+
+*Shows the negative log-likelihood scan produced by each framework.*
+
+---
+
+### Memory Profile
+
+![Memory Profile](plots/cross_nll_scan/cross_nll_memory_profile.png)
+
+*Compares memory consumption during benchmark execution.*
+
+---
+
+## Interpretation
+
+This benchmark serves two complementary purposes.
+
+First, it provides a direct performance comparison between PyHS3 and established statistical frameworks.
+
+Second, it verifies that optimization work does not alter the numerical properties of the likelihood scan.
+
+Together, these measurements make the benchmark suitable for regression testing, optimization studies, and future cross-version performance tracking.
