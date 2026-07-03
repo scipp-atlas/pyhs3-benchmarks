@@ -12,7 +12,7 @@ The benchmark suite is organized around individual benchmark modules. Each bench
 
 # Goals
 
-The repository is designed to:
+The repository is designed to
 
 * benchmark every major stage of the PyHS3 workflow;
 * measure execution time and memory usage;
