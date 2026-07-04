@@ -2772,7 +2772,7 @@ plots/cross_nll_scan/
 
 ### Relative Runtime
 
-![Relative Runtime](plots/cross_nll_scan/cross_nll_relative_runtime.png)
+![Relative Runtime](plots/cross_nll_scan/cross_nll_timing_profile.png)
 
 *Shows framework performance relative to the manual reference implementation.*
 
