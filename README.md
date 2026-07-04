@@ -3454,7 +3454,7 @@ reports/before_after_optimization/
 
 ### Report
 
-The HTML report provides a CERN-style overview of the comparison, including:
+The HTML report provides an overview of the comparison, including:
 
 - summary status;
 - number of matched benchmark results;
