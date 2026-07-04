@@ -729,9 +729,11 @@ def make_framework_specs(
                 FrameworkSpec(
                     name="pyhs3_compiled",
                     build_func=lambda workspace_path=workspace_path,
-                    parameters=parameters: build_pyhs3_compiled_model(
-                        workspace_path,
-                        parameters,
+                    parameters=parameters: (
+                        build_pyhs3_compiled_model(
+                            workspace_path,
+                            parameters,
+                        )
                     ),
                     eval_func=lambda model, mu: pyhs3_compiled_nll(model, mu),
                 )
