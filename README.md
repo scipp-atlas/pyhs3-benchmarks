@@ -2764,7 +2764,7 @@ plots/cross_nll_scan/
 
 ### Runtime Profile
 
-![Runtime Profile](plots/cross_nll_scan/cross_nll_runtime_profile.png)
+![Runtime Profile](plots/cross_nll_scan/cross_nll_timing_profile.png)
 
 *Compares model construction, first evaluation, and full scan runtime across all supported frameworks.*
 
@@ -2772,7 +2772,7 @@ plots/cross_nll_scan/
 
 ### Relative Runtime
 
-![Relative Runtime](plots/cross_nll_scan/cross_nll_timing_profile.png)
+![Relative Runtime](plots/cross_nll_scan/cross_nll_relative_runtime.png)
 
 *Shows framework performance relative to the manual reference implementation.*
 
