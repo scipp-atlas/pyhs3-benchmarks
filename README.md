@@ -2873,7 +2873,7 @@ plots/cross_model_complexity_scaling/
 
 ### Runtime Scaling
 
-![Runtime Scaling](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_runtime_scaling.png)
+![Runtime Scaling](plots/cross_model_complexity_scaling/cross_model_complexity_runtime_scaling.png)
 
 *Shows how steady-state evaluation time changes as model complexity increases.*
 
@@ -2881,7 +2881,7 @@ plots/cross_model_complexity_scaling/
 
 ### Timing Breakdown
 
-![Timing Breakdown](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_timing_breakdown.png)
+![Timing Breakdown](plots/cross_model_complexity_scaling/cross_model_complexity_timing_breakdown.png)
 
 *Compares model construction, cold evaluation, and warm evaluation times across all benchmark cases.*
 
@@ -2889,7 +2889,7 @@ plots/cross_model_complexity_scaling/
 
 ### Memory Scaling
 
-![Memory Scaling](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_memory_scaling.png)
+![Memory Scaling](plots/cross_model_complexity_scaling/cross_model_complexity_memory_scaling.png)
 
 *Illustrates how memory consumption scales with increasing model complexity.*
 
@@ -2897,7 +2897,7 @@ plots/cross_model_complexity_scaling/
 
 ### Numerical Agreement
 
-![Numerical Agreement](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_agreement.png)
+![Numerical Agreement](plots/cross_model_complexity_scaling/cross_model_complexity_agreement.png)
 
 *Verifies that PyHS3 and RooFit remain numerically consistent across all benchmark cases.*
 
@@ -2905,7 +2905,7 @@ plots/cross_model_complexity_scaling/
 
 ### NLL Profile Examples
 
-![NLL Profiles](plots/cross_model_complexity_scaling/cross_model_complexity_scaling_profile_examples.png)
+![NLL Profiles](plots/cross_model_complexity_scaling/cross_model_complexity_profile_examples.png)
 
 *Example ΔNLL scans demonstrating agreement between PyHS3 and RooFit for representative benchmark cases.*
 
