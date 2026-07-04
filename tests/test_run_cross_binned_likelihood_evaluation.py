@@ -186,6 +186,7 @@ def valid_config(workspace_file: Path, tmp_path: Path) -> benchmark.BenchmarkCon
         mu=1.0,
         delta_reference_mu=0.0,
         n_runs=2,
+        warmup_iterations=1,
         raw_tolerance=1e-9,
         delta_tolerance=1e-9,
         output_dir=tmp_path / "out",
@@ -211,8 +212,11 @@ def success_result() -> dict[str, Any]:
         "delta_nll_abs_diff": 0.0,
         "raw_nll_success": True,
         "delta_nll_success": True,
+        "input_load_time_seconds": 0.0005,
         "model_build_time_seconds": 0.001,
         "first_evaluation_time_seconds": 0.002,
+        "warmup_iterations": 1,
+        "warmup_time_seconds": 0.0015,
         "warm_evaluation": {
             "mean_seconds": 0.003,
             "std_seconds": 0.0001,
@@ -446,11 +450,13 @@ def test_measure_framework_success_and_nonfinite(
     monkeypatch.setattr(benchmark, "get_peak_rss_mb", lambda: 20.0)
     result = benchmark.measure_framework(
         name="manual",
-        build_func=lambda: {"model": object()},
+        input_load_func=lambda: {"input": object()},
+        build_func=lambda data: {"model": data},
         eval_func=lambda model, mu: mu + 1.0,
         mu=1.0,
         delta_reference_mu=0.0,
         n_runs=2,
+        warmup_iterations=1,
     )
     assert result["raw_nll"] == 2.0
     assert result["reference_nll"] == 1.0
@@ -459,11 +465,13 @@ def test_measure_framework_success_and_nonfinite(
     with pytest.raises(ValueError, match="raw NLL"):
         benchmark.measure_framework(
             name="manual",
-            build_func=lambda: object(),
+            input_load_func=lambda: object(),
+            build_func=lambda data: data,
             eval_func=lambda _model, _mu: float("nan"),
             mu=1.0,
             delta_reference_mu=0.0,
             n_runs=1,
+            warmup_iterations=0,
         )
 
 
@@ -661,7 +669,10 @@ def test_run_benchmark_success(
             "raw_nll": 10.0,
             "reference_nll": 9.0,
             "delta_nll": 1.0,
+            "input_load_time_seconds": 0.001,
             "model_build_time_seconds": 0.001,
+            "warmup_iterations": 1,
+            "warmup_time_seconds": 0.001,
             "first_evaluation_time_seconds": 0.001,
             "warm_evaluation": {
                 "mean_seconds": 0.001,
@@ -680,7 +691,10 @@ def test_run_benchmark_success(
             "raw_nll": 10.0,
             "reference_nll": 9.0,
             "delta_nll": 1.0,
+            "input_load_time_seconds": 0.001,
             "model_build_time_seconds": 0.001,
+            "warmup_iterations": 1,
+            "warmup_time_seconds": 0.001,
             "first_evaluation_time_seconds": 0.001,
             "warm_evaluation": {
                 "mean_seconds": 0.001,

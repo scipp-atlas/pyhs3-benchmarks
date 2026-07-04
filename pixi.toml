@@ -63,3 +63,4 @@ pandas = "*"
 
 pyhs3.git = "https://github.com/scipp-atlas/pyhs3.git"
 pyhs3.rev = "main"
+root = ">=6.40.2,<7"

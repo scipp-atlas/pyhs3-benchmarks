@@ -2814,122 +2814,6 @@ Together, these measurements make the benchmark suitable for regression testing,
 
 ---
 
-# Cross-Framework Negative Log-Likelihood Regression Benchmark
-
-## Purpose
-
-Validates the numerical consistency of equivalent negative log-likelihood scans across multiple statistical frameworks.
-
-The benchmark compares identical statistical models implemented in:
-
-- PyHS3;
-- pyhf;
-- RooFit;
-- a manual reference implementation.
-
-Unlike the runtime benchmark, this benchmark focuses on numerical regression rather than execution speed.
-
-Its primary goal is to ensure that future optimizations preserve the statistical behavior of the likelihood function.
-
----
-
-## Validation Procedure
-
-For each framework the benchmark:
-
-1. constructs an equivalent statistical model;
-2. performs a complete negative log-likelihood scan;
-3. compares the resulting scan against the manual reference implementation;
-4. computes numerical regression metrics;
-5. reports whether the framework satisfies the configured validation tolerances.
-
-The benchmark verifies both the overall NLL profile and the location of the best-fit parameter.
-
----
-
-## Regression Metrics
-
-The benchmark evaluates several complementary numerical agreement metrics, including:
-
-- maximum absolute NLL difference;
-- maximum relative NLL difference;
-- constant likelihood offset;
-- ΔNLL profile agreement;
-- residual envelope;
-- best-fit parameter agreement.
-
-These metrics distinguish harmless constant offsets from genuine changes in the likelihood shape.
-
----
-
-## Outputs
-
-Benchmark results are written to
-
-```text
-results/cross_nll_regression/
-```
-
-Generated figures are written to
-
-```text
-plots/cross_nll_regression/
-```
-
----
-
-## Example Plots
-
-### Regression Profile
-
-![Regression Profile](plots/cross_nll_regression/cross_nll_regression_profile.png)
-
-*Compares the ΔNLL profiles produced by each framework relative to the manual reference implementation.*
-
----
-
-### Residual Envelope
-
-![Residual Envelope](plots/cross_nll_regression/cross_nll_regression_residual_envelope.png)
-
-*Shows the absolute residual between each framework and the manual reference across the full likelihood scan.*
-
----
-
-### Numerical Agreement
-
-![Numerical Agreement](plots/cross_nll_regression/cross_nll_regression_agreement.png)
-
-*Summarizes the maximum ΔNLL deviation for each framework and verifies agreement within the configured validation tolerance.*
-
----
-
-### Constant Offset vs Shape Agreement
-
-![Offset vs Shape](plots/cross_nll_regression/cross_nll_regression_offset_vs_shape.png)
-
-*Separates constant likelihood offsets from genuine changes in the ΔNLL profile.*
-
----
-
-### Summary Table
-
-![Summary Table](plots/cross_nll_regression/cross_nll_regression_summary_table.png)
-
-*Summarizes validation status, numerical agreement metrics, scan runtime, and memory usage for all supported frameworks.*
-
----
-
-## Interpretation
-
-This benchmark is intended for numerical regression testing rather than performance evaluation.
-
-It provides an automated way to verify that changes to PyHS3 preserve the expected likelihood profile and best-fit parameter while maintaining agreement with independent statistical frameworks.
-
-Together with the runtime benchmark, it forms the foundation for validating future optimization work and detecting unintended numerical regressions.
-
----
-
 # Cross-Framework Model Complexity Scaling Benchmark
 
 ## Purpose
@@ -3030,114 +2914,6 @@ plots/cross_model_complexity_scaling/
 ## Interpretation
 
 This benchmark evaluates the scalability of PyHS3 relative to RooFit as statistical models become more complex. It combines runtime, memory usage, and numerical validation to identify performance trends while ensuring that increasing model complexity does not compromise numerical correctness.
-
----
-
-# Cross-Framework Model Build & Setup Cost Benchmark
-
-## Purpose
-
-Measures the one-time setup cost required before performing statistical inference across multiple frameworks.
-
-The benchmark compares equivalent statistical models implemented in:
-
-- PyHS3;
-- pyhf;
-- RooFit.
-
-Unlike the NLL scan benchmarks, this benchmark focuses on initialization overhead rather than repeated likelihood evaluations.
-
-It isolates the cost of loading inputs, constructing the statistical model, performing the first likelihood evaluation, and warming up the execution pipeline.
-
----
-
-## Benchmarked Operation
-
-For each framework the benchmark measures:
-
-1. input loading;
-2. model construction;
-3. cold first likelihood evaluation;
-4. warm first likelihood evaluation;
-5. memory consumption during setup.
-
-The benchmark also verifies that all frameworks produce numerically consistent negative log-likelihood values after model construction.
-
----
-
-## Validation
-
-After the setup stage, the first NLL evaluation from each framework is compared against the pyhf reference implementation.
-
-The benchmark reports:
-
-- absolute NLL difference;
-- validation status;
-- numerical agreement within the configured tolerance.
-
----
-
-## Outputs
-
-Benchmark results are written to
-
-```text
-results/model_build_setup_cost/
-```
-
-Generated figures are written to
-
-```text
-plots/model_build_setup_cost/
-```
-
----
-
-## Example Plots
-
-### Setup Timing
-
-![Setup Timing](plots/model_build_setup_cost/model_build_setup_timing.png)
-
-*Compares input loading, model construction, and cold first evaluation time across frameworks.*
-
----
-
-### Evaluation Latency
-
-![Evaluation Latency](plots/model_build_setup_cost/model_build_setup_evaluation_latency.png)
-
-*Compares cold and warm first-evaluation latency after model construction.*
-
----
-
-### Memory Usage
-
-![Memory Usage](plots/model_build_setup_cost/model_build_setup_memory.png)
-
-*Shows the memory footprint introduced during model setup.*
-
----
-
-### Numerical Agreement
-
-![Numerical Agreement](plots/model_build_setup_cost/model_build_setup_value_agreement.png)
-
-*Verifies agreement of the first negative log-likelihood evaluation across frameworks.*
-
----
-
-### Summary Table
-
-![Summary Table](plots/model_build_setup_cost/model_build_setup_summary_table.png)
-
-*Summarizes setup timing, evaluation latency, memory usage, and validation results for all supported frameworks.*
-
----
-
-## Interpretation
-
-This benchmark isolates the fixed initialization overhead of each framework before any large-scale statistical analysis begins. It helps identify where time is spent during model setup and whether optimizations reduce startup costs while preserving numerical agreement across implementations.
 
 ---
 
@@ -3380,19 +3156,21 @@ The benchmark compares identical binned likelihood models implemented in:
 - RooFit;
 - a manual reference implementation.
 
-It measures both execution performance and numerical consistency for negative log-likelihood (NLL) evaluation using equivalent binned statistical models.
+This benchmark is the main end-to-end benchmark for binned likelihood evaluation. It includes the most useful setup-cost measurements that were previously reported separately in `model_build_setup_cost`, so the fixed initialization overhead and the steady-state evaluation cost can be interpreted together.
 
 ---
 
 ## Benchmarked Operation
 
-For each framework the benchmark performs:
+For each framework the benchmark measures:
 
-1. model construction;
-2. cold first NLL evaluation;
-3. repeated warm NLL evaluations;
-4. memory usage measurement;
-5. numerical comparison against the manual reference implementation.
+1. input loading or equivalent input preparation;
+2. model construction;
+3. cold first NLL evaluation;
+4. optional warm-up evaluations;
+5. repeated warm NLL evaluations;
+6. memory usage measurement;
+7. numerical comparison against the manual reference implementation.
 
 Both raw NLL values and ΔNLL values are validated for numerical agreement.
 
@@ -3435,7 +3213,7 @@ plots/cross_binned_likelihood_evaluation/
 
 ![Timing Profile](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_timing_profile.png)
 
-*Compares model construction, cold evaluation, and warm evaluation time across all supported frameworks.*
+*Compares input loading, model construction, cold evaluation, and warm evaluation time across all supported frameworks.*
 
 ---
 
@@ -3443,7 +3221,7 @@ plots/cross_binned_likelihood_evaluation/
 
 ![Warm Evaluation](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_warm_evaluation.png)
 
-*Shows steady-state performance for repeated binned likelihood evaluation.*
+*Shows steady-state performance for repeated binned likelihood evaluation after setup and warm-up.*
 
 ---
 
@@ -3475,113 +3253,314 @@ plots/cross_binned_likelihood_evaluation/
 
 ![Summary Table](plots/cross_binned_likelihood_evaluation/cross_binned_likelihood_summary_table.png)
 
-*Summarizes timing, memory usage, numerical agreement, and validation status for all supported frameworks.*
+*Summarizes setup timing, evaluation latency, memory usage, numerical agreement, and validation status for all supported frameworks.*
 
 ---
 
 ## Interpretation
 
-This benchmark evaluates both the computational cost and numerical correctness of binned Poisson likelihood evaluation across multiple statistical frameworks. It provides a reference for comparing implementation efficiency while ensuring that all frameworks produce statistically equivalent negative log-likelihood values.
+This benchmark evaluates both the setup cost and the numerical correctness of binned Poisson likelihood evaluation across multiple statistical frameworks. It is intended to answer two related questions:
+
+1. how much fixed cost is paid before the first useful likelihood value is available;
+2. how fast repeated likelihood evaluation becomes after setup and warm-up.
+
+The former `model_build_setup_cost` benchmark can remain available as an internal diagnostic, but this benchmark should be the primary public benchmark for cross-framework binned likelihood setup and evaluation.
 
 ---
 
-# PyHS3 Model Complexity Scaling Benchmark
+# Profiling
 
-## Purpose
+In addition to benchmarking, the repository provides profiling support to help identify performance bottlenecks during PyHS3 optimization.
 
-Evaluates how the performance of PyHS3 changes as the complexity of statistical models increases.
+The recommended profiler is **Scalene**, which measures:
 
-The benchmark executes identical workflows on multiple HS3 workspaces with increasing structural complexity, allowing the scalability of PyHS3 to be evaluated independently of other statistical frameworks.
+- CPU time;
+- memory allocations;
+- Python vs native execution time;
+- line-by-line performance hotspots.
 
-It measures both execution time and memory consumption while tracking how model complexity influences each stage of the workflow.
+Unlike the benchmark suite, which measures overall performance and tracks regressions, profiling is intended to explain *why* a benchmark is slow and identify where optimization efforts should be focused.
+
+## Running Scalene
+
+Profile an individual benchmark using the corresponding Pixi task.
+
+For example:
+
+```bash
+pixi run profile-model-creation
+```
+
+or profile a benchmark directly:
+
+```bash
+pixi run scalene \
+    src/run_model_creation.py \
+    --workspaces inputs/simple_workspace_nonp.json
+```
+
+Scalene generates an interactive HTML report highlighting CPU and memory hotspots for each line of code.
+
+## Typical Optimization Workflow
+
+The recommended optimization workflow is:
+
+```text
+Run benchmark
+        |
+        v
+Measure performance
+        |
+        v
+Profile with Scalene
+        |
+        v
+Identify bottlenecks
+        |
+        v
+Optimize PyHS3
+        |
+        v
+Run benchmarks again
+        |
+        v
+Compare before/after results
+```
+
+In this workflow:
+
+- benchmarks quantify performance changes;
+- Scalene identifies optimization opportunities;
+- the before/after comparison tool verifies that optimizations improve performance without changing numerical behaviour.
 
 ---
 
-## Benchmarked Operation
+# Before/After Comparison
 
-For each workspace the benchmark performs:
+The `run_before_after_comparison.py` script compares benchmark results produced before and after changes to PyHS3. It is intended to support the transition from benchmarking to optimization by making it easier to evaluate whether a proposed optimization improves performance while preserving numerical agreement.
 
-1. workspace loading;
-2. model construction;
-3. cold first negative log-likelihood evaluation;
-4. repeated warm evaluations;
-5. complete negative log-likelihood scan.
+The comparison checks:
 
-The benchmark records timing, memory usage, and the location of the minimum NLL for every model.
+* wall time changes;
+* RSS memory usage changes;
+* numerical consistency of benchmark outputs;
+* NLL scan shape agreement, when available;
+* missing benchmark results between the baseline and optimized runs.
 
----
+Example usage:
 
-## Validation
+```bash
+python benchmarking/scripts/run_before_after_comparison.py \
+  --baseline-json benchmarking/results/<baseline-result>.json \
+  --optimized-json benchmarking/results/<optimized-result>.json
+```
 
-The benchmark verifies that all evaluated negative log-likelihood values remain finite throughout the scan.
+By default, the comparison result is saved to:
 
-For each workspace it reports:
+```text
+benchmarking/results/before_after_optimization/before_after_optimization_result.json
+```
 
-- NLL scan profile;
-- minimum parameter value;
+The output JSON contains:
+
+```json
+{
+  "benchmark": "before_after_optimization",
+  "baseline_benchmark": "...",
+  "optimized_benchmark": "...",
+  "n_baseline_results": 0,
+  "n_optimized_results": 0,
+  "n_compared_results": 0,
+  "missing_optimized_results": [],
+  "absolute_tolerance": 1e-9,
+  "relative_tolerance": 1e-9,
+  "comparisons": [],
+  "status": "success"
+}
+```
+
+Each comparison entry contains timing, RSS, numerical, and NLL-shape comparisons for one matched benchmark result.
+
+Typical use case:
+
+1. Run benchmarks on the current PyHS3 version.
+2. Apply an optimization.
+3. Run the same benchmarks again.
+4. Use this script to compare the two result files.
+5. Check whether performance improved and numerical agreement was preserved.
+
+## Before/After Optimization Comparison
+
+The before/after comparison tool compares benchmark result JSON files produced before and after PyHS3 optimization changes.
+
+It is intended to support the optimization phase by checking whether a change improves runtime or memory usage while preserving numerical behavior.
+
+The tool compares:
+
+- timing metrics;
+- RSS memory metrics;
+- numerical agreement;
+- NLL scan shape, when available;
+- missing or extra benchmark results;
+- performance regressions above a configurable threshold.
+
+### Basic usage
+
+```bash
+pixi run python src/run_before_after_comparison.py \
+  --baseline-json results/memory_scaling/memory_scaling_result.json \
+  --optimized-json results/memory_scaling/memory_scaling_result.json
+```
+
+This writes the comparison JSON to:
+
+```text
+results/before_after_optimization/before_after_optimization_result.json
+```
+
+### Generate plots and report
+
+```bash
+pixi run python src/run_before_after_comparison.py \
+  --baseline-json results/memory_scaling/memory_scaling_result.json \
+  --optimized-json results/memory_scaling/memory_scaling_result.json \
+  --plots \
+  --report
+```
+
+This creates:
+
+```text
+results/before_after_optimization/
+  before_after_optimization_result.json
+
+plots/before_after_optimization/
+  before_after_timing_comparison.png
+  before_after_rss_comparison.png
+
+reports/before_after_optimization/
+  before_after_optimization_report.html
+```
+
+### Example plots
+
+#### Timing comparison
+
+![Before/after timing comparison](plots/before_after_optimization/before_after_timing_comparison.png)
+
+#### RSS memory comparison
+
+![Before/after RSS comparison](plots/before_after_optimization/before_after_rss_comparison.png)
+
+### Report
+
+The HTML report provides a CERN-style overview of the comparison, including:
+
+- summary status;
+- number of matched benchmark results;
 - validation status;
-- successful completion of every benchmark stage.
+- timing and RSS plots;
+- detailed comparison tables;
+- missing and extra result diagnostics.
 
----
+Open the report in a browser:
 
-## Outputs
-
-Benchmark results are written to
-
-```text
-results/pyhs3_model_complexity_scaling/
+```bash
+firefox reports/before_after_optimization/before_after_optimization_report.html
 ```
 
-Generated figures are written to
+or:
 
-```text
-plots/pyhs3_model_complexity_scaling/
+```bash
+xdg-open reports/before_after_optimization/before_after_optimization_report.html
 ```
 
----
+### Interpreting the result
 
-## Example Plots
+`Status: success` means that:
 
-### Runtime Scaling
+- at least one matching benchmark result was compared;
+- no optimized result is missing;
+- numerical agreement was preserved;
+- NLL scan shape was preserved, when available;
+- no performance regression above the threshold was detected.
 
-![Runtime Scaling](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_runtime_scaling.png)
+`Status: failed` means that at least one of these checks failed.
 
-*Shows how the average evaluation time changes as workspace complexity increases.*
+A performance regression is detected when runtime or memory usage becomes worse by more than the configured threshold.
 
----
+The default threshold is:
 
-### Timing Profile
+```text
+5%
+```
 
-![Timing Profile](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_timing_profile.png)
+It can be changed with:
 
-*Breaks down workspace loading, model construction, and NLL evaluation time for each benchmark case.*
+```bash
+pixi run python src/run_before_after_comparison.py \
+  --baseline-json results/baseline/memory_scaling_result.json \
+  --optimized-json results/memory_scaling/memory_scaling_result.json \
+  --regression-threshold-percent 10 \
+  --plots \
+  --report
+```
 
----
+### Typical optimization workflow
 
-### Memory Scaling
+```text
+Run baseline benchmarks
+        |
+        v
+Save baseline result JSON files
+        |
+        v
+Apply PyHS3 optimization
+        |
+        v
+Run the same benchmarks again
+        |
+        v
+Run before/after comparison
+        |
+        v
+Inspect JSON, plots, and HTML report
+```
 
-![Memory Scaling](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_memory_scaling.png)
+Example:
 
-*Illustrates how the PyHS3 memory footprint changes with increasing model complexity.*
+```bash
+mkdir -p results/baseline
 
----
+cp results/memory_scaling/memory_scaling_result.json \
+  results/baseline/memory_scaling_result.json
 
-### NLL Profile Examples
+pixi run python src/run_before_after_comparison.py \
+  --baseline-json results/baseline/memory_scaling_result.json \
+  --optimized-json results/memory_scaling/memory_scaling_result.json \
+  --plots \
+  --report
+```
 
-![NLL Profiles](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_profile_examples.png)
+### Output locations
 
-*Shows representative ΔNLL profiles for several benchmark workspaces.*
+By default, artifacts follow the same repository layout as the other benchmarks:
 
----
+| Artifact type | Location |
+| --- | --- |
+| Result JSON | `results/before_after_optimization/` |
+| PNG plots | `plots/before_after_optimization/` |
+| HTML report | `reports/before_after_optimization/` |
 
-### Summary Table
+Custom locations can be provided with:
 
-![Summary Table](plots/pyhs3_model_complexity_scaling/pyhs3_model_complexity_summary_table.png)
-
-*Summarizes runtime, memory usage, and NLL scan characteristics across all benchmark cases.*
-
----
-
-## Interpretation
-
-This benchmark evaluates the internal scalability of PyHS3 as statistical models become more complex. It helps identify how workspace complexity affects loading time, model construction, likelihood evaluation, memory consumption, and overall execution performance, providing a baseline for future optimization work.
+```bash
+pixi run python src/run_before_after_comparison.py \
+  --baseline-json results/baseline/memory_scaling_result.json \
+  --optimized-json results/memory_scaling/memory_scaling_result.json \
+  --output-dir results/custom_before_after \
+  --plots-dir plots/custom_before_after \
+  --reports-dir reports/custom_before_after \
+  --plots \
+  --report
+```

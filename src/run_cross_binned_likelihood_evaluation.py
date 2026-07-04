@@ -50,6 +50,7 @@ DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 
 SUPPORTED_FRAMEWORKS = ("manual", "pyhs3", "pyhf", "roofit")
 DEFAULT_FRAMEWORKS = ["manual", "pyhs3", "pyhf", "roofit"]
+DEFAULT_WARMUP_ITERATIONS = 3
 
 PLOT_EPSILON = 1e-300
 FRAMEWORK_STYLE: dict[str, dict[str, Any]] = {
@@ -76,6 +77,7 @@ class BenchmarkConfig:
     mu: float
     delta_reference_mu: float
     n_runs: int
+    warmup_iterations: int
     raw_tolerance: float
     delta_tolerance: float
     output_dir: Path
@@ -205,6 +207,8 @@ def validate_config(config: BenchmarkConfig) -> None:
         )
     if config.n_runs < 1:
         raise BenchmarkConfigurationError("--n-runs must be at least 1")
+    if config.warmup_iterations < 0:
+        raise BenchmarkConfigurationError("--warmup-iterations must be non-negative")
     if not math.isfinite(config.raw_tolerance) or config.raw_tolerance <= 0.0:
         raise BenchmarkConfigurationError(
             "--raw-tolerance must be a positive finite value"
@@ -389,6 +393,43 @@ def build_pyhf_model(parameters: dict[str, float], n_bins: int) -> tuple[Any, An
     return model, data
 
 
+def build_pyhf_spec(parameters: dict[str, float], n_bins: int) -> dict[str, Any]:
+    vectors = get_vectors(parameters, n_bins)
+    return {
+        "channels": [
+            {
+                "name": "channel",
+                "samples": [
+                    {
+                        "name": "signal",
+                        "data": vectors.signal.tolist(),
+                        "modifiers": [
+                            {"name": "mu", "type": "normfactor", "data": None}
+                        ],
+                    },
+                    {
+                        "name": "background",
+                        "data": vectors.background.tolist(),
+                        "modifiers": [],
+                    },
+                ],
+            }
+        ],
+        "observations": [{"name": "channel", "data": vectors.observed.tolist()}],
+        "measurements": [
+            {"name": "measurement", "config": {"poi": "mu", "parameters": []}}
+        ],
+        "version": "1.0.0",
+    }
+
+
+def build_pyhf_model_from_spec(spec: dict[str, Any]) -> tuple[Any, Any]:
+    workspace = pyhf.Workspace(spec)
+    model = workspace.model()
+    data = workspace.data(model)
+    return model, data
+
+
 def pyhf_nll(model_and_data: tuple[Any, Any], mu_value: float) -> float:
     model, data = model_and_data
     pars = model.config.suggested_init()
@@ -476,26 +517,60 @@ def summarize_timings_seconds(timings: list[float]) -> dict[str, float]:
     }
 
 
+def timed_call(function: Callable[[], Any]) -> tuple[Any, float]:
+    start = time.perf_counter()
+    value = function()
+    duration = time.perf_counter() - start
+    if not math.isfinite(duration) or duration < 0.0:
+        raise ValueError(f"Timing duration must be non-negative and finite: {duration}")
+    return value, float(duration)
+
+
+def run_warmups(
+    evaluator: Callable[[], float], warmup_iterations: int, name: str
+) -> tuple[float, float]:
+    if warmup_iterations < 0:
+        raise ValueError("warmup_iterations must be non-negative")
+
+    start = time.perf_counter()
+    last_value = math.nan
+    for _ in range(warmup_iterations):
+        last_value = float(evaluator())
+        validate_numeric_value(last_value, f"{name} warmup NLL")
+    warmup_time_seconds = time.perf_counter() - start
+
+    if not math.isfinite(warmup_time_seconds) or warmup_time_seconds < 0.0:
+        raise ValueError(
+            f"Warmup timing must be non-negative and finite: {warmup_time_seconds}"
+        )
+
+    return last_value, float(warmup_time_seconds)
+
+
 def measure_framework(
     *,
     name: str,
-    build_func: Callable[[], Any],
+    input_load_func: Callable[[], Any],
+    build_func: Callable[[Any], Any],
     eval_func: Callable[[Any, float], float],
     mu: float,
     delta_reference_mu: float,
     n_runs: int,
+    warmup_iterations: int,
 ) -> dict[str, Any]:
     current_rss_before_mb = get_current_rss_mb()
     peak_rss_before_mb = get_peak_rss_mb()
 
-    build_start = time.perf_counter()
-    model = build_func()
-    model_build_time_seconds = time.perf_counter() - build_start
+    input_data, input_load_time_seconds = timed_call(input_load_func)
+    model, model_build_time_seconds = timed_call(lambda: build_func(input_data))
 
-    first_start = time.perf_counter()
-    raw_nll = float(eval_func(model, mu))
-    first_evaluation_time_seconds = time.perf_counter() - first_start
+    def nominal_evaluator() -> float:
+        return float(eval_func(model, mu))
+
+    raw_nll, first_evaluation_time_seconds = timed_call(nominal_evaluator)
     validate_numeric_value(raw_nll, f"{name} raw NLL")
+
+    _, warmup_time_seconds = run_warmups(nominal_evaluator, warmup_iterations, name)
 
     cache_bust_epsilon = 1e-9
     warm_timings: list[float] = []
@@ -504,7 +579,10 @@ def measure_framework(
         eval_mu = mu if run_index % 2 == 0 else mu + cache_bust_epsilon
         start = time.perf_counter()
         warm_nll = float(eval_func(model, eval_mu))
-        warm_timings.append(time.perf_counter() - start)
+        duration = time.perf_counter() - start
+        if not math.isfinite(duration) or duration <= 0.0:
+            raise ValueError(f"Warm timing must be positive and finite: {duration}")
+        warm_timings.append(duration)
         validate_numeric_value(warm_nll, f"{name} warm NLL")
 
     reference_nll = float(eval_func(model, delta_reference_mu))
@@ -523,8 +601,11 @@ def measure_framework(
         "warm_nll": warm_nll,
         "reference_nll": reference_nll,
         "delta_nll": delta_nll,
+        "input_load_time_seconds": float(input_load_time_seconds),
         "model_build_time_seconds": float(model_build_time_seconds),
         "first_evaluation_time_seconds": float(first_evaluation_time_seconds),
+        "warmup_iterations": int(warmup_iterations),
+        "warmup_time_seconds": float(warmup_time_seconds),
         "warm_evaluation": summarize_timings_seconds(warm_timings),
         "current_rss_before_mb": float(current_rss_before_mb),
         "current_rss_after_mb": float(current_rss_after_mb),
@@ -638,10 +719,16 @@ def print_result(result: dict[str, Any]) -> None:
         f"delta abs diff:          {result.get('delta_nll_abs_diff', float('nan')):.15e}"
     )
     print(
+        f"input load:              {result['input_load_time_seconds'] * 1000.0:.3f} ms"
+    )
+    print(
         f"model build:             {result['model_build_time_seconds'] * 1000.0:.3f} ms"
     )
     print(
         f"first evaluation:        {result['first_evaluation_time_seconds'] * 1e6:.3f} us"
+    )
+    print(
+        f"warmup ({result['warmup_iterations']}):          {result['warmup_time_seconds'] * 1000.0:.3f} ms"
     )
     print(
         "warm evaluation:         "
@@ -663,6 +750,7 @@ def print_final_summary(output_data: dict[str, Any]) -> None:
     print(f"mu:          {output_data['mu']}")
     print(f"Reference:   {output_data['delta_reference_mu']}")
     print(f"Runs:        {output_data['n_runs']}")
+    print(f"Warm-up:     {output_data['warmup_iterations']} evaluation(s)")
     print(f"Status:      {summary['status']}")
     print(f"Validated:   {summary['n_validated']} / {summary['n_results']}")
     if summary["failed_results"]:
@@ -688,16 +776,26 @@ def make_timing_profile_plot(results: list[dict[str, Any]], output_path: Path) -
 
     labels = [_framework_label(result["framework"]) for result in selected]
     x = np.arange(len(selected))
-    width = 0.26
+    width = 0.20
 
+    input_ms = [result["input_load_time_seconds"] * 1000.0 for result in selected]
     build_ms = [result["model_build_time_seconds"] * 1000.0 for result in selected]
     first_us = [result["first_evaluation_time_seconds"] * 1e6 for result in selected]
     warm_us = [result["warm_evaluation"]["mean_seconds"] * 1e6 for result in selected]
     colors = [_style_for(result["framework"])["color"] for result in selected]
 
     fig, ax = plt.subplots(figsize=(11.8, 6.2))
+    input_bars = ax.bar(
+        x - 1.5 * width,
+        [_safe_log_value(value) for value in input_ms],
+        width=width,
+        color=colors,
+        edgecolor="black",
+        hatch="",
+        label="Input load [ms]",
+    )
     build_bars = ax.bar(
-        x - width,
+        x - 0.5 * width,
         [_safe_log_value(value) for value in build_ms],
         width=width,
         color=colors,
@@ -706,7 +804,7 @@ def make_timing_profile_plot(results: list[dict[str, Any]], output_path: Path) -
         label="Model build [ms]",
     )
     first_bars = ax.bar(
-        x,
+        x + 0.5 * width,
         [_safe_log_value(value) for value in first_us],
         width=width,
         color=colors,
@@ -716,7 +814,7 @@ def make_timing_profile_plot(results: list[dict[str, Any]], output_path: Path) -
         label="First eval [µs]",
     )
     warm_bars = ax.bar(
-        x + width,
+        x + 1.5 * width,
         [_safe_log_value(value) for value in warm_us],
         width=width,
         color=colors,
@@ -735,6 +833,7 @@ def make_timing_profile_plot(results: list[dict[str, Any]], output_path: Path) -
     ax.grid(True, which="both", alpha=0.28)
 
     for bars, values in (
+        (input_bars, input_ms),
         (build_bars, build_ms),
         (first_bars, first_us),
         (warm_bars, warm_us),
@@ -1097,22 +1196,33 @@ def build_framework_jobs(
     workspace_path: Path,
     n_bins: int,
     mu: float,
-) -> dict[str, tuple[Callable[[], Any], Callable[[Any, float], float]]]:
-    jobs: dict[str, tuple[Callable[[], Any], Callable[[Any, float], float]]] = {
+) -> dict[
+    str, tuple[Callable[[], Any], Callable[[Any], Any], Callable[[Any, float], float]]
+]:
+    jobs: dict[
+        str,
+        tuple[Callable[[], Any], Callable[[Any], Any], Callable[[Any, float], float]],
+    ] = {
         "manual": (
-            lambda: build_manual_model(parameters, n_bins),
+            lambda: get_vectors(parameters, n_bins),
+            lambda vectors: vectors,
             lambda model, mu_value: manual_nll(model, mu_value),
         ),
         "pyhs3": (
-            lambda: build_pyhs3_model(workspace_path),
+            lambda: Workspace.load(workspace_path),
+            lambda workspace: workspace.model(
+                "analysis", progress=False, mode="FAST_RUN"
+            ),
             lambda model, mu_value: pyhs3_nll(model, n_bins, mu_value),
         ),
         "pyhf": (
-            lambda: build_pyhf_model(parameters, n_bins),
+            lambda: build_pyhf_spec(parameters, n_bins),
+            build_pyhf_model_from_spec,
             lambda model, mu_value: pyhf_nll(model, mu_value),
         ),
         "roofit": (
-            lambda: build_roofit_model(parameters, n_bins, mu),
+            lambda: get_vectors(parameters, n_bins),
+            lambda _: build_roofit_model(parameters, n_bins, mu),
             lambda model, mu_value: roofit_nll(model, mu_value),
         ),
     }
@@ -1137,15 +1247,17 @@ def run_benchmark(config: BenchmarkConfig) -> dict[str, Any]:
     )
 
     results: list[dict[str, Any]] = []
-    for framework, (build_func, eval_func) in jobs.items():
+    for framework, (input_load_func, build_func, eval_func) in jobs.items():
         try:
             result = measure_framework(
                 name=framework,
+                input_load_func=input_load_func,
                 build_func=build_func,
                 eval_func=eval_func,
                 mu=config.mu,
                 delta_reference_mu=config.delta_reference_mu,
                 n_runs=config.n_runs,
+                warmup_iterations=config.warmup_iterations,
             )
         except Exception as error:  # noqa: BLE001
             result = failed_framework_result(framework, error)
@@ -1169,6 +1281,7 @@ def run_benchmark(config: BenchmarkConfig) -> dict[str, Any]:
         "mu": config.mu,
         "delta_reference_mu": config.delta_reference_mu,
         "n_runs": config.n_runs,
+        "warmup_iterations": config.warmup_iterations,
         "frameworks": config.frameworks,
         "raw_tolerance": config.raw_tolerance,
         "delta_tolerance": config.delta_tolerance,
@@ -1188,6 +1301,7 @@ def run(
     mu: float,
     delta_reference_mu: float,
     n_runs: int,
+    warmup_iterations: int,
     output_dir: Path,
     output_name: str,
     plot: bool,
@@ -1203,6 +1317,7 @@ def run(
         mu=mu,
         delta_reference_mu=delta_reference_mu,
         n_runs=n_runs,
+        warmup_iterations=warmup_iterations,
         raw_tolerance=raw_tolerance,
         delta_tolerance=delta_tolerance,
         output_dir=output_dir,
@@ -1247,6 +1362,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--mu", type=float, default=1.0)
     parser.add_argument("--delta-reference-mu", type=float, default=0.0)
     parser.add_argument("--n-runs", type=int, default=100)
+    parser.add_argument(
+        "--warmup-iterations", type=int, default=DEFAULT_WARMUP_ITERATIONS
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--output-name", default=DEFAULT_OUTPUT_NAME)
     parser.add_argument("--plot", action="store_true")
@@ -1267,6 +1385,7 @@ def main(argv: list[str] | None = None) -> None:
             mu=args.mu,
             delta_reference_mu=args.delta_reference_mu,
             n_runs=args.n_runs,
+            warmup_iterations=args.warmup_iterations,
             output_dir=args.output_dir,
             output_name=args.output_name,
             plot=args.plot,
