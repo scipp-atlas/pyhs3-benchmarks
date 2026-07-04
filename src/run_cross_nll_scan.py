@@ -728,8 +728,7 @@ def make_framework_specs(
             specs.append(
                 FrameworkSpec(
                     name="pyhs3_compiled",
-                    build_func=lambda workspace_path=workspace_path,
-                    parameters=parameters: (
+                    build_func=lambda workspace_path=workspace_path, parameters=parameters: (
                         build_pyhs3_compiled_model(
                             workspace_path,
                             parameters,
