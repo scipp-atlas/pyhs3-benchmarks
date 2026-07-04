@@ -115,6 +115,8 @@ plots/nll_scan/nll_scan_peak_rss_delta.png
 
 !plots/pyhs3_model_complexity_scaling/
 
+!plots/before_after_optimization/
+
 reports/*
 !reports/.gitkeep
 
