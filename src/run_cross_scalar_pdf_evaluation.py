@@ -1131,18 +1131,24 @@ def make_summary_table(results: list[dict[str, Any]], output_path: Path) -> None
     import matplotlib.pyplot as plt
 
     rows = []
+    previous_scenario = None
+
     for result in _ordered_successful_results(results):
+        scenario = result["scenario_label"]
+        scenario_cell = scenario if scenario != previous_scenario else ""
+        previous_scenario = scenario
+
         rows.append(
             [
-                result["scenario_label"],
+                scenario_cell,
                 result["framework_label"],
                 str(result["n_evaluations"]),
                 str(result["n_points"]),
-                f"{result['cold_start_time_seconds'] * 1000.0:.3g}",
-                f"{result['average_runtime_seconds_per_evaluation'] * 1000.0:.3g}",
+                f"{result['cold_start_time_seconds'] * 1000.0:.2f}",
+                f"{result['average_runtime_seconds_per_evaluation'] * 1000.0:.4g}",
                 f"{result['time_per_value_ns']:.3g}",
                 f"{result['throughput_values_per_second']:.2e}",
-                f"{max(result['current_rss_delta_mb'], 0.0):.2f}",
+                f"{max(result['current_rss_delta_mb'], 0.0):.1f}",
                 _format_scientific(result["max_abs_diff"]),
             ]
         )
@@ -1152,30 +1158,40 @@ def make_summary_table(results: list[dict[str, Any]], output_path: Path) -> None
         "Framework",
         "Evals",
         "Points",
-        "Cold [ms]",
-        "Warm [ms]",
+        "Cold\n[ms]",
+        "Warm\n[ms]",
         "ns/value",
-        "Throughput",
-        "RSS Δ [MB]",
-        "max diff",
+        "Throughput\n[value/s]",
+        "RSS Δ\n[MB]",
+        "Max diff",
     ]
-    fig_height = max(3.5, 0.45 * len(rows) + 2.0)
-    fig, ax = plt.subplots(figsize=(15.0, fig_height))
+
+    n_rows = len(rows)
+
+    fig_width = 13.2
+    fig_height = max(4.4, 0.205 * n_rows + 1.25)
+
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    fig.subplots_adjust(left=0.0, right=1.0, top=1.0, bottom=0.0)
+    ax.set_position([0.0, 0.0, 1.0, 1.0])
     ax.axis("off")
+
     fig.text(
-        0.02,
-        0.93,
+        0.012,
+        0.985,
         "Cross-framework scalar PDF evaluation summary",
-        fontsize=28,
+        fontsize=23,
         fontweight="bold",
         ha="left",
+        va="top",
     )
     fig.text(
-        0.02,
-        0.84,
+        0.012,
+        0.925,
         "Repeated scalar PDF evaluations across equivalent simple PDFs.",
-        fontsize=15,
+        fontsize=12.5,
         ha="left",
+        va="top",
     )
 
     table = ax.table(
@@ -1183,20 +1199,53 @@ def make_summary_table(results: list[dict[str, Any]], output_path: Path) -> None
         colLabels=columns,
         cellLoc="center",
         colLoc="center",
-        loc="center",
+        bbox=[0.01, 0.04, 0.98, 0.80],
     )
-    table.auto_set_font_size(False)
-    table.set_fontsize(11)
-    table.scale(1.0, 1.35)
-    for (row, _col), cell in table.get_celld().items():
-        cell.set_edgecolor("#BDBDBD")
-        if row == 0:
-            cell.set_facecolor("#262626")
-            cell.set_text_props(color="white", weight="bold")
-        elif row % 2 == 0:
-            cell.set_facecolor("#F5F5F5")
 
-    fig.savefig(output_path, dpi=180, bbox_inches="tight")
+    table.auto_set_font_size(False)
+    table.set_fontsize(8.4)
+
+    column_widths = {
+        0: 0.105,
+        1: 0.115,
+        2: 0.073,
+        3: 0.073,
+        4: 0.084,
+        5: 0.084,
+        6: 0.095,
+        7: 0.126,
+        8: 0.090,
+        9: 0.090,
+    }
+
+    for (row, col), cell in table.get_celld().items():
+        cell.set_edgecolor("#c8c8c8")
+        cell.set_linewidth(0.42)
+
+        if col in column_widths:
+            cell.set_width(column_widths[col])
+
+        if row == 0:
+            cell.set_facecolor("#2b2b2b")
+            cell.set_text_props(color="white", weight="bold", fontsize=8.0)
+        else:
+            scenario_value = rows[row - 1][0]
+            if scenario_value:
+                cell.set_facecolor("#edf3f8")
+                if col == 0:
+                    cell.set_text_props(weight="bold")
+            elif row % 2 == 0:
+                cell.set_facecolor("#f7f7f7")
+            else:
+                cell.set_facecolor("white")
+
+    fig.savefig(
+        output_path,
+        dpi=220,
+        bbox_inches=None,
+        pad_inches=0.03,
+        facecolor="white",
+    )
     plt.close(fig)
 
 
