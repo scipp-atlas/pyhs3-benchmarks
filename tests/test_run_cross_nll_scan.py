@@ -1169,3 +1169,145 @@ def test_main_passes_parsed_arguments(
             "warmup_iterations": 2,
         }
     ]
+
+
+class FakeRooRealVar:
+    def __init__(self, name: str, title: str, value: float, *args: float) -> None:
+        self.name = name
+        self.title = title
+        self.value = value
+        self.args = args
+        self.constant = False
+
+    def setConstant(self, value: bool) -> None:
+        self.constant = value
+
+    def setVal(self, value: float) -> None:
+        self.value = value
+
+
+class FakeRooArgList(list):
+    def __init__(self, *args: Any) -> None:
+        super().__init__(args)
+
+    def add(self, item: Any) -> None:
+        self.append(item)
+
+
+class FakeRooFormulaVar:
+    def __init__(self, *args: Any) -> None:
+        self.args = args
+
+
+class FakeRooPoisson:
+    def __init__(self, *args: Any) -> None:
+        self.args = args
+        self.value = 0.5
+
+    def getVal(self) -> float:
+        return self.value
+
+
+class FakeRooProdPdf:
+    def __init__(self, *args: Any) -> None:
+        self.args = args
+
+
+class FakeRootModule:
+    class RooFit:
+        ERROR = object()
+
+    class RooMsgService:
+        @staticmethod
+        def instance() -> "FakeRootModule.RooMsgService":
+            return FakeRootModule.RooMsgService()
+
+        def setGlobalKillBelow(self, level: object) -> None:
+            self.level = level
+
+    RooRealVar = FakeRooRealVar
+    RooArgList = FakeRooArgList
+    RooFormulaVar = FakeRooFormulaVar
+    RooPoisson = FakeRooPoisson
+    RooProdPdf = FakeRooProdPdf
+
+
+def test_build_pyhs3_model_loads_workspace(
+    monkeypatch: pytest.MonkeyPatch, workspace_path: Path
+) -> None:
+    class FakeWorkspaceForLoad:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, bool, str]] = []
+
+        def model(self, target: str, progress: bool, mode: str) -> str:
+            self.calls.append((target, progress, mode))
+            return "pyhs3-model"
+
+    fake_workspace = FakeWorkspaceForLoad()
+    monkeypatch.setattr(benchmark.Workspace, "load", lambda path: fake_workspace)
+
+    assert benchmark.build_pyhs3_model(workspace_path) == "pyhs3-model"
+    assert fake_workspace.calls == [("analysis", False, "FAST_RUN")]
+
+
+def test_compiled_pyhs3_model_matches_manual_nll(
+    workspace_path: Path, parameters: dict[str, float]
+) -> None:
+    model = benchmark.build_pyhs3_compiled_model(workspace_path, parameters)
+
+    assert model.description.startswith("JAX-compiled")
+    assert benchmark.pyhs3_compiled_nll(model, 1.0) == pytest.approx(
+        benchmark.manual_nll(benchmark.build_manual_model(parameters, 2), 1.0)
+    )
+
+
+def test_pyhs3_compiled_nll_rejects_non_finite_output() -> None:
+    model = benchmark.CompiledPyHS3Model(
+        compiled_nll=lambda _mu: np.asarray(float("nan")),
+        description="fake",
+    )
+
+    with pytest.raises(ValueError, match="Compiled PyHS3 NLL is not finite"):
+        benchmark.pyhs3_compiled_nll(model, 1.0)
+
+
+def test_build_roofit_model_success(
+    monkeypatch: pytest.MonkeyPatch, parameters: dict[str, float]
+) -> None:
+    monkeypatch.setattr(benchmark, "ROOT", FakeRootModule)
+
+    model = benchmark.build_roofit_model(parameters, n_bins=2, mu_value=1.0)
+
+    assert isinstance(model["mu"], FakeRooRealVar)
+    assert len(model["poissons"]) == 2
+    assert isinstance(model["likelihood"], FakeRooProdPdf)
+    assert len(model["keepalive"]) >= 1 + 3 * 2 + 1
+    assert benchmark.roofit_nll(model, 1.5) == pytest.approx(-2.0 * math.log(0.5))
+
+
+def test_make_framework_specs_includes_pyhs3_compiled(
+    monkeypatch: pytest.MonkeyPatch,
+    parameters: dict[str, float],
+    workspace_path: Path,
+) -> None:
+    compiled_model = benchmark.CompiledPyHS3Model(
+        compiled_nll=lambda mu: np.asarray(float(mu) + 10.0),
+        description="fake",
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "build_pyhs3_compiled_model",
+        lambda path, params: compiled_model,
+    )
+
+    specs = benchmark.make_framework_specs(
+        ["manual", "pyhs3_compiled"],
+        parameters,
+        workspace_path,
+        n_bins=2,
+        mu_min=0.0,
+    )
+
+    assert [spec.name for spec in specs] == ["manual", "pyhs3_compiled"]
+    assert specs[1].build_func() is compiled_model
+    assert specs[1].eval_func(compiled_model, 2.0) == pytest.approx(12.0)
