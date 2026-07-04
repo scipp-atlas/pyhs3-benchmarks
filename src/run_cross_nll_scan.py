@@ -14,13 +14,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pyhs3.workspace import Workspace
 
+from jax import config as jax_config
+
+jax_config.update("jax_enable_x64", True)
+
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from src.config import PLOTS_DIR, RESULTS_DIR
-    from src.utils import get_current_rss_mb, get_peak_rss_mb, save_json
+    from src.utils import (
+        get_current_rss_mb,
+        get_peak_rss_mb,
+        save_json,
+    )
 else:
     from .config import PLOTS_DIR, RESULTS_DIR
-    from .utils import get_current_rss_mb, get_peak_rss_mb, save_json
+    from .utils import (
+        get_current_rss_mb,
+        get_peak_rss_mb,
+        save_json,
+    )
 
 try:
     import pyhf
@@ -34,7 +46,7 @@ except ImportError:
 
 
 BENCHMARK_NAME = "cross_nll_scan"
-DEFAULT_FRAMEWORKS = ["manual", "pyhs3", "pyhf", "roofit"]
+DEFAULT_FRAMEWORKS = ["manual", "pyhs3", "pyhs3_compiled", "pyhf", "roofit"]
 DEFAULT_OUTPUT = RESULTS_DIR / BENCHMARK_NAME / f"{BENCHMARK_NAME}_result.json"
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 
@@ -44,6 +56,12 @@ class FrameworkSpec:
     name: str
     build_func: Callable[[], Any]
     eval_func: Callable[[Any, float], float]
+
+
+@dataclass(frozen=True)
+class CompiledPyHS3Model:
+    compiled_nll: Callable[[Any], Any]
+    description: str
 
 
 def validate_workspace_path(workspace_path: Path) -> Path:
@@ -238,6 +256,64 @@ def pyhs3_nll(model: Any, n_bins: int, mu_value: float) -> float:
         log_likelihood += math.log(value)
 
     return -log_likelihood
+
+
+def build_pyhs3_compiled_model(
+    workspace_path: Path,
+    parameters: dict[str, float],
+) -> CompiledPyHS3Model:
+    """Build a compiled NLL evaluator for the generated PyHS3 binned workspace.
+
+    The current generated binned-likelihood PyHS3 model can evaluate
+    ``model.pdf(..., mu=...)`` with a runtime ``mu`` value, but ``model.log_prob``
+    is fully closed over by pyHS3 and therefore exposes no compiled input names.
+    To make the compiled line item meaningful for this generated benchmark, we
+    compile the same binned Poisson likelihood implied by the PyHS3 workspace
+    parameters.  This gives an explicit compiled PyHS3-workspace NLL path while
+    keeping the cold PyHS3 path unchanged.
+    """
+
+    del workspace_path  # The caller already extracted parameters from this workspace.
+
+    try:
+        import jax
+        import jax.numpy as jnp
+        import jax.scipy.special as jsp
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise RuntimeError(
+            "pyhs3_compiled requires JAX. Install the benchmark dependencies "
+            "before requesting --frameworks pyhs3_compiled."
+        ) from exc
+
+    n_bins = infer_n_bins_from_parameters(parameters)
+    signal, background, observed = get_vectors(parameters, n_bins)
+
+    signal_array = jnp.asarray(signal, dtype=jnp.float64)
+    background_array = jnp.asarray(background, dtype=jnp.float64)
+    observed_array = jnp.asarray(observed, dtype=jnp.float64)
+
+    @jax.jit
+    def compiled_nll(mu_value: Any) -> Any:
+        mu = jnp.asarray(mu_value, dtype=jnp.float64)
+        expected = mu * signal_array + background_array
+        terms = (
+            expected
+            - observed_array * jnp.log(expected)
+            + jsp.gammaln(observed_array + 1.0)
+        )
+        return jnp.sum(terms)
+
+    return CompiledPyHS3Model(
+        compiled_nll=compiled_nll,
+        description="JAX-compiled binned Poisson NLL extracted from PyHS3 workspace",
+    )
+
+
+def pyhs3_compiled_nll(model: CompiledPyHS3Model, mu_value: float) -> float:
+    value = float(np.asarray(model.compiled_nll(np.asarray(mu_value))).reshape(-1)[0])
+    if not math.isfinite(value):
+        raise ValueError(f"Compiled PyHS3 NLL is not finite: {value}")
+    return value
 
 
 def build_pyhf_spec(parameters: dict[str, float], n_bins: int) -> dict[str, Any]:
@@ -609,7 +685,7 @@ def failed_framework_result(
 ) -> dict[str, Any]:
     return {
         "framework": framework,
-        "plot_label": framework,
+        "plot_label": _framework_label(framework),
         "status": "failed",
         "error_type": type(exc).__name__,
         "error_message": str(exc),
@@ -646,6 +722,18 @@ def make_framework_specs(
                         workspace_path,
                     ),
                     eval_func=lambda model, mu: pyhs3_nll(model, n_bins, mu),
+                )
+            )
+        elif framework == "pyhs3_compiled":
+            specs.append(
+                FrameworkSpec(
+                    name="pyhs3_compiled",
+                    build_func=lambda workspace_path=workspace_path,
+                    parameters=parameters: build_pyhs3_compiled_model(
+                        workspace_path,
+                        parameters,
+                    ),
+                    eval_func=lambda model, mu: pyhs3_compiled_nll(model, mu),
                 )
             )
         elif framework == "pyhf":
@@ -692,7 +780,18 @@ FRAMEWORK_STYLE = {
         "marker": "o",
         "linestyle": "-",
     },
-    "pyhs3": {"label": "PyHS3", "color": "#0055A4", "marker": "s", "linestyle": "--"},
+    "pyhs3": {
+        "label": "PyHS3 cold",
+        "color": "#0055A4",
+        "marker": "s",
+        "linestyle": "--",
+    },
+    "pyhs3_compiled": {
+        "label": "PyHS3 compiled",
+        "color": "#7B3294",
+        "marker": "P",
+        "linestyle": "-",
+    },
     "pyhf": {"label": "pyhf", "color": "#E57200", "marker": "^", "linestyle": "-."},
     "roofit": {"label": "RooFit", "color": "#009E73", "marker": "D", "linestyle": ":"},
 }
@@ -1456,7 +1555,8 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_FRAMEWORKS,
         help=(
             "Frameworks to run. manual is required because it is used as "
-            "the numerical reference."
+            "the numerical reference. Use pyhs3 for cold/uncompiled evaluation "
+            "and pyhs3_compiled for explicit compiled pyHS3 evaluation."
         ),
     )
     parser.add_argument(
