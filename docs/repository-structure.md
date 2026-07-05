@@ -1,14 +1,16 @@
 # Repository Structure
 
-This document describes the overall organization of the **PyHS3 Benchmarks** repository and explains the role of each major component.
+This document describes the overall organization of the **PyHS3 Benchmarks** repository and explains the purpose of each major component.
 
-The project is organized around a simple principle:
+The repository is organized around a simple workflow:
 
-- **inputs** define benchmark data;
-- **benchmarks** perform measurements;
+- **inputs** provide benchmark data;
+- **src** implements the benchmark suite;
 - **results** store benchmark outputs;
-- **plots** visualize benchmark results;
-- **documentation** describes the benchmarking framework.
+- **docs** contains documentation and generated figures;
+- **tests** validate benchmark correctness.
+
+This separation keeps the project modular, reproducible, and easy to extend.
 
 ---
 
@@ -18,19 +20,17 @@ The project is organized around a simple principle:
 pyhs3-benchmarks/
 │
 ├── docs/
-├── src/
 ├── inputs/
 ├── results/
-├── plots/
-├── profiling/
+├── src/
 ├── tests/
 │
-├── README.md
 ├── pyproject.toml
-└── pixi.toml
+├── pixi.toml
+└── README.md
 ```
 
-Each directory serves a specific purpose and is described below.
+Each directory is described below.
 
 ---
 
@@ -40,17 +40,18 @@ Each directory serves a specific purpose and is described below.
 src/
 ```
 
-The `src` directory contains the benchmarking implementation.
+The `src` directory contains the implementation of the benchmarking framework.
 
 It includes
 
 - workflow benchmarks;
 - cross-framework benchmarks;
+- benchmark runner;
 - plotting utilities;
 - workspace generators;
 - shared benchmarking utilities.
 
-Most users interact with the repository exclusively through the command-line interfaces provided by these modules.
+Most users interact with these modules through their command-line interfaces rather than importing them directly.
 
 ---
 
@@ -60,16 +61,16 @@ Most users interact with the repository exclusively through the command-line int
 inputs/
 ```
 
-The `inputs` directory stores benchmark datasets and statistical workspaces.
+The `inputs/` directory contains all benchmark datasets used throughout the repository.
 
-Depending on the benchmark, these include
+These include
 
-- Alexx benchmark workspaces;
+- benchmark HS3 workspaces;
 - synthetic scalar PDF workspaces;
 - synthetic binned likelihood models;
 - ROOT workspaces used for xRooFit comparisons.
 
-Each benchmark documents the expected workspace format separately.
+Most workflow benchmarks operate on the benchmark workspace collection described in the **Benchmark Workspaces** documentation.
 
 ---
 
@@ -79,45 +80,27 @@ Each benchmark documents the expected workspace format separately.
 results/
 ```
 
-Every benchmark produces structured JSON output.
+Benchmark execution produces structured JSON reports.
 
-Results generated with the matrix runner follow the directory structure
+A typical directory structure is
 
 ```text
 results/
 
-    <benchmark>/
+    workspace_loading/
 
-        <workspace>/
+        workspace_loading_result.json
 
-            repeat_000/
+    model_creation/
 
-                <benchmark>_result.json
+        model_creation_result.json
+
+    ...
+
+    matrix_summary.json
 ```
 
-This layout makes it possible to benchmark large collections of workspaces while keeping individual runs independent and reproducible.
-
-The generated JSON files serve as the primary input for reporting and visualization.
-
----
-
-# Plots
-
-```text
-plots/
-```
-
-Generated figures are stored separately from numerical benchmark results.
-
-Typical outputs include
-
-- execution time comparisons;
-- scaling plots;
-- memory usage;
-- cross-framework comparisons;
-- benchmark overview reports.
-
-Separating plots from benchmark results allows figures to be regenerated without rerunning the benchmarks.
+The JSON reports are the primary machine-readable outputs of the benchmarking framework and serve as the basis for visualization and automated analysis.
 
 ---
 
@@ -127,31 +110,22 @@ Separating plots from benchmark results allows figures to be regenerated without
 docs/
 ```
 
-The documentation is organized into topic-oriented sections.
+The documentation contains
 
-Major categories include
+- installation guides;
+- benchmarking methodology;
+- workflow benchmark documentation;
+- cross-framework benchmark documentation;
+- workspace documentation;
+- generated benchmark figures.
 
-- getting started;
-- benchmark methodology;
-- workflow benchmarks;
-- cross-framework benchmarks;
-- workspaces;
-- outputs;
-- development.
-
-This organization keeps individual pages focused while avoiding an oversized README.
-
----
-
-# Profiling
+Generated plots used by the documentation are stored in
 
 ```text
-profiling/
+docs/assets/plots/
 ```
 
-The profiling directory contains utilities and experiments used to investigate performance bottlenecks beyond the standard benchmark suite.
-
-These tools are primarily intended for development and optimization.
+Keeping figures alongside the documentation simplifies publishing and maintenance.
 
 ---
 
@@ -161,9 +135,14 @@ These tools are primarily intended for development and optimization.
 tests/
 ```
 
-Unit and integration tests validate benchmark correctness, workspace generation, and supporting utilities.
+The `tests/` directory contains unit and integration tests covering
 
-Where possible, benchmarks are validated against reference implementations to ensure numerical consistency.
+- benchmark implementations;
+- workspace generation;
+- shared utilities;
+- validation logic.
+
+Where possible, benchmark results are compared against reference implementations to ensure numerical correctness.
 
 ---
 
@@ -172,50 +151,57 @@ Where possible, benchmarks are validated against reference implementations to en
 A typical benchmark session follows the workflow below.
 
 ```text
-Input Workspace
+Benchmark Workspace
         │
         ▼
 Benchmark
         │
         ▼
-JSON Result
+JSON Report
         │
         ▼
-Overview Builder
-        │
-        ▼
-Plots
+Plot Generation
         │
         ▼
 Documentation
 ```
 
-The same workflow is used for both individual benchmark executions and large-scale matrix runs.
+This workflow is identical whether benchmarks are executed individually or through the benchmark runner.
 
 ---
 
-# Matrix Runner
+# Benchmark Runner
 
-The repository includes a unified matrix runner capable of executing benchmark suites over collections of workspaces.
+The repository provides a unified benchmark runner capable of executing one or more benchmark suites across multiple workspaces.
 
 Typical responsibilities include
 
-- discovering input workspaces;
 - executing benchmark suites;
-- collecting benchmark outputs;
-- handling repeated runs;
-- generating benchmark summaries.
+- coordinating repeated measurements;
+- collecting benchmark reports;
+- generating matrix summaries;
+- producing comparison plots.
 
-Using a single runner ensures that all benchmarks follow the same execution model and produce results with a consistent directory structure.
+Using a common runner ensures that all benchmark suites follow the same execution model and reporting conventions.
 
 ---
 
 # Design Philosophy
 
-The repository is intentionally modular.
+The repository follows a modular design.
 
-Each benchmark is responsible only for measuring one aspect of the statistical workflow.
+Each benchmark focuses on measuring a single stage of the statistical workflow, while common functionality—such as reporting, plotting, workspace handling, and command-line interfaces—is shared across the project.
 
-Common functionality—including workspace discovery, benchmarking utilities, plotting infrastructure, and reporting—is shared across the project.
+This architecture simplifies maintenance, encourages code reuse, and makes it straightforward to introduce new benchmark suites without modifying the existing infrastructure.
 
-This separation simplifies maintenance, encourages reuse, and makes it straightforward to introduce new benchmark suites without modifying the existing architecture.
+---
+
+# Related Documentation
+
+See also
+
+- **Getting Started**
+- **Benchmark Suite**
+- **Benchmark Methodology**
+- **Benchmark Results**
+- **Benchmark Workspaces**

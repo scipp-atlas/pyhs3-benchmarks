@@ -1,0 +1,665 @@
+{
+  "analyses": [
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch0",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch0",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch1",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch1",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch2",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch2",
+      "init": "default_values"
+    }
+  ],
+  "data": [
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          17.365716826170683
+        ],
+        [
+          13.652612130207444
+        ],
+        [
+          10.214952087480924
+        ],
+        [
+          11.41186469430977
+        ],
+        [
+          13.74873879365623
+        ],
+        [
+          10.108866482187295
+        ],
+        [
+          16.951401982176442
+        ],
+        [
+          11.01052621852432
+        ],
+        [
+          10.855240604068968
+        ]
+      ],
+      "name": "combData_ch0",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          12.36744820351305
+        ],
+        [
+          13.728853203775362
+        ]
+      ],
+      "name": "combData_ch1",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          10.386807003560534
+        ],
+        [
+          10.671437687087746
+        ],
+        [
+          13.742423589620739
+        ]
+      ],
+      "name": "combData_ch2",
+      "type": "unbinned"
+    }
+  ],
+  "distributions": [
+    {
+      "mean": "alpha_sigma",
+      "name": "constr_alpha_sigma",
+      "sigma": "sigma_constr",
+      "type": "gaussian_dist",
+      "x": "nom_alpha_sigma"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch0",
+        "nbkg_ch0"
+      ],
+      "extended": true,
+      "name": "model_ch0",
+      "summands": [
+        "sig_ch0",
+        "bkg_ch0"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch0",
+      "name": "bkg_ch0",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "mean": "mean_ch0",
+      "name": "sig_ch0",
+      "sigma": "sigma_ch0",
+      "type": "gaussian_dist",
+      "x": "x"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch1",
+        "nbkg_ch1"
+      ],
+      "extended": true,
+      "name": "model_ch1",
+      "summands": [
+        "sig_ch1",
+        "bkg_ch1"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch1",
+      "name": "bkg_ch1",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "mean": "mean_ch1",
+      "name": "sig_ch1",
+      "sigma": "sigma_ch1",
+      "type": "gaussian_dist",
+      "x": "x"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch2",
+        "nbkg_ch2"
+      ],
+      "extended": true,
+      "name": "model_ch2",
+      "summands": [
+        "sig_ch2",
+        "bkg_ch2"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch2",
+      "name": "bkg_ch2",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "mean": "mean_ch2",
+      "name": "sig_ch2",
+      "sigma": "sigma_ch2",
+      "type": "gaussian_dist",
+      "x": "x"
+    }
+  ],
+  "domains": [
+    {
+      "axes": [
+        {
+          "max": 5.0,
+          "min": -5.0,
+          "name": "alpha_sigma"
+        },
+        {
+          "max": 50.0,
+          "min": 0.0,
+          "name": "nbkg_ch0"
+        },
+        {
+          "max": 50.0,
+          "min": 0.0,
+          "name": "nbkg_ch1"
+        },
+        {
+          "max": 50.0,
+          "min": 0.0,
+          "name": "nbkg_ch2"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch0"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch1"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch2"
+        }
+      ],
+      "name": "sim_pdf_combData_nuisance_parameters",
+      "type": "product_domain"
+    },
+    {
+      "axes": [
+        {
+          "name": "nom_alpha_sigma",
+          "min": -5.0,
+          "max": 5.0
+        }
+      ],
+      "name": "sim_pdf_combData_global_observables",
+      "type": "product_domain"
+    },
+    {
+      "axes": [
+        {
+          "max": 10.0,
+          "min": -5.0,
+          "name": "mu_sig"
+        }
+      ],
+      "name": "sim_pdf_combData_parameters_of_interest",
+      "type": "product_domain"
+    },
+    {
+      "axes": [
+        {
+          "max": 5.0,
+          "min": -5.0,
+          "name": "alpha_sigma"
+        },
+        {
+          "max": 10.0,
+          "min": -5.0,
+          "name": "mu_sig"
+        },
+        {
+          "max": 50.0,
+          "min": 0.0,
+          "name": "nbkg_ch0"
+        },
+        {
+          "max": 50.0,
+          "min": 0.0,
+          "name": "nbkg_ch1"
+        },
+        {
+          "max": 50.0,
+          "min": 0.0,
+          "name": "nbkg_ch2"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch0"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch1"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch2"
+        },
+        {
+          "max": 20.0,
+          "min": 10.0,
+          "name": "x"
+        }
+      ],
+      "name": "default_domain",
+      "type": "product_domain"
+    }
+  ],
+  "functions": [
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch0"
+      ],
+      "name": "nsig_tot_ch0",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch0 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch0",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch1"
+      ],
+      "name": "nsig_tot_ch1",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch1 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch1",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch2"
+      ],
+      "name": "nsig_tot_ch2",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch2 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch2",
+      "type": "generic_function"
+    }
+  ],
+  "likelihoods": [
+    {
+      "name": "L_ch0",
+      "distributions": [
+        "model_ch0"
+      ],
+      "data": [
+        "combData_ch0"
+      ],
+      "aux_distributions": [
+        "constr_alpha_sigma"
+      ],
+      "aux_data": [
+        "global_obs_data"
+      ]
+    },
+    {
+      "name": "L_ch1",
+      "distributions": [
+        "model_ch1"
+      ],
+      "data": [
+        "combData_ch1"
+      ]
+    },
+    {
+      "name": "L_ch2",
+      "distributions": [
+        "model_ch2"
+      ],
+      "data": [
+        "combData_ch2"
+      ]
+    }
+  ],
+  "metadata": {
+    "hs3_version": "0.2",
+    "packages": [
+      {
+        "name": "ROOT",
+        "version": "6.36.02"
+      }
+    ]
+  },
+  "misc": {
+    "ROOT_internal": {
+      "ModelConfigs": {
+        "sim_pdf_combData": {
+          "mcName": "ModelConfig",
+          "pdfName": "sim_pdf"
+        }
+      },
+      "attributes": {
+        "alpha_sigma": {
+          "dict": {
+            "origName": "alpha_sigma"
+          }
+        },
+        "mean_ch0": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch1": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch2": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nom_alpha_sigma": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch0": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch1": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch2": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_constr": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch0": {
+          "dict": {
+            "origName": "sigma_nom_ch0"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch1": {
+          "dict": {
+            "origName": "sigma_nom_ch1"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch2": {
+          "dict": {
+            "origName": "sigma_nom_ch2"
+          },
+          "tags": [
+            "Constant"
+          ]
+        }
+      },
+      "combined_datasets": {
+        "combData": {
+          "index_cat": "index",
+          "indices": [
+            0,
+            1,
+            2
+          ],
+          "labels": [
+            "ch0",
+            "ch1",
+            "ch2"
+          ]
+        }
+      },
+      "combined_distributions": {
+        "sim_pdf": {
+          "distributions": [
+            "model_ch0",
+            "model_ch1",
+            "model_ch2"
+          ],
+          "index_cat": "index",
+          "indices": [
+            0,
+            1,
+            2
+          ],
+          "labels": [
+            "ch0",
+            "ch1",
+            "ch2"
+          ]
+        }
+      }
+    }
+  },
+  "parameter_points": [
+    {
+      "name": "default_values",
+      "parameters": [
+        {
+          "name": "nom_alpha_sigma",
+          "value": 0.0
+        },
+        {
+          "name": "alpha_sigma",
+          "value": 0.0
+        },
+        {
+          "const": true,
+          "name": "sigma_constr",
+          "value": 1.0
+        },
+        {
+          "name": "tau_ch0",
+          "value": 0.3
+        },
+        {
+          "name": "nbkg_ch0",
+          "value": 2.3000000000000003
+        },
+        {
+          "name": "mu_sig",
+          "value": 1.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch0",
+          "value": 0.7000000000000001
+        },
+        {
+          "const": true,
+          "name": "mean_ch0",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch0",
+          "value": 1.0
+        },
+        {
+          "name": "tau_ch1",
+          "value": 0.25
+        },
+        {
+          "name": "nbkg_ch1",
+          "value": 2.3000000000000003
+        },
+        {
+          "const": true,
+          "name": "nsig_ch1",
+          "value": 0.7000000000000001
+        },
+        {
+          "const": true,
+          "name": "mean_ch1",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch1",
+          "value": 0.9
+        },
+        {
+          "name": "tau_ch2",
+          "value": 0.35
+        },
+        {
+          "name": "nbkg_ch2",
+          "value": 2.3000000000000003
+        },
+        {
+          "const": true,
+          "name": "nsig_ch2",
+          "value": 0.7000000000000001
+        },
+        {
+          "const": true,
+          "name": "mean_ch2",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch2",
+          "value": 1.1
+        }
+      ]
+    },
+    {
+      "name": "nominal",
+      "parameters": [
+        {
+          "name": "alpha_sigma",
+          "value": 0.0
+        },
+        {
+          "name": "mu_sig",
+          "value": 1.0
+        },
+        {
+          "name": "nbkg_ch0",
+          "value": 2.3000000000000003
+        },
+        {
+          "name": "nbkg_ch1",
+          "value": 2.3000000000000003
+        },
+        {
+          "name": "nbkg_ch2",
+          "value": 2.3000000000000003
+        },
+        {
+          "const": true,
+          "name": "nom_alpha_sigma",
+          "value": 0.0
+        },
+        {
+          "name": "tau_ch0",
+          "value": 0.3
+        },
+        {
+          "name": "tau_ch1",
+          "value": 0.25
+        },
+        {
+          "name": "tau_ch2",
+          "value": 0.35
+        }
+      ]
+    }
+  ]
+}

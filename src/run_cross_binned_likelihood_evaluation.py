@@ -28,10 +28,24 @@ import pyhf
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from src.config import PLOTS_DIR, RESULTS_DIR
-    from src.utils import get_current_rss_mb, get_peak_rss_mb, save_json
+    from src.utils import (
+        build_log_prob,
+        build_validation_inputs,
+        compile_log_prob,
+        get_current_rss_mb,
+        get_peak_rss_mb,
+        save_json,
+    )
 else:
     from .config import PLOTS_DIR, RESULTS_DIR
-    from .utils import get_current_rss_mb, get_peak_rss_mb, save_json
+    from .utils import (
+        build_log_prob,
+        build_validation_inputs,
+        compile_log_prob,
+        get_current_rss_mb,
+        get_peak_rss_mb,
+        save_json,
+    )
 
 try:
     import ROOT
@@ -48,7 +62,7 @@ DEFAULT_OUTPUT_DIR = RESULTS_DIR / BENCHMARK_NAME
 DEFAULT_OUTPUT_NAME = f"{BENCHMARK_NAME}_result.json"
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
 
-SUPPORTED_FRAMEWORKS = ("manual", "pyhs3", "pyhf", "roofit")
+SUPPORTED_FRAMEWORKS = ("manual", "pyhs3", "pyhs3_compiled", "pyhf", "roofit")
 DEFAULT_FRAMEWORKS = ["manual", "pyhs3", "pyhf", "roofit"]
 DEFAULT_WARMUP_ITERATIONS = 3
 
@@ -56,6 +70,12 @@ PLOT_EPSILON = 1e-300
 FRAMEWORK_STYLE: dict[str, dict[str, Any]] = {
     "manual": {"label": "Manual", "color": "#4d4d4d", "marker": "o", "hatch": ""},
     "pyhs3": {"label": "PyHS3", "color": "#1764ab", "marker": "s", "hatch": "//"},
+    "pyhs3_compiled": {
+        "label": "PyHS3 compiled",
+        "color": "#6a3d9a",
+        "marker": "P",
+        "hatch": "xx",
+    },
     "pyhf": {"label": "pyhf", "color": "#f57c00", "marker": "^", "hatch": "\\\\"},
     "roofit": {"label": "RooFit", "color": "#009b77", "marker": "D", "hatch": ".."},
 }
@@ -85,6 +105,14 @@ class BenchmarkConfig:
     plot: bool
     plot_dir: Path
     fail_fast: bool
+    analysis_name: str
+    target: str | None
+    pyhs3_data_name: str | None
+    parameter_point: str | None
+    observable_name: str
+    observable_index: int
+    scan_parameter: str
+    mode: str
 
 
 @dataclass(frozen=True)
@@ -96,6 +124,38 @@ class BinnedVectors:
     @property
     def n_bins(self) -> int:
         return int(self.signal.size)
+
+
+@dataclass(frozen=True)
+class GenericPyHS3Case:
+    model: Any
+    target: str
+    params: dict[str, Any]
+    poi: str
+
+
+@dataclass(frozen=True)
+class GenericCompiledPyHS3Case:
+    compiled: Any
+    base_inputs: dict[str, Any]
+    poi: str
+
+
+def channel_from_analysis(analysis_name: str) -> str:
+    if not analysis_name.startswith("L_"):
+        raise BenchmarkConfigurationError(
+            "Cannot infer channel from analysis name. Use an analysis name like "
+            f"L_ch0 or pass explicit --target/--pyhs3-data-name. Got: {analysis_name}"
+        )
+    return analysis_name.replace("L_", "", 1)
+
+
+def default_target_from_analysis(analysis_name: str) -> str:
+    return f"model_{channel_from_analysis(analysis_name)}"
+
+
+def default_data_name_from_analysis(analysis_name: str) -> str:
+    return f"combData_{channel_from_analysis(analysis_name)}"
 
 
 def _framework_label(framework: str) -> str:
@@ -217,6 +277,14 @@ def validate_config(config: BenchmarkConfig) -> None:
         raise BenchmarkConfigurationError(
             "--delta-tolerance must be a positive finite value"
         )
+    if not config.analysis_name:
+        raise BenchmarkConfigurationError("--analysis must be a non-empty string")
+    if not config.scan_parameter:
+        raise BenchmarkConfigurationError("--scan-parameter must be a non-empty string")
+    if not config.mode:
+        raise BenchmarkConfigurationError("--mode must be a non-empty string")
+    if config.observable_index < 0:
+        raise BenchmarkConfigurationError("--observable-index must be non-negative")
     if "roofit" in config.frameworks and ROOT is None:
         raise BenchmarkConfigurationError(
             "RooFit was requested, but ROOT is not available in this environment"
@@ -494,6 +562,210 @@ def roofit_nll(model: dict[str, Any], mu_value: float) -> float:
     return float(total)
 
 
+def has_synthetic_binned_parameters(parameters: dict[str, float]) -> bool:
+    def indices(prefix: str) -> set[int]:
+        found: set[int] = set()
+        for name in parameters:
+            if not name.startswith(prefix):
+                continue
+            suffix = name.removeprefix(prefix)
+            if suffix.isdigit():
+                found.add(int(suffix))
+        return found
+
+    return bool(indices("signal_") & indices("background_") & indices("obs_"))
+
+
+def extract_parameter_point(
+    workspace: Workspace,
+    parameter_point: str | None,
+) -> dict[str, float]:
+    try:
+        points = workspace.parameter_points.root
+    except AttributeError as exc:
+        raise BenchmarkConfigurationError(
+            "Workspace does not contain parameter_points.root"
+        ) from exc
+
+    if not points:
+        raise BenchmarkConfigurationError("Workspace does not contain parameter points")
+
+    if parameter_point is None:
+        selected = points[0]
+    else:
+        selected = next(
+            (
+                point
+                for point in points
+                if getattr(point, "name", None) == parameter_point
+            ),
+            None,
+        )
+        if selected is None:
+            available = [getattr(point, "name", "<unnamed>") for point in points]
+            raise BenchmarkConfigurationError(
+                f"Could not find parameter point {parameter_point!r}. Available: {available}"
+            )
+
+    params: dict[str, float] = {}
+    for parameter in selected.parameters:
+        try:
+            params[parameter.name] = float(parameter.value)
+        except (TypeError, ValueError) as exc:
+            raise BenchmarkConfigurationError(
+                f"Parameter {parameter.name!r} cannot be converted to float: "
+                f"{parameter.value!r}"
+            ) from exc
+    return params
+
+
+def get_pyhs3_data_values(
+    workspace: Workspace,
+    data_name: str,
+    observable_index: int = 0,
+) -> np.ndarray:
+    try:
+        data_entries = workspace.data.root
+    except AttributeError as exc:
+        raise BenchmarkConfigurationError(
+            "Workspace does not contain data.root"
+        ) from exc
+
+    for data in data_entries:
+        if data.name == data_name:
+            values = np.asarray(
+                [entry[observable_index] for entry in data.entries],
+                dtype=np.float64,
+            )
+            if values.size == 0:
+                raise BenchmarkConfigurationError(f"PyHS3 data {data_name!r} is empty")
+            if not np.all(np.isfinite(values)):
+                raise BenchmarkConfigurationError(
+                    f"PyHS3 data {data_name!r} contains non-finite values"
+                )
+            return values
+
+    available = [getattr(data, "name", "<unnamed>") for data in data_entries]
+    raise BenchmarkConfigurationError(
+        f"Could not find PyHS3 data {data_name!r}. Available data: {available}"
+    )
+
+
+def build_generic_pyhs3_case(
+    *,
+    workspace_path: Path,
+    analysis_name: str,
+    target: str | None,
+    pyhs3_data_name: str | None,
+    parameter_point: str | None,
+    observable_name: str,
+    observable_index: int,
+    poi: str,
+    mode: str,
+) -> GenericPyHS3Case:
+    workspace = Workspace.load(workspace_path)
+    resolved_target = target or default_target_from_analysis(analysis_name)
+    resolved_data_name = pyhs3_data_name or default_data_name_from_analysis(
+        analysis_name
+    )
+
+    model = workspace.model(analysis_name, progress=False, mode=mode)
+    params: dict[str, Any] = extract_parameter_point(workspace, parameter_point)
+
+    try:
+        free_params = model.free_params
+    except AttributeError:
+        free_params = {}
+    for name, value in free_params.items():
+        params[name] = np.asarray(value, dtype=np.float64)
+
+    params[observable_name] = get_pyhs3_data_values(
+        workspace,
+        resolved_data_name,
+        observable_index,
+    )
+
+    if poi not in params and poi not in free_params:
+        raise BenchmarkConfigurationError(
+            f"POI {poi!r} is not present in PyHS3 parameters/free_params. "
+            f"Available parameters: {sorted(params)}"
+        )
+
+    return GenericPyHS3Case(
+        model=model,
+        target=resolved_target,
+        params=params,
+        poi=poi,
+    )
+
+
+def generic_pyhs3_nll(case: GenericPyHS3Case, value: float) -> float:
+    validate_numeric_value(float(value), case.poi)
+    eval_params = dict(case.params)
+    eval_params[case.poi] = np.asarray(value, dtype=np.float64)
+    logpdf = np.asarray(case.model.logpdf(case.target, **eval_params), dtype=np.float64)
+    if logpdf.size == 0:
+        raise ValueError(f"PyHS3 returned an empty logpdf array for {case.target}")
+    if not np.all(np.isfinite(logpdf)):
+        raise ValueError(f"PyHS3 returned non-finite logpdf values for {case.target}")
+    return -float(np.sum(logpdf))
+
+
+def extract_compiled_scalar(result: Any) -> float:
+    if not isinstance(result, tuple):
+        raise TypeError(
+            f"Expected compiled result to be a tuple, got {type(result).__name__}"
+        )
+    if len(result) == 0:
+        raise ValueError("Compiled result tuple is empty")
+
+    array = np.asarray(result[0])
+    if array.size == 0:
+        raise ValueError("Compiled result array is empty")
+
+    value = float(array.reshape(-1)[0])
+    if not math.isfinite(value):
+        raise ValueError(f"Compiled result is not finite: {value}")
+    return value
+
+
+def build_generic_compiled_pyhs3_case(
+    *,
+    workspace_path: Path,
+    target: str | None,
+    analysis_name: str,
+    mode: str,
+    poi: str,
+) -> GenericCompiledPyHS3Case:
+    resolved_target = target or default_target_from_analysis(analysis_name)
+    model, log_prob = build_log_prob(
+        workspace_path=workspace_path,
+        target=resolved_target,
+        mode=mode,
+    )
+    compiled = compile_log_prob(log_prob)
+    base_inputs = build_validation_inputs(model=model, compiled=compiled)
+
+    if poi not in base_inputs:
+        raise BenchmarkConfigurationError(
+            f"POI {poi!r} is not an exposed compiled input. "
+            f"Available compiled inputs: {sorted(base_inputs)}"
+        )
+
+    return GenericCompiledPyHS3Case(
+        compiled=compiled,
+        base_inputs=base_inputs,
+        poi=poi,
+    )
+
+
+def generic_compiled_pyhs3_nll(case: GenericCompiledPyHS3Case, value: float) -> float:
+    validate_numeric_value(float(value), case.poi)
+    inputs = dict(case.base_inputs)
+    inputs[case.poi] = np.asarray(value, dtype=np.float64)
+    return -extract_compiled_scalar(case.compiled(**inputs))
+
+
 def validate_numeric_value(value: float, name: str) -> None:
     if not math.isfinite(value):
         raise ValueError(f"{name} must be finite, got {value}")
@@ -665,6 +937,47 @@ def add_validation(
             )
 
 
+def add_reference_validation(
+    results: list[dict[str, Any]],
+    reference_framework: str,
+    raw_tolerance: float,
+    delta_tolerance: float,
+) -> None:
+    successful = _successful_results(results)
+    reference = next(
+        (result for result in successful if result["framework"] == reference_framework),
+        None,
+    )
+    if reference is None:
+        raise ValidationFailure(
+            f"{reference_framework} reference result is required for validation"
+        )
+
+    for result in results:
+        if result.get("status") != "success":
+            continue
+
+        raw_abs_diff = abs(float(result["raw_nll"]) - float(reference["raw_nll"]))
+        delta_abs_diff = abs(float(result["delta_nll"]) - float(reference["delta_nll"]))
+        raw_success = raw_abs_diff <= raw_tolerance
+        delta_success = delta_abs_diff <= delta_tolerance
+
+        result["raw_nll_abs_diff"] = float(raw_abs_diff)
+        result["delta_nll_abs_diff"] = float(delta_abs_diff)
+        result["raw_nll_success"] = bool(raw_success)
+        result["delta_nll_success"] = bool(delta_success)
+        result["validation_status"] = (
+            "success" if raw_success and delta_success else "failed"
+        )
+
+        if result["validation_status"] == "failed":
+            result["error_type"] = "ValidationFailure"
+            result["error_message"] = (
+                "NLL agreement failed "
+                f"(raw diff={raw_abs_diff:.3e}, delta diff={delta_abs_diff:.3e})"
+            )
+
+
 def summarize_status(results: list[dict[str, Any]]) -> dict[str, Any]:
     successful = [result for result in results if result.get("status") == "success"]
     validated = [
@@ -746,6 +1059,8 @@ def print_final_summary(output_data: dict[str, Any]) -> None:
     print(BENCHMARK_TITLE)
     print("=" * 80)
     print(f"Workspace:   {Path(output_data['workspace']).name}")
+    print(f"Mode:        {output_data.get('benchmark_mode', 'synthetic_binned')}")
+    print(f"Target:      {output_data.get('target', 'analysis')}")
     print(f"Bins:        {output_data['n_bins']}")
     print(f"mu:          {output_data['mu']}")
     print(f"Reference:   {output_data['delta_reference_mu']}")
@@ -1229,22 +1544,102 @@ def build_framework_jobs(
     return {framework: jobs[framework] for framework in frameworks}
 
 
+def build_generic_framework_jobs(
+    *,
+    frameworks: list[str],
+    workspace_path: Path,
+    analysis_name: str,
+    target: str | None,
+    pyhs3_data_name: str | None,
+    parameter_point: str | None,
+    observable_name: str,
+    observable_index: int,
+    scan_parameter: str,
+    mode: str,
+) -> dict[
+    str, tuple[Callable[[], Any], Callable[[Any], Any], Callable[[Any, float], float]]
+]:
+    supported = {"pyhs3", "pyhs3_compiled"}
+    selected = [framework for framework in frameworks if framework in supported]
+
+    # The default framework list is aimed at the synthetic binned benchmark. For
+    # generic Alexx workspaces, pyhf/manual/RooFit are not constructible from the
+    # JSON file alone in this benchmark, so keep the generic run successful by
+    # selecting the available PyHS3 paths.
+    if not selected:
+        selected = ["pyhs3"]
+
+    jobs: dict[
+        str,
+        tuple[Callable[[], Any], Callable[[Any], Any], Callable[[Any, float], float]],
+    ] = {
+        "pyhs3": (
+            lambda: workspace_path,
+            lambda path: build_generic_pyhs3_case(
+                workspace_path=path,
+                analysis_name=analysis_name,
+                target=target,
+                pyhs3_data_name=pyhs3_data_name,
+                parameter_point=parameter_point,
+                observable_name=observable_name,
+                observable_index=observable_index,
+                poi=scan_parameter,
+                mode=mode,
+            ),
+            lambda model, value: generic_pyhs3_nll(model, value),
+        ),
+        "pyhs3_compiled": (
+            lambda: workspace_path,
+            lambda path: build_generic_compiled_pyhs3_case(
+                workspace_path=path,
+                target=target,
+                analysis_name=analysis_name,
+                mode=mode,
+                poi=scan_parameter,
+            ),
+            lambda model, value: generic_compiled_pyhs3_nll(model, value),
+        ),
+    }
+    return {framework: jobs[framework] for framework in selected}
+
+
 def run_benchmark(config: BenchmarkConfig) -> dict[str, Any]:
     validate_config(config)
 
     workspace = load_workspace(config.workspace_path)
     parameters = extract_parameters(workspace)
-    inferred_n_bins = infer_n_bins(parameters)
-    n_bins = inferred_n_bins if config.n_bins is None else config.n_bins
-    validate_n_bins_against_parameters(parameters, n_bins)
 
-    jobs = build_framework_jobs(
-        frameworks=config.frameworks,
-        parameters=parameters,
-        workspace_path=config.workspace_path,
-        n_bins=n_bins,
-        mu=config.mu,
-    )
+    if has_synthetic_binned_parameters(parameters):
+        benchmark_mode = "synthetic_binned"
+        inferred_n_bins = infer_n_bins(parameters)
+        n_bins = inferred_n_bins if config.n_bins is None else config.n_bins
+        validate_n_bins_against_parameters(parameters, n_bins)
+
+        jobs = build_framework_jobs(
+            frameworks=config.frameworks,
+            parameters=parameters,
+            workspace_path=config.workspace_path,
+            n_bins=n_bins,
+            mu=config.mu,
+        )
+        reference_framework = "manual"
+    else:
+        benchmark_mode = "generic_workspace"
+        inferred_n_bins = None
+        n_bins = config.n_bins
+        jobs = build_generic_framework_jobs(
+            frameworks=config.frameworks,
+            workspace_path=config.workspace_path,
+            analysis_name=config.analysis_name,
+            target=config.target,
+            pyhs3_data_name=config.pyhs3_data_name,
+            parameter_point=config.parameter_point,
+            observable_name=config.observable_name,
+            observable_index=config.observable_index,
+            scan_parameter=config.scan_parameter,
+            mode=config.mode,
+        )
+        reference_framework = "pyhs3"
 
     results: list[dict[str, Any]] = []
     for framework, (input_load_func, build_func, eval_func) in jobs.items():
@@ -1266,23 +1661,40 @@ def run_benchmark(config: BenchmarkConfig) -> dict[str, Any]:
         if config.fail_fast and result.get("status") != "success":
             break
 
-    add_validation(
-        results,
-        raw_tolerance=config.raw_tolerance,
-        delta_tolerance=config.delta_tolerance,
-    )
+    if benchmark_mode == "synthetic_binned":
+        add_validation(
+            results,
+            raw_tolerance=config.raw_tolerance,
+            delta_tolerance=config.delta_tolerance,
+        )
+    else:
+        add_reference_validation(
+            results,
+            reference_framework=reference_framework,
+            raw_tolerance=config.raw_tolerance,
+            delta_tolerance=config.delta_tolerance,
+        )
+
     summary = summarize_status(results)
 
     output_data: dict[str, Any] = {
         "benchmark": BENCHMARK_NAME,
+        "benchmark_mode": benchmark_mode,
         "workspace": str(config.workspace_path),
+        "analysis_name": config.analysis_name,
+        "target": config.target or default_target_from_analysis(config.analysis_name),
+        "pyhs3_data_name": config.pyhs3_data_name
+        or default_data_name_from_analysis(config.analysis_name),
+        "scan_parameter": config.scan_parameter,
+        "mode": config.mode,
         "n_bins": n_bins,
         "inferred_n_bins": inferred_n_bins,
         "mu": config.mu,
         "delta_reference_mu": config.delta_reference_mu,
         "n_runs": config.n_runs,
         "warmup_iterations": config.warmup_iterations,
-        "frameworks": config.frameworks,
+        "requested_frameworks": config.frameworks,
+        "frameworks": [result["framework"] for result in results],
         "raw_tolerance": config.raw_tolerance,
         "delta_tolerance": config.delta_tolerance,
         "summary": summary,
@@ -1309,6 +1721,14 @@ def run(
     raw_tolerance: float,
     delta_tolerance: float,
     fail_fast: bool = False,
+    analysis_name: str = "L_ch0",
+    target: str | None = None,
+    pyhs3_data_name: str | None = None,
+    parameter_point: str | None = None,
+    observable_name: str = "x",
+    observable_index: int = 0,
+    scan_parameter: str = "mu_sig",
+    mode: str = "FAST_RUN",
 ) -> dict[str, Any]:
     config = BenchmarkConfig(
         workspace_path=workspace_path,
@@ -1325,6 +1745,14 @@ def run(
         plot=plot,
         plot_dir=plot_dir,
         fail_fast=fail_fast,
+        analysis_name=analysis_name,
+        target=target,
+        pyhs3_data_name=pyhs3_data_name,
+        parameter_point=parameter_point,
+        observable_name=observable_name,
+        observable_index=observable_index,
+        scan_parameter=scan_parameter,
+        mode=mode,
     )
 
     output_data = run_benchmark(config)
@@ -1372,6 +1800,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--raw-tolerance", type=float, default=1e-10)
     parser.add_argument("--delta-tolerance", type=float, default=1e-10)
     parser.add_argument("--fail-fast", action="store_true")
+    parser.add_argument("--analysis", default="L_ch0")
+    parser.add_argument("--target", default=None)
+    parser.add_argument("--pyhs3-data-name", default=None)
+    parser.add_argument("--parameter-point", default=None)
+    parser.add_argument("--observable-name", default="x")
+    parser.add_argument("--observable-index", type=int, default=0)
+    parser.add_argument("--scan-parameter", default="mu_sig")
+    parser.add_argument("--mode", default="FAST_RUN")
     return parser.parse_args(argv)
 
 
@@ -1393,6 +1829,14 @@ def main(argv: list[str] | None = None) -> None:
             raw_tolerance=args.raw_tolerance,
             delta_tolerance=args.delta_tolerance,
             fail_fast=args.fail_fast,
+            analysis_name=args.analysis,
+            target=args.target,
+            pyhs3_data_name=args.pyhs3_data_name,
+            parameter_point=args.parameter_point,
+            observable_name=args.observable_name,
+            observable_index=args.observable_index,
+            scan_parameter=args.scan_parameter,
+            mode=args.mode,
         )
     except Exception as error:
         raise RuntimeError(

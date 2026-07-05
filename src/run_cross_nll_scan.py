@@ -22,6 +22,9 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from src.config import PLOTS_DIR, RESULTS_DIR
     from src.utils import (
+        build_log_prob,
+        build_validation_inputs,
+        compile_log_prob,
         get_current_rss_mb,
         get_peak_rss_mb,
         save_json,
@@ -29,6 +32,9 @@ if __package__ in (None, ""):
 else:
     from .config import PLOTS_DIR, RESULTS_DIR
     from .utils import (
+        build_log_prob,
+        build_validation_inputs,
+        compile_log_prob,
         get_current_rss_mb,
         get_peak_rss_mb,
         save_json,
@@ -62,6 +68,21 @@ class FrameworkSpec:
 class CompiledPyHS3Model:
     compiled_nll: Callable[[Any], Any]
     description: str
+
+
+@dataclass(frozen=True)
+class GenericPyHS3Case:
+    model: Any
+    target: str
+    params: dict[str, Any]
+    poi: str
+
+
+@dataclass(frozen=True)
+class GenericCompiledPyHS3Case:
+    compiled: Any
+    base_inputs: dict[str, Any]
+    poi: str
 
 
 def validate_workspace_path(workspace_path: Path) -> Path:
@@ -115,10 +136,6 @@ def validate_benchmark_config(
             "Unknown frameworks: "
             + ", ".join(unknown)
             + f". Available frameworks: {', '.join(DEFAULT_FRAMEWORKS)}"
-        )
-    if "manual" not in frameworks:
-        raise ValueError(
-            "manual framework is required because it is the validation reference"
         )
 
 
@@ -201,6 +218,106 @@ def infer_n_bins_from_parameters(parameters: dict[str, float]) -> int:
         )
 
     return len(signal_indices)
+
+
+def has_synthetic_binned_parameters(parameters: dict[str, float]) -> bool:
+    def indices(prefix: str) -> set[int]:
+        found: set[int] = set()
+        for name in parameters:
+            if not name.startswith(prefix):
+                continue
+            suffix = name.removeprefix(prefix)
+            if suffix.isdigit():
+                found.add(int(suffix))
+        return found
+
+    return bool(indices("signal_") & indices("background_") & indices("obs_"))
+
+
+def channel_from_analysis(analysis_name: str) -> str:
+    if not analysis_name.startswith("L_"):
+        raise ValueError(
+            "Cannot infer channel from analysis name. Use an analysis name like "
+            f"L_ch0 or pass explicit --target/--pyhs3-data-name. Got: {analysis_name}"
+        )
+    return analysis_name.replace("L_", "", 1)
+
+
+def default_target_from_analysis(analysis_name: str) -> str:
+    return f"model_{channel_from_analysis(analysis_name)}"
+
+
+def default_data_name_from_analysis(analysis_name: str) -> str:
+    return f"combData_{channel_from_analysis(analysis_name)}"
+
+
+def extract_parameter_point(
+    workspace: Workspace,
+    parameter_point: str | None,
+) -> dict[str, float]:
+    try:
+        points = workspace.parameter_points.root
+    except AttributeError as exc:
+        raise ValueError("Workspace does not contain parameter_points.root") from exc
+
+    if not points:
+        raise ValueError("Workspace does not contain parameter points")
+
+    if parameter_point is None:
+        selected = points[0]
+    else:
+        selected = next(
+            (
+                point
+                for point in points
+                if getattr(point, "name", None) == parameter_point
+            ),
+            None,
+        )
+        if selected is None:
+            available = [getattr(point, "name", "<unnamed>") for point in points]
+            raise ValueError(
+                f"Could not find parameter point {parameter_point!r}. Available: {available}"
+            )
+
+    params: dict[str, float] = {}
+    for parameter in selected.parameters:
+        try:
+            params[parameter.name] = float(parameter.value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Parameter {parameter.name!r} cannot be converted to float: "
+                f"{parameter.value!r}"
+            ) from exc
+    return params
+
+
+def get_pyhs3_data_values(
+    workspace: Workspace,
+    data_name: str,
+    observable_index: int = 0,
+) -> np.ndarray:
+    try:
+        data_entries = workspace.data.root
+    except AttributeError as exc:
+        raise ValueError("Workspace does not contain data.root") from exc
+
+    for data in data_entries:
+        if data.name == data_name:
+            values = np.asarray(
+                [entry[observable_index] for entry in data.entries],
+                dtype=np.float64,
+            )
+            if values.size == 0:
+                raise ValueError(f"PyHS3 data {data_name!r} is empty")
+            if not np.all(np.isfinite(values)):
+                raise ValueError(f"PyHS3 data {data_name!r} contains non-finite values")
+            return values
+
+    available = [getattr(data, "name", "<unnamed>") for data in data_entries]
+    raise ValueError(
+        f"Could not find PyHS3 data {data_name!r}. Available data: {available}"
+    )
 
 
 def poisson_nll(observed: float, expected: float) -> float:
@@ -314,6 +431,121 @@ def pyhs3_compiled_nll(model: CompiledPyHS3Model, mu_value: float) -> float:
     if not math.isfinite(value):
         raise ValueError(f"Compiled PyHS3 NLL is not finite: {value}")
     return value
+
+
+def build_generic_pyhs3_case(
+    *,
+    workspace_path: Path,
+    analysis_name: str,
+    target: str | None,
+    pyhs3_data_name: str | None,
+    parameter_point: str | None,
+    observable_name: str,
+    observable_index: int,
+    poi: str,
+    mode: str,
+) -> GenericPyHS3Case:
+    workspace = Workspace.load(workspace_path)
+    resolved_target = target or default_target_from_analysis(analysis_name)
+    resolved_data_name = pyhs3_data_name or default_data_name_from_analysis(
+        analysis_name
+    )
+
+    model = workspace.model(analysis_name, progress=False, mode=mode)
+    params: dict[str, Any] = extract_parameter_point(workspace, parameter_point)
+
+    try:
+        free_params = model.free_params
+    except AttributeError:
+        free_params = {}
+    for name, value in free_params.items():
+        params[name] = np.asarray(value, dtype=np.float64)
+
+    params[observable_name] = get_pyhs3_data_values(
+        workspace,
+        resolved_data_name,
+        observable_index,
+    )
+
+    if poi not in params and poi not in free_params:
+        raise ValueError(
+            f"POI {poi!r} is not present in PyHS3 parameters/free_params. "
+            f"Available parameters: {sorted(params)}"
+        )
+
+    return GenericPyHS3Case(
+        model=model,
+        target=resolved_target,
+        params=params,
+        poi=poi,
+    )
+
+
+def generic_pyhs3_nll(case: GenericPyHS3Case, value: float) -> float:
+    validate_finite_float(float(value), case.poi)
+    eval_params = dict(case.params)
+    eval_params[case.poi] = np.asarray(value, dtype=np.float64)
+    logpdf = np.asarray(case.model.logpdf(case.target, **eval_params), dtype=np.float64)
+    if logpdf.size == 0:
+        raise ValueError(f"PyHS3 returned an empty logpdf array for {case.target}")
+    if not np.all(np.isfinite(logpdf)):
+        raise ValueError(f"PyHS3 returned non-finite logpdf values for {case.target}")
+    return -float(np.sum(logpdf))
+
+
+def extract_compiled_scalar(result: Any) -> float:
+    if not isinstance(result, tuple):
+        raise TypeError(
+            f"Expected compiled result to be a tuple, got {type(result).__name__}"
+        )
+    if len(result) == 0:
+        raise ValueError("Compiled result tuple is empty")
+
+    array = np.asarray(result[0])
+    if array.size == 0:
+        raise ValueError("Compiled result array is empty")
+
+    value = float(array.reshape(-1)[0])
+    if not math.isfinite(value):
+        raise ValueError(f"Compiled result is not finite: {value}")
+    return value
+
+
+def build_generic_compiled_pyhs3_case(
+    *,
+    workspace_path: Path,
+    target: str | None,
+    analysis_name: str,
+    mode: str,
+    poi: str,
+) -> GenericCompiledPyHS3Case:
+    resolved_target = target or default_target_from_analysis(analysis_name)
+    model, log_prob = build_log_prob(
+        workspace_path=workspace_path,
+        target=resolved_target,
+        mode=mode,
+    )
+    compiled = compile_log_prob(log_prob)
+    base_inputs = build_validation_inputs(model=model, compiled=compiled)
+
+    if poi not in base_inputs:
+        raise ValueError(
+            f"POI {poi!r} is not an exposed compiled input. "
+            f"Available compiled inputs: {sorted(base_inputs)}"
+        )
+
+    return GenericCompiledPyHS3Case(
+        compiled=compiled,
+        base_inputs=base_inputs,
+        poi=poi,
+    )
+
+
+def generic_compiled_pyhs3_nll(case: GenericCompiledPyHS3Case, value: float) -> float:
+    validate_finite_float(float(value), case.poi)
+    inputs = dict(case.base_inputs)
+    inputs[case.poi] = np.asarray(value, dtype=np.float64)
+    return -extract_compiled_scalar(case.compiled(**inputs))
 
 
 def build_pyhf_spec(parameters: dict[str, float], n_bins: int) -> dict[str, Any]:
@@ -766,6 +998,149 @@ def make_framework_specs(
     return specs
 
 
+def make_generic_framework_specs(
+    frameworks: Iterable[str],
+    workspace_path: Path,
+    analysis_name: str,
+    target: str | None,
+    pyhs3_data_name: str | None,
+    parameter_point: str | None,
+    observable_name: str,
+    observable_index: int,
+    poi: str,
+    mode: str,
+) -> tuple[list[FrameworkSpec], list[str]]:
+    supported = {"pyhs3", "pyhs3_compiled"}
+    requested = list(frameworks)
+    active = [framework for framework in requested if framework in supported]
+    skipped = [framework for framework in requested if framework not in supported]
+
+    if not active:
+        active = ["pyhs3_compiled"]
+
+    specs: list[FrameworkSpec] = []
+    for framework in active:
+        if framework == "pyhs3":
+            specs.append(
+                FrameworkSpec(
+                    name="pyhs3",
+                    build_func=lambda workspace_path=workspace_path: (
+                        build_generic_pyhs3_case(
+                            workspace_path=workspace_path,
+                            analysis_name=analysis_name,
+                            target=target,
+                            pyhs3_data_name=pyhs3_data_name,
+                            parameter_point=parameter_point,
+                            observable_name=observable_name,
+                            observable_index=observable_index,
+                            poi=poi,
+                            mode=mode,
+                        )
+                    ),
+                    eval_func=lambda model, mu: generic_pyhs3_nll(model, mu),
+                )
+            )
+        elif framework == "pyhs3_compiled":
+            specs.append(
+                FrameworkSpec(
+                    name="pyhs3_compiled",
+                    build_func=lambda workspace_path=workspace_path: (
+                        build_generic_compiled_pyhs3_case(
+                            workspace_path=workspace_path,
+                            target=target,
+                            analysis_name=analysis_name,
+                            mode=mode,
+                            poi=poi,
+                        )
+                    ),
+                    eval_func=lambda model, mu: generic_compiled_pyhs3_nll(model, mu),
+                )
+            )
+        else:  # pragma: no cover - guarded by active filtering
+            raise ValueError(f"Unknown generic framework: {framework}")
+
+    return specs, skipped
+
+
+def add_scan_validation_against_reference(
+    results: list[dict[str, Any]],
+    shape_tolerance: float,
+    minimum_tolerance: float,
+    reference_framework: str | None = None,
+) -> None:
+    if not results:
+        raise ValueError("Cannot validate empty benchmark results")
+
+    successful_results = [
+        result for result in results if result.get("status") == "success"
+    ]
+    if not successful_results:
+        for result in results:
+            result["constant_offset_estimate"] = None
+            result["delta_nll_shape_max_abs_diff"] = None
+            result["minimum_mu_abs_diff"] = None
+            result["delta_nll_shape_success"] = False
+            result["minimum_mu_success"] = False
+            result["validation_status"] = "not_run"
+        return
+
+    reference = None
+    if reference_framework is not None:
+        reference = next(
+            (
+                result
+                for result in successful_results
+                if result["framework"] == reference_framework
+            ),
+            None,
+        )
+    if reference is None:
+        reference = next(
+            (
+                result
+                for result in successful_results
+                if result["framework"] == "manual"
+            ),
+            successful_results[0],
+        )
+
+    reference_values = reference["nll_values"]
+    reference_shape = reference["delta_nll_shape"]
+    reference_minimum = reference["minimum_mu"]
+
+    for result in results:
+        if result.get("status") != "success":
+            result["constant_offset_estimate"] = None
+            result["delta_nll_shape_max_abs_diff"] = None
+            result["minimum_mu_abs_diff"] = None
+            result["delta_nll_shape_success"] = False
+            result["minimum_mu_success"] = False
+            result["validation_status"] = "not_run"
+            continue
+
+        result["reference_framework"] = reference["framework"]
+        result["constant_offset_estimate"] = mean_offset(
+            reference_values,
+            result["nll_values"],
+        )
+        result["delta_nll_shape_max_abs_diff"] = max_abs_difference(
+            reference_shape,
+            result["delta_nll_shape"],
+        )
+        result["minimum_mu_abs_diff"] = abs(result["minimum_mu"] - reference_minimum)
+        result["delta_nll_shape_success"] = (
+            result["delta_nll_shape_max_abs_diff"] <= shape_tolerance
+        )
+        result["minimum_mu_success"] = (
+            result["minimum_mu_abs_diff"] <= minimum_tolerance
+        )
+        result["validation_status"] = (
+            "success"
+            if result["delta_nll_shape_success"] and result["minimum_mu_success"]
+            else "failed"
+        )
+
+
 def _framework_order(results: list[dict[str, Any]]) -> list[str]:
     """Return successful framework names in execution order."""
 
@@ -878,7 +1253,7 @@ def _save_figure(fig: Any, output_path: Path) -> None:
 
 
 def _reference_result(results: list[dict[str, Any]]) -> dict[str, Any]:
-    reference = next(
+    manual_reference = next(
         (
             result
             for result in results
@@ -886,9 +1261,13 @@ def _reference_result(results: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         None,
     )
-    if reference is None:
-        raise ValueError("Manual reference result is required for plotting")
-    return reference
+    if manual_reference is not None:
+        return manual_reference
+
+    successful = [result for result in results if result.get("status") == "success"]
+    if not successful:
+        raise ValueError("At least one successful result is required for plotting")
+    return successful[0]
 
 
 def make_nll_profile_plot(
@@ -1382,6 +1761,14 @@ def run(
     frameworks: list[str] | None = None,
     continue_on_framework_error: bool = True,
     warmup_iterations: int = 1,
+    analysis_name: str = "L_ch0",
+    target: str | None = None,
+    pyhs3_data_name: str | None = None,
+    parameter_point: str | None = None,
+    observable_name: str = "x",
+    observable_index: int = 0,
+    poi: str = "mu_sig",
+    mode: str = "FAST_RUN",
 ) -> dict[str, Any]:
     selected_frameworks = frameworks or list(DEFAULT_FRAMEWORKS)
     n_bins: int | None = None
@@ -1401,19 +1788,44 @@ def run(
 
         workspace = Workspace.load(workspace_path)
         parameters = extract_parameters(workspace)
-        n_bins = infer_n_bins_from_parameters(parameters)
-        validate_parameters(parameters, n_bins)
+        synthetic_mode = has_synthetic_binned_parameters(parameters)
+        benchmark_mode = "synthetic_binned" if synthetic_mode else "generic_workspace"
         mu_grid = build_mu_grid(mu_min=mu_min, mu_max=mu_max, n_points=n_points)
 
-        results = []
-        specs = make_framework_specs(
-            selected_frameworks,
-            parameters,
-            workspace_path,
-            n_bins,
-            mu_min,
-        )
+        skipped_frameworks: list[str] = []
+        reference_framework: str | None = None
 
+        if synthetic_mode:
+            n_bins = infer_n_bins_from_parameters(parameters)
+            validate_parameters(parameters, n_bins)
+            specs = make_framework_specs(
+                selected_frameworks,
+                parameters,
+                workspace_path,
+                n_bins,
+                mu_min,
+            )
+            active_frameworks = [spec.name for spec in specs]
+            reference_framework = "manual"
+        else:
+            specs, skipped_frameworks = make_generic_framework_specs(
+                selected_frameworks,
+                workspace_path=workspace_path,
+                analysis_name=analysis_name,
+                target=target,
+                pyhs3_data_name=pyhs3_data_name,
+                parameter_point=parameter_point,
+                observable_name=observable_name,
+                observable_index=observable_index,
+                poi=poi,
+                mode=mode,
+            )
+            active_frameworks = [spec.name for spec in specs]
+            reference_framework = (
+                "pyhs3" if "pyhs3" in active_frameworks else active_frameworks[0]
+            )
+
+        results = []
         for spec in specs:
             try:
                 results.append(
@@ -1432,11 +1844,19 @@ def run(
                     ) from exc
                 results.append(failed_framework_result(spec.name, exc))
 
-        add_scan_validation(
-            results=results,
-            shape_tolerance=shape_tolerance,
-            minimum_tolerance=minimum_tolerance,
-        )
+        if synthetic_mode:
+            add_scan_validation(
+                results=results,
+                shape_tolerance=shape_tolerance,
+                minimum_tolerance=minimum_tolerance,
+            )
+        else:
+            add_scan_validation_against_reference(
+                results=results,
+                shape_tolerance=shape_tolerance,
+                minimum_tolerance=minimum_tolerance,
+                reference_framework=reference_framework,
+            )
 
         successful_results = [
             result for result in results if result.get("status") == "success"
@@ -1449,15 +1869,25 @@ def run(
 
         status = (
             "success"
-            if len(successful_validation) == len(selected_frameworks)
+            if len(successful_validation) == len(active_frameworks)
             else "failed"
         )
 
         output_data = {
             "benchmark": BENCHMARK_NAME,
+            "benchmark_mode": benchmark_mode,
             "workspace": workspace_path.name,
             "workspace_path": str(workspace_path),
             "n_bins": n_bins,
+            "analysis": analysis_name,
+            "target": target or default_target_from_analysis(analysis_name),
+            "pyhs3_data_name": pyhs3_data_name
+            or default_data_name_from_analysis(analysis_name),
+            "parameter_point": parameter_point,
+            "observable_name": observable_name,
+            "observable_index": observable_index,
+            "poi": poi,
+            "mode": mode,
             "mu_min": mu_min,
             "mu_max": mu_max,
             "n_points": n_points,
@@ -1465,6 +1895,8 @@ def run(
             "shape_tolerance": shape_tolerance,
             "minimum_tolerance": minimum_tolerance,
             "frameworks": selected_frameworks,
+            "active_frameworks": active_frameworks,
+            "skipped_frameworks": skipped_frameworks,
             "successful_frameworks": _framework_order(results),
             "failed_frameworks": [
                 result["framework"]
@@ -1480,12 +1912,15 @@ def run(
         print("Cross-framework NLL scan benchmark")
         print("=" * 80)
         print(f"Workspace:  {workspace_path.name}")
+        print(f"Mode:       {benchmark_mode}")
         print(f"Bins:       {n_bins}")
         print(f"Grid:       [{mu_min}, {mu_max}] with {n_points} points")
         print(
             f"Warm-up:    {warmup_iterations} unmeasured evaluation(s) after cold first call"
         )
-        print(f"Frameworks: {', '.join(selected_frameworks)}")
+        print(f"Frameworks: {', '.join(active_frameworks)}")
+        if skipped_frameworks:
+            print(f"Skipped:    {', '.join(skipped_frameworks)}")
         print(f"Status:     {status}")
 
         for result in results:
@@ -1532,6 +1967,14 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument("--workspace", type=Path, required=True)
+    parser.add_argument("--analysis", default="L_ch0")
+    parser.add_argument("--target", default=None)
+    parser.add_argument("--pyhs3-data-name", default=None)
+    parser.add_argument("--parameter-point", default=None)
+    parser.add_argument("--observable-name", default="x")
+    parser.add_argument("--observable-index", type=int, default=0)
+    parser.add_argument("--poi", default="mu_sig")
+    parser.add_argument("--mode", default="FAST_RUN")
     parser.add_argument("--mu-min", type=float, default=0.0)
     parser.add_argument("--mu-max", type=float, default=2.0)
     parser.add_argument("--n-points", type=int, default=101)
@@ -1583,6 +2026,14 @@ def main() -> None:
         frameworks=args.frameworks,
         continue_on_framework_error=not args.fail_fast,
         warmup_iterations=args.warmup_iterations,
+        analysis_name=args.analysis,
+        target=args.target,
+        pyhs3_data_name=args.pyhs3_data_name,
+        parameter_point=args.parameter_point,
+        observable_name=args.observable_name,
+        observable_index=args.observable_index,
+        poi=args.poi,
+        mode=args.mode,
     )
 
 

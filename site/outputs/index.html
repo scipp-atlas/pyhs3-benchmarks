@@ -1,0 +1,1666 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+
+        <meta name="description" content="Benchmarking, validation, and profiling suite for PyHS3.">
+
+
+
+
+        <link rel="prev" href="../benchmark-methodology/">
+
+
+        <link rel="next" href="../workspaces/">
+
+
+
+
+
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.46">
+
+
+
+        <title>Benchmark Results - PyHS3 Benchmarks</title>
+
+
+
+
+
+
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.19d3147f.min.css">
+
+
+
+
+
+
+
+
+
+
+
+
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+
+
+
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+
+
+
+
+
+  </head>
+
+
+    <body dir="ltr">
+
+
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+
+
+        <a href="#benchmark-results" class="md-skip">
+          Skip to content
+        </a>
+
+    </div>
+    <div data-md-component="announce">
+
+    </div>
+
+
+
+
+
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="PyHS3 Benchmarks" class="md-header__button md-logo" aria-label="PyHS3 Benchmarks" data-md-component="logo">
+
+
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PyHS3 Benchmarks
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+
+              Benchmark Results
+
+          </span>
+        </div>
+      </div>
+    </div>
+
+
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+
+
+
+
+
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+
+
+    <div class="md-header__source">
+
+    </div>
+  </nav>
+
+</header>
+
+    <div class="md-container" data-md-component="container">
+
+
+
+
+
+
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+
+
+
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="PyHS3 Benchmarks" class="md-nav__button md-logo" aria-label="PyHS3 Benchmarks" data-md-component="logo">
+
+
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    PyHS3 Benchmarks
+  </label>
+
+  <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Home
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+
+
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Getting Started
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Getting Started
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Installation
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Getting Started
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../repository-structure/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Repository Structure
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+
+
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Concepts
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Concepts
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmark-methodology/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Benchmark Methodology
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--active">
+
+
+
+
+
+
+
+      <a href="././" class="md-nav__link md-nav__link--active">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Benchmark Results
+
+
+  </span>
+
+
+
+      </a>
+
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+
+
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Workspaces
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Workspaces
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../workspaces/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Benchmark Workspaces
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../workspaces/benchmark-workspaces/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Benchmark Workspaces
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../workspaces/pyhf-workspaces/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Pyhf workspaces
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+
+
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Benchmarks
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Benchmarks
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Benchmark Suite
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/workspace-loading/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Workspace loading
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/model-creation/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Model creation
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/log-prob-construction/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Log prob construction
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/graph-canonicalization/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Graph canonicalization
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/graph-optimization/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Graph optimization
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/log-prob-compilation/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Log prob compilation
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/compiled-evaluation/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Compiled evaluation
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/pdf-evaluation/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Pdf evaluation
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/nll-scan/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Nll scan
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/memory-scaling/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Memory scaling
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../benchmarks/model-complexity-scaling/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Model complexity scaling
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+
+
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Cross-Framework
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Cross-Framework
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../cross-framework/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Index
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../cross-framework/scalar-pdf/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Scalar pdf
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../cross-framework/vectorized-pdf/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Vectorized pdf
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../cross-framework/binned-likelihood/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Binned likelihood
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../cross-framework/nll-scan/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Nll scan
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../cross-framework/model-complexity/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Model complexity
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../cross-framework/xroofit/" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Xroofit
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item md-nav__item--nested">
+
+
+
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+
+
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+
+
+
+  <span class="md-ellipsis">
+
+
+  Development
+
+
+  </span>
+
+
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+
+
+  Development
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../development/index.md" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  none
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../development/adding-benchmarks.md" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  none
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../development/matrix-runner.md" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  none
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+    <li class="md-nav__item">
+      <a href="../development/benchmark-overview.md" class="md-nav__link">
+
+
+
+  <span class="md-ellipsis">
+
+
+  none
+
+
+  </span>
+
+
+
+      </a>
+    </li>
+
+
+
+
+          </ul>
+        </nav>
+
+    </li>
+
+
+
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+
+
+
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+
+
+
+
+
+
+
+
+                  <div class="md-sidebar__inner">
+
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+
+
+
+
+
+
+</nav>
+                  </div>
+                </div>
+              </div>
+
+
+
+            <div class="md-content" data-md-component="content">
+
+
+
+
+
+
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+
+
+
+
+    <li class="md-path__item">
+      <a href="./.." class="md-path__link">
+
+
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+
+
+
+
+
+
+
+
+
+
+
+
+      <li class="md-path__item">
+        <a href="../benchmark-methodology/" class="md-path__link">
+
+
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+
+        </a>
+      </li>
+
+
+
+
+    </ol>
+  </nav>
+
+
+              <article class="md-content__inner md-typeset">
+
+
+
+<h1 id="benchmark-results">Benchmark Results<a class="headerlink" href="#benchmark-results" title="Permanent link">&para;</a></h1>
+<p>Every benchmark execution produces structured outputs that can be used for analysis, visualization, validation, and long-term performance tracking.</p>
+<p>All benchmark outputs are deterministic and organized using a consistent directory structure, allowing large benchmark campaigns to be reproduced and compared across repository revisions.</p>
+<hr />
+<h1 id="output-directories">Output Directories<a class="headerlink" href="#output-directories" title="Permanent link">&para;</a></h1>
+<p>Benchmark outputs are organized into two primary directories.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>results/
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>plots/
+</span></code></pre></div>
+<p>The <code>results</code> directory stores structured benchmark reports, while <code>plots</code> contains generated visualizations.</p>
+<p>Keeping numerical results separate from figures allows plots to be regenerated without rerunning benchmarks.</p>
+<hr />
+<h1 id="results-directory">Results Directory<a class="headerlink" href="#results-directory" title="Permanent link">&para;</a></h1>
+<p>The matrix runner stores benchmark outputs using the following hierarchy.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>results/
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    &lt;benchmark&gt;/
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>        &lt;workspace&gt;/
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>            repeat_000/
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                &lt;benchmark&gt;_result.json
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>            repeat_001/
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                &lt;benchmark&gt;_result.json
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>            ...
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>        ...
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    matrix_summary.json
+</span></code></pre></div>
+<p>This structure scales naturally from a single benchmark execution to large benchmark campaigns involving dozens of workspaces.</p>
+<p>Each benchmark execution is completely independent from every other execution.</p>
+<hr />
+<h1 id="benchmark-reports">Benchmark Reports<a class="headerlink" href="#benchmark-reports" title="Permanent link">&para;</a></h1>
+<p>Each benchmark generates a JSON report describing the execution.</p>
+<p>Although the exact contents depend on the benchmark, reports typically contain</p>
+<ul>
+<li>benchmark metadata;</li>
+<li>benchmark configuration;</li>
+<li>workspace information;</li>
+<li>execution status;</li>
+<li>timing statistics;</li>
+<li>memory statistics;</li>
+<li>validation results;</li>
+<li>benchmark-specific measurements.</li>
+</ul>
+<p>These JSON files serve as the primary machine-readable output of the repository.</p>
+<hr />
+<h1 id="matrix-summary">Matrix Summary<a class="headerlink" href="#matrix-summary" title="Permanent link">&para;</a></h1>
+<p>After completing a benchmark campaign, the matrix runner generates</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>matrix_summary.json
+</span></code></pre></div>
+<p>This file summarizes the entire execution.</p>
+<p>Typical information includes</p>
+<ul>
+<li>executed benchmarks;</li>
+<li>processed workspaces;</li>
+<li>execution status;</li>
+<li>failed runs;</li>
+<li>benchmark locations.</li>
+</ul>
+<p>The summary provides a convenient entry point for automated analysis and reporting.</p>
+<hr />
+<h1 id="generated-figures">Generated Figures<a class="headerlink" href="#generated-figures" title="Permanent link">&para;</a></h1>
+<p>Plots generated by the benchmark framework are written to</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>plots/
+</span></code></pre></div>
+<p>using a directory hierarchy mirroring the corresponding benchmark results.</p>
+<p>Typical figures include</p>
+<ul>
+<li>execution time comparisons;</li>
+<li>memory usage;</li>
+<li>scaling behaviour;</li>
+<li>framework comparisons;</li>
+<li>likelihood scans;</li>
+<li>benchmark overview plots.</li>
+</ul>
+<p>Since plots are generated from benchmark reports, they can be recreated at any time without repeating benchmark execution.</p>
+<hr />
+<h1 id="benchmark-overview">Benchmark Overview<a class="headerlink" href="#benchmark-overview" title="Permanent link">&para;</a></h1>
+<p>The repository includes a dedicated overview generator that summarizes complete benchmark campaigns.</p>
+<p>Rather than visualizing a single benchmark, the overview aggregates results across multiple benchmark suites and presents them using consistent reporting conventions.</p>
+<p>Typical overview plots include</p>
+<ul>
+<li>performance summaries;</li>
+<li>timing comparisons;</li>
+<li>memory summaries.</li>
+</ul>
+<p>These reports provide a high-level view of benchmark performance across the entire repository.</p>
+<hr />
+<h1 id="repeated-executions">Repeated Executions<a class="headerlink" href="#repeated-executions" title="Permanent link">&para;</a></h1>
+<p>Many benchmarks execute multiple repeated measurements.</p>
+<p>Each repetition is stored independently.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>repeat_000/
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>repeat_001/
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>repeat_002/
+</span></code></pre></div>
+<p>Storing repetitions separately preserves the complete benchmark history and simplifies debugging when individual executions fail.</p>
+<hr />
+<h1 id="benchmark-status">Benchmark Status<a class="headerlink" href="#benchmark-status" title="Permanent link">&para;</a></h1>
+<p>Every benchmark execution records its completion status.</p>
+<p>Typical values include</p>
+<ul>
+<li>success</li>
+<li>failed</li>
+<li>timeout</li>
+<li>error</li>
+<li>skipped</li>
+</ul>
+<p>Status information allows automated tools to distinguish successful benchmark results from incomplete executions.</p>
+<hr />
+<h1 id="reproducibility">Reproducibility<a class="headerlink" href="#reproducibility" title="Permanent link">&para;</a></h1>
+<p>Benchmark outputs are intended to be reproducible.</p>
+<p>Running the same benchmark configuration on identical benchmark inputs should produce equivalent numerical results, while execution times may vary slightly depending on the hardware and execution environment.</p>
+<p>For this reason, benchmark reports always include the benchmark configuration together with the measured statistics.</p>
+<hr />
+<h1 id="typical-workflow">Typical Workflow<a class="headerlink" href="#typical-workflow" title="Permanent link">&para;</a></h1>
+<p>A typical benchmark workflow looks as follows.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Benchmark
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>     │
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>     ▼
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>JSON Report
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>     │
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>     ▼
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>Matrix Summary
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>     │
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>     ▼
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>Overview Builder
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>     │
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>     ▼
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>Plots
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>     │
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>     ▼
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>Documentation
+</span></code></pre></div>
+<p>This workflow separates benchmark execution from visualization, making it possible to regenerate figures and reports without repeating expensive benchmark runs.</p>
+<hr />
+<h1 id="using-benchmark-results">Using Benchmark Results<a class="headerlink" href="#using-benchmark-results" title="Permanent link">&para;</a></h1>
+<p>Benchmark reports are intended to support several use cases.</p>
+<ul>
+<li>performance regression detection;</li>
+<li>optimization studies;</li>
+<li>framework comparisons;</li>
+<li>scalability analysis;</li>
+<li>publication-quality figures;</li>
+<li>automated reporting.</li>
+</ul>
+<p>Because every benchmark follows the same reporting conventions, analysis tools can operate uniformly across the repository without requiring benchmark-specific logic.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+              </article>
+            </div>
+
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+
+      </main>
+
+        <footer class="md-footer">
+
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+
+
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+
+</div>
+
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+
+
+
+
+
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["navigation.path"],"search":"../assets/javascripts/workers/search.b6b7e04f.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+
+
+      <script src="../assets/javascripts/bundle.ee611ef6.min.js"></script>
+
+
+  </body>
+</html>

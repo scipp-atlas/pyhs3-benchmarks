@@ -212,15 +212,9 @@ def _result_label(result: dict[str, Any]) -> str:
     if "plot_label" in result:
         return str(result["plot_label"])
 
-    workspace = result.get("workspace", "").replace(".json", "")
-    workspace = WORKSPACE_LABELS.get(workspace, workspace)
+    workspace = result["workspace"].replace(".json", "")
 
-    n_evaluations = result.get("n_evaluations")
-
-    if n_evaluations is None:
-        return workspace
-
-    return f"{workspace}\n{n_evaluations}"
+    return "\n".join(workspace.split("_"))
 
 
 def _scaled_metric(
@@ -352,7 +346,7 @@ def make_bar_plot(
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(
         labels,
-        rotation=30,
+        rotation=0,
         ha="right",
         fontsize=14,
     )

@@ -1,751 +1,986 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
-import shlex
+import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
-SRC_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SRC_DIR.parent
-
-DEFAULT_SIMPLE_WORKSPACES = [
-    "inputs/simple_workspace.json",
-    "inputs/simple_workspace_nonp.json",
-    "inputs/simple_workspace_generic.json",
-    "inputs/simple_workspace_generic_nonp.json",
-]
-
-DEFAULT_SCALAR_WORKSPACES = [
-    "inputs/scalar_pdf_workspaces/normal_pdf_workspace.json",
-    "inputs/scalar_pdf_workspaces/poisson_pdf_workspace.json",
-    "inputs/scalar_pdf_workspaces/exponential_pdf_workspace.json",
-]
-
-PRESETS = {
-    "smoke": {
-        "n_runs": 1,
-        "n_evaluations": 1,
-        "n_scan_points": 11,
-        "plot": False,
-    },
-    "default": {
-        "n_runs": 20,
-        "n_evaluations": 1000,
-        "n_scan_points": 1001,
-        "plot": True,
-    },
-    "full": {
-        "n_runs": 200,
-        "n_evaluations": 10000,
-        "n_scan_points": 5001,
-        "plot": True,
-    },
-}
-
-
 @dataclass(frozen=True)
-class BenchmarkCommand:
-    """Container for a benchmark name and execution command."""
-
+class BenchmarkSpec:
     name: str
-    command: list[str]
+    group: str
+    kind: str
+    module: str
+    uses_workspace_matrix: bool
+    requires_root_pair: bool = False
+    run_once: bool = False
 
 
-@dataclass(frozen=True)
-class BenchmarkRunResult:
-    """Structured result for one benchmark subprocess."""
-
-    name: str
+@dataclass
+class RunRecord:
+    benchmark: str
+    group: str
+    workspace: str | None
+    root_workspace: str | None
     command: list[str]
     status: str
     returncode: int | None
     duration_seconds: float
-    error_type: str | None = None
-    error_message: str | None = None
+    stdout_path: str
+    stderr_path: str
+    error: str | None = None
 
 
-def module_name(script_name: str) -> str:
-    """Return the importable module name for a benchmark script."""
+BENCHMARKS: dict[str, BenchmarkSpec] = {
+    "workspace_loading": BenchmarkSpec(
+        name="workspace_loading",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_workspace_loading",
+        uses_workspace_matrix=True,
+    ),
+    "model_creation": BenchmarkSpec(
+        name="model_creation",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_model_creation",
+        uses_workspace_matrix=True,
+    ),
+    "log_prob_construction": BenchmarkSpec(
+        name="log_prob_construction",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_log_prob_construction",
+        uses_workspace_matrix=True,
+    ),
+    "log_prob_compilation": BenchmarkSpec(
+        name="log_prob_compilation",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_log_prob_compilation",
+        uses_workspace_matrix=True,
+    ),
+    "graph_canonicalization": BenchmarkSpec(
+        name="graph_canonicalization",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_graph_canonicalization",
+        uses_workspace_matrix=True,
+    ),
+    "graph_optimization": BenchmarkSpec(
+        name="graph_optimization",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_graph_optimization",
+        uses_workspace_matrix=True,
+    ),
+    "compiled_evaluation": BenchmarkSpec(
+        name="compiled_evaluation",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_compiled_evaluation",
+        uses_workspace_matrix=True,
+    ),
+    "pdf_evaluation": BenchmarkSpec(
+        name="pdf_evaluation",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_pdf_evaluation",
+        uses_workspace_matrix=True,
+    ),
+    "nll_scan": BenchmarkSpec(
+        name="nll_scan",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_nll_scan",
+        uses_workspace_matrix=True,
+    ),
+    "memory_scaling": BenchmarkSpec(
+        name="memory_scaling",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_memory_scaling",
+        uses_workspace_matrix=True,
+    ),
+    "model_complexity_scaling": BenchmarkSpec(
+        name="model_complexity_scaling",
+        group="pyhs3",
+        kind="multi_workspace",
+        module="src.run_model_complexity_scaling",
+        uses_workspace_matrix=True,
+    ),
+    "cross_binned_likelihood_evaluation": BenchmarkSpec(
+        name="cross_binned_likelihood_evaluation",
+        group="cross",
+        kind="single_workspace",
+        module="src.run_cross_binned_likelihood_evaluation",
+        uses_workspace_matrix=True,
+    ),
+    "cross_nll_scan": BenchmarkSpec(
+        name="cross_nll_scan",
+        group="cross",
+        kind="single_workspace",
+        module="src.run_cross_nll_scan",
+        uses_workspace_matrix=True,
+    ),
+    "pyhs3_xroofit_benchmark": BenchmarkSpec(
+        name="pyhs3_xroofit_benchmark",
+        group="cross",
+        kind="json_root_pair",
+        module="src.run_pyhs3_xroofit_benchmark",
+        uses_workspace_matrix=True,
+        requires_root_pair=True,
+    ),
+    "cross_model_complexity_scaling": BenchmarkSpec(
+        name="cross_model_complexity_scaling",
+        group="cross",
+        kind="directory_pair",
+        module="src.run_cross_model_complexity_scaling",
+        uses_workspace_matrix=False,
+        requires_root_pair=True,
+        run_once=True,
+    ),
+    "cross_scalar_pdf_evaluation": BenchmarkSpec(
+        name="cross_scalar_pdf_evaluation",
+        group="scalar",
+        kind="scalar_workspace_dir",
+        module="src.run_cross_scalar_pdf_evaluation",
+        uses_workspace_matrix=False,
+        run_once=True,
+    ),
+    "cross_vectorized_pdf_evaluation": BenchmarkSpec(
+        name="cross_vectorized_pdf_evaluation",
+        group="scalar",
+        kind="scalar_workspace_dir",
+        module="src.run_cross_vectorized_pdf_evaluation",
+        uses_workspace_matrix=False,
+        run_once=True,
+    ),
+    "benchmark_overview": BenchmarkSpec(
+        name="benchmark_overview",
+        group="overview",
+        kind="overview",
+        module="src.plot_benchmark_overview",
+        uses_workspace_matrix=False,
+        run_once=True,
+    ),
+}
 
-    if not script_name.endswith(".py"):
-        raise ValueError(f"Expected a Python script name, got: {script_name}")
 
-    return f"src.{script_name.removesuffix('.py')}"
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run a configurable benchmark matrix over selected workspaces."
+    )
+
+    parser.add_argument("--workspace-dir", type=Path, default=Path("inputs"))
+    parser.add_argument("--root-workspace-dir", type=Path, default=None)
+    parser.add_argument("--workspace-glob", default="*.json")
+    parser.add_argument("--workspace-regex", default=None)
+    parser.add_argument("--workspaces", nargs="+", type=Path, default=None)
+    parser.add_argument("--exclude-workspaces", nargs="+", default=[])
+    parser.add_argument("--limit", type=int, default=None)
+
+    parser.add_argument(
+        "--benchmarks",
+        nargs="+",
+        default=["all"],
+        choices=["all", *BENCHMARKS.keys()],
+    )
+    parser.add_argument(
+        "--groups",
+        nargs="+",
+        default=["all"],
+        choices=["all", "pyhs3", "cross", "scalar", "overview"],
+    )
+    parser.add_argument(
+        "--exclude-benchmarks",
+        nargs="+",
+        default=[],
+        choices=list(BENCHMARKS.keys()),
+    )
+
+    parser.add_argument("--targets", nargs="+", default=["L_ch0"])
+    parser.add_argument("--modes", nargs="+", default=["FAST_RUN"])
+    parser.add_argument("--stages", nargs="+", default=["all"])
+
+    parser.add_argument("--n-runs", type=int, default=3)
+    parser.add_argument("--n-evaluations", type=int, default=100)
+    parser.add_argument("--n-scan-points", nargs="+", type=int, default=[101])
+    parser.add_argument("--n-points", nargs="+", type=int, default=[101])
+    parser.add_argument("--warmup-iterations", type=int, default=1)
+
+    parser.add_argument("--distribution", default="sig_ch0")
+    parser.add_argument("--scan-parameter", default="mu_sig")
+    parser.add_argument("--scan-min", type=float, default=0.0)
+    parser.add_argument("--scan-max", type=float, default=2.0)
+    parser.add_argument("--mu", type=float, default=1.0)
+    parser.add_argument("--delta-reference-mu", type=float, default=0.0)
+
+    parser.add_argument("--frameworks", nargs="+", default=None)
+    parser.add_argument("--scalar-frameworks", nargs="+", default=None)
+    parser.add_argument("--scenarios", nargs="+", default=None)
+
+    parser.add_argument("--analysis", default="L_ch0")
+    parser.add_argument("--pyhs3-data-name", default=None)
+    parser.add_argument("--xroofit-model-name", default=None)
+    parser.add_argument("--xroofit-dataset-name", default="combData")
+    parser.add_argument("--root-workspace-name", default="combWS")
+    parser.add_argument("--poi", default="mu_sig")
+    parser.add_argument("--xroofit-library", default="libxRooFit")
+
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("results/benchmark_matrix")
+    )
+    parser.add_argument("--plot-dir", type=Path, default=Path("plots/benchmark_matrix"))
+    parser.add_argument("--report-name", default="matrix_summary.json")
+
+    parser.add_argument("--plot", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--fail-fast", action="store_true")
+    parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument("--timeout-seconds", type=float, default=None)
+
+    return parser.parse_args()
 
 
-def module_command(script_name: str) -> list[str]:
-    """Build a command that runs a benchmark as a package module.
+def selected_benchmarks(args: argparse.Namespace) -> list[BenchmarkSpec]:
+    if "all" in args.benchmarks:
+        selected = list(BENCHMARKS.values())
+    else:
+        selected = [BENCHMARKS[name] for name in args.benchmarks]
 
-    The benchmark files use relative imports such as ``from .config import ...``,
-    so they must be executed with ``python -m src.<module>`` from the repository
-    root rather than as direct script paths.
+    if "all" not in args.groups:
+        selected = [spec for spec in selected if spec.group in set(args.groups)]
+
+    excluded = set(args.exclude_benchmarks)
+    return [spec for spec in selected if spec.name not in excluded]
+
+
+def discover_workspaces(args: argparse.Namespace) -> list[Path]:
+    if args.workspaces is not None:
+        paths = [path for path in args.workspaces]
+    else:
+        paths = sorted(args.workspace_dir.glob(args.workspace_glob))
+
+    paths = [path for path in paths if path.suffix == ".json"]
+
+    if args.workspace_regex:
+        pattern = re.compile(args.workspace_regex)
+        paths = [path for path in paths if pattern.search(path.name)]
+
+    for exclude_pattern in args.exclude_workspaces:
+        paths = [
+            path for path in paths if not fnmatch.fnmatch(path.name, exclude_pattern)
+        ]
+
+    if args.limit is not None:
+        paths = paths[: args.limit]
+
+    return paths
+
+
+def paired_root_path(json_workspace: Path, args: argparse.Namespace) -> Path | None:
+    if args.root_workspace_dir is not None:
+        candidate = args.root_workspace_dir / f"{json_workspace.stem}.root"
+    else:
+        candidate = json_workspace.with_suffix(".root")
+
+    return candidate if candidate.exists() else None
+
+
+def make_output_paths(
+    args: argparse.Namespace,
+    benchmark: str,
+    workspace: Path | None,
+    repeat_index: int,
+) -> tuple[Path, Path, str]:
+    workspace_part = workspace.stem if workspace is not None else "global"
+    run_part = f"repeat_{repeat_index:03d}"
+
+    output_dir = args.output_dir / benchmark / workspace_part / run_part
+    plot_dir = args.plot_dir / benchmark / workspace_part / run_part
+    output_name = f"{benchmark}_result.json"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plot_dir.mkdir(parents=True, exist_ok=True)
+
+    return output_dir, plot_dir, output_name
+
+
+def make_batch_output_paths(
+    args: argparse.Namespace,
+    benchmark: str,
+    repeat_index: int,
+) -> tuple[Path, Path, str]:
+    """
+    Return output and plot paths for a benchmark run that receives all selected
+    workspaces in one subprocess.
+
+    Batch mode is used for documentation-style comparison plots. Individual
+    workspace runs cannot create comparison plots because each subprocess sees
+    only one successful workspace.
     """
 
-    return [sys.executable, "-m", module_name(script_name)]
+    run_part = f"repeat_{repeat_index:03d}"
+
+    output_dir = args.output_dir / benchmark / "global" / run_part
+    plot_dir = args.plot_dir / benchmark
+    output_name = f"{benchmark}_result.json"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plot_dir.mkdir(parents=True, exist_ok=True)
+
+    return output_dir, plot_dir, output_name
 
 
-def validate_positive_int(value: int, name: str, minimum: int = 1) -> None:
-    """Validate that an integer CLI/configuration value is at least a minimum."""
-
-    if value < minimum:
-        raise ValueError(f"{name} must be at least {minimum}")
+def base_command(module: str) -> list[str]:
+    return [sys.executable, "-m", module]
 
 
-def validate_target_and_mode(target: str, mode: str) -> None:
-    """Validate common target and mode options."""
+def command_for_multi_workspace(
+    spec: BenchmarkSpec,
+    workspace: Path,
+    args: argparse.Namespace,
+    output_dir: Path,
+    plot_dir: Path,
+    output_name: str,
+) -> list[str]:
+    cmd = base_command(spec.module)
 
-    if not isinstance(target, str) or not target.strip():
-        raise ValueError("--target must be a non-empty string")
+    cmd += ["--workspaces", str(workspace)]
+    cmd += ["--output-dir", str(output_dir), "--output-name", output_name]
 
-    if not isinstance(mode, str) or not mode.strip():
-        raise ValueError("--mode must be a non-empty string")
+    if spec.name not in {"workspace_loading"}:
+        cmd += ["--targets", *args.targets]
+
+    if spec.name not in {"workspace_loading"}:
+        cmd += ["--modes", *args.modes]
+
+    if spec.name in {
+        "workspace_loading",
+        "model_creation",
+        "log_prob_construction",
+        "log_prob_compilation",
+        "graph_canonicalization",
+        "graph_optimization",
+        "memory_scaling",
+        "model_complexity_scaling",
+    }:
+        cmd += ["--n-runs", str(args.n_runs)]
+
+    if spec.name in {
+        "compiled_evaluation",
+        "pdf_evaluation",
+        "memory_scaling",
+        "model_complexity_scaling",
+    }:
+        cmd += ["--n-evaluations", str(args.n_evaluations)]
+
+    if spec.name in {"pdf_evaluation", "memory_scaling", "model_complexity_scaling"}:
+        cmd += ["--distribution", args.distribution]
+
+    if spec.name in {"nll_scan", "memory_scaling", "model_complexity_scaling"}:
+        cmd += [
+            "--scan-parameter",
+            args.scan_parameter,
+            "--scan-min",
+            str(args.scan_min),
+            "--scan-max",
+            str(args.scan_max),
+        ]
+
+    if spec.name == "nll_scan":
+        cmd += ["--n-scan-points", *[str(value) for value in args.n_scan_points]]
+
+    if spec.name in {"memory_scaling", "model_complexity_scaling"}:
+        cmd += ["--n-scan-points", str(args.n_scan_points[0])]
+        cmd += ["--stages", *args.stages]
+
+    if spec.name == "model_complexity_scaling":
+        report_dir = output_dir / "reports"
+        cmd += ["--report-dir", str(report_dir)]
+
+    if args.plot:
+        cmd += ["--plot", "--plot-dir", str(plot_dir)]
+
+    return cmd
 
 
-def validate_benchmark_config(
-    n_runs: int, n_evaluations: int, n_scan_points: int, target: str, mode: str
-) -> None:
-    """Validate top-level benchmark-suite configuration."""
+def command_for_multi_workspace_batch(
+    spec: BenchmarkSpec,
+    workspaces: list[Path],
+    args: argparse.Namespace,
+    output_dir: Path,
+    plot_dir: Path,
+    output_name: str,
+) -> list[str]:
+    """
+    Build a command that passes all selected workspaces to one benchmark process.
 
-    validate_positive_int(n_runs, "--n-runs")
-    validate_positive_int(n_evaluations, "--n-evaluations")
-    validate_positive_int(n_scan_points, "--n-scan-points", minimum=2)
-    validate_target_and_mode(target, mode)
+    This is required for comparison plots: benchmark modules such as
+    ``run_workspace_loading`` create bar plots only when they receive multiple
+    successful workspace results in the same execution.
+    """
+
+    if not workspaces:
+        raise ValueError("Batch benchmark execution requires at least one workspace")
+
+    cmd = base_command(spec.module)
+
+    cmd += ["--workspaces", *[str(workspace) for workspace in workspaces]]
+    cmd += ["--output-dir", str(output_dir), "--output-name", output_name]
+
+    if spec.name not in {"workspace_loading"}:
+        cmd += ["--targets", *args.targets]
+
+    if spec.name not in {"workspace_loading"}:
+        cmd += ["--modes", *args.modes]
+
+    if spec.name in {
+        "workspace_loading",
+        "model_creation",
+        "log_prob_construction",
+        "log_prob_compilation",
+        "graph_canonicalization",
+        "graph_optimization",
+        "memory_scaling",
+        "model_complexity_scaling",
+    }:
+        cmd += ["--n-runs", str(args.n_runs)]
+
+    if spec.name in {
+        "compiled_evaluation",
+        "pdf_evaluation",
+        "memory_scaling",
+        "model_complexity_scaling",
+    }:
+        cmd += ["--n-evaluations", str(args.n_evaluations)]
+
+    if spec.name in {"pdf_evaluation", "memory_scaling", "model_complexity_scaling"}:
+        cmd += ["--distribution", args.distribution]
+
+    if spec.name in {"nll_scan", "memory_scaling", "model_complexity_scaling"}:
+        cmd += [
+            "--scan-parameter",
+            args.scan_parameter,
+            "--scan-min",
+            str(args.scan_min),
+            "--scan-max",
+            str(args.scan_max),
+        ]
+
+    if spec.name == "nll_scan":
+        cmd += ["--n-scan-points", *[str(value) for value in args.n_scan_points]]
+
+    if spec.name in {"memory_scaling", "model_complexity_scaling"}:
+        cmd += ["--n-scan-points", str(args.n_scan_points[0])]
+        cmd += ["--stages", *args.stages]
+
+    if spec.name == "model_complexity_scaling":
+        report_dir = output_dir / "reports"
+        cmd += ["--report-dir", str(report_dir)]
+
+    if args.plot:
+        cmd += ["--plot", "--plot-dir", str(plot_dir)]
+
+    return cmd
 
 
-def command_has_plot_flag(command: list[str]) -> bool:
-    """Return whether a generated command includes --plot."""
+def command_for_single_workspace(
+    spec: BenchmarkSpec,
+    workspace: Path,
+    args: argparse.Namespace,
+    output_dir: Path,
+    plot_dir: Path,
+    output_name: str,
+) -> list[str]:
+    cmd = base_command(spec.module)
 
-    return "--plot" in command
+    if spec.name == "cross_binned_likelihood_evaluation":
+        cmd += [
+            "--workspace",
+            str(workspace),
+            "--mu",
+            str(args.mu),
+            "--delta-reference-mu",
+            str(args.delta_reference_mu),
+            "--n-runs",
+            str(args.n_runs),
+            "--warmup-iterations",
+            str(args.warmup_iterations),
+            "--output-dir",
+            str(output_dir),
+            "--output-name",
+            output_name,
+        ]
+        if args.frameworks:
+            cmd += ["--frameworks", *args.frameworks]
+        if args.fail_fast:
+            cmd += ["--fail-fast"]
+
+    elif spec.name == "cross_nll_scan":
+        cmd += [
+            "--workspace",
+            str(workspace),
+            "--mu-min",
+            str(args.scan_min),
+            "--mu-max",
+            str(args.scan_max),
+            "--n-points",
+            str(args.n_points[0]),
+            "--warmup-iterations",
+            str(args.warmup_iterations),
+            "--output",
+            str(output_dir / output_name),
+        ]
+        if args.frameworks:
+            cmd += ["--frameworks", *args.frameworks]
+        if args.fail_fast:
+            cmd += ["--fail-fast"]
+
+    else:
+        raise ValueError(f"Unsupported single-workspace benchmark: {spec.name}")
+
+    if args.plot:
+        cmd += ["--plot", "--plot-dir", str(plot_dir)]
+
+    return cmd
 
 
-def format_command(command: list[str]) -> str:
-    """Return a shell-readable command string for logging."""
+def command_for_json_root_pair(
+    spec: BenchmarkSpec,
+    json_workspace: Path,
+    root_workspace: Path,
+    args: argparse.Namespace,
+    output_dir: Path,
+    plot_dir: Path,
+    output_name: str,
+) -> list[str]:
+    cmd = base_command(spec.module)
 
-    return " ".join(shlex.quote(part) for part in command)
+    cmd += [
+        "--json-workspace",
+        str(json_workspace),
+        "--root-workspace",
+        str(root_workspace),
+        "--analysis",
+        args.analysis,
+        "--xroofit-dataset-name",
+        args.xroofit_dataset_name,
+        "--root-workspace-name",
+        args.root_workspace_name,
+        "--poi",
+        args.poi,
+        "--scan-min",
+        str(args.scan_min),
+        "--scan-max",
+        str(args.scan_max),
+        "--n-scan-points",
+        str(args.n_points[0]),
+        "--n-runs",
+        str(args.n_runs),
+        "--output",
+        str(output_dir / output_name),
+        "--xroofit-library",
+        args.xroofit_library,
+    ]
+
+    if args.pyhs3_data_name:
+        cmd += ["--pyhs3-data-name", args.pyhs3_data_name]
+
+    if args.xroofit_model_name:
+        cmd += ["--xroofit-model-name", args.xroofit_model_name]
+
+    if args.plot:
+        cmd += ["--plot", "--plot-dir", str(plot_dir)]
+
+    return cmd
+
+
+def command_for_run_once(
+    spec: BenchmarkSpec,
+    args: argparse.Namespace,
+    output_dir: Path,
+    plot_dir: Path,
+    output_name: str,
+) -> list[str]:
+    cmd = base_command(spec.module)
+
+    if spec.name == "cross_model_complexity_scaling":
+        cmd += [
+            "--json-input-dir",
+            str(args.workspace_dir),
+            "--root-input-dir",
+            str(args.root_workspace_dir or args.workspace_dir),
+            "--n-runs",
+            str(args.n_runs),
+            "--mu-sig",
+            str(args.mu),
+            "--scan-min",
+            str(args.scan_min),
+            "--scan-max",
+            str(args.scan_max),
+            "--n-scan-points",
+            str(args.n_points[0]),
+            "--output",
+            str(output_dir / output_name),
+        ]
+        if args.fail_fast:
+            cmd += ["--fail-fast"]
+
+    elif spec.name == "cross_scalar_pdf_evaluation":
+        cmd += [
+            "--pyhs3-workspace-dir",
+            str(args.workspace_dir),
+            "--n-points",
+            str(args.n_points[0]),
+            "--output-dir",
+            str(output_dir),
+            "--output-name",
+            output_name,
+        ]
+        if args.scalar_frameworks:
+            cmd += ["--frameworks", *args.scalar_frameworks]
+        if args.scenarios:
+            cmd += ["--scenarios", *args.scenarios]
+        if args.fail_fast:
+            cmd += ["--fail-fast"]
+
+    elif spec.name == "cross_vectorized_pdf_evaluation":
+        cmd += [
+            "--pyhs3-workspace-dir",
+            str(args.workspace_dir),
+            "--n-points",
+            *[str(value) for value in args.n_points],
+            "--n-runs",
+            str(args.n_runs),
+            "--output-dir",
+            str(output_dir),
+            "--output-name",
+            output_name,
+        ]
+        if args.scalar_frameworks:
+            cmd += ["--frameworks", *args.scalar_frameworks]
+        if args.scenarios:
+            cmd += ["--scenarios", *args.scenarios]
+        if args.fail_fast:
+            cmd += ["--fail-fast"]
+
+    elif spec.name == "benchmark_overview":
+        cmd += [
+            "--results-dir",
+            str(args.output_dir),
+            "--plot-dir",
+            str(plot_dir),
+            "--include-failed",
+        ]
+
+    else:
+        raise ValueError(f"Unsupported run-once benchmark: {spec.name}")
+
+    if args.plot and spec.name != "benchmark_overview":
+        cmd += ["--plot", "--plot-dir", str(plot_dir)]
+
+    return cmd
 
 
 def run_command(
-    benchmark: BenchmarkCommand,
+    *,
+    command: list[str],
+    spec: BenchmarkSpec,
+    workspace: Path | None,
+    root_workspace: Path | None,
+    output_dir: Path,
+    timeout_seconds: float | None,
     dry_run: bool,
-) -> BenchmarkRunResult:
-    """Execute one benchmark command and return a structured status."""
-
-    print()
-    print("=" * 80)
-    print(f"Running benchmark: {benchmark.name}")
-    print("=" * 80)
-    print(format_command(benchmark.command))
+) -> RunRecord:
+    stdout_path = output_dir / "stdout.txt"
+    stderr_path = output_dir / "stderr.txt"
 
     if dry_run:
-        return BenchmarkRunResult(
-            name=benchmark.name,
-            command=benchmark.command,
-            status="skipped_dry_run",
-            returncode=0,
+        return RunRecord(
+            benchmark=spec.name,
+            group=spec.group,
+            workspace=str(workspace) if workspace else None,
+            root_workspace=str(root_workspace) if root_workspace else None,
+            command=command,
+            status="dry_run",
+            returncode=None,
             duration_seconds=0.0,
+            stdout_path=str(stdout_path),
+            stderr_path=str(stderr_path),
         )
 
     start = time.perf_counter()
 
     try:
         completed = subprocess.run(
-            benchmark.command,
-            cwd=REPO_ROOT,
+            command,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             check=False,
+            timeout=timeout_seconds,
         )
-    except OSError as exc:
-        end = time.perf_counter()
-        print(
-            f"FAILED {benchmark.name}: {type(exc).__name__}: {exc}",
-            flush=True,
-        )
-        return BenchmarkRunResult(
-            name=benchmark.name,
-            command=benchmark.command,
-            status="failed",
-            returncode=None,
-            duration_seconds=end - start,
-            error_type=type(exc).__name__,
-            error_message=str(exc),
-        )
+        duration = time.perf_counter() - start
 
-    end = time.perf_counter()
-    duration_seconds = end - start
+        stdout_path.write_text(completed.stdout, encoding="utf-8")
+        stderr_path.write_text(completed.stderr, encoding="utf-8")
 
-    if completed.returncode == 0:
-        print(f"Finished {benchmark.name} in {duration_seconds:.2f} s")
-        return BenchmarkRunResult(
-            name=benchmark.name,
-            command=benchmark.command,
-            status="success",
+        status = "success" if completed.returncode == 0 else "failed"
+
+        return RunRecord(
+            benchmark=spec.name,
+            group=spec.group,
+            workspace=str(workspace) if workspace else None,
+            root_workspace=str(root_workspace) if root_workspace else None,
+            command=command,
+            status=status,
             returncode=completed.returncode,
-            duration_seconds=duration_seconds,
+            duration_seconds=duration,
+            stdout_path=str(stdout_path),
+            stderr_path=str(stderr_path),
+            error=None if status == "success" else completed.stderr[-4000:],
         )
 
-    print(f"FAILED {benchmark.name} with exit code {completed.returncode}")
-    return BenchmarkRunResult(
-        name=benchmark.name,
-        command=benchmark.command,
-        status="failed",
-        returncode=completed.returncode,
-        duration_seconds=duration_seconds,
-        error_type="CalledProcessError",
-        error_message=f"Benchmark exited with code {completed.returncode}",
-    )
+    except subprocess.TimeoutExpired as exc:
+        duration = time.perf_counter() - start
+        stderr_path.write_text(str(exc), encoding="utf-8")
+
+        return RunRecord(
+            benchmark=spec.name,
+            group=spec.group,
+            workspace=str(workspace) if workspace else None,
+            root_workspace=str(root_workspace) if root_workspace else None,
+            command=command,
+            status="timeout",
+            returncode=None,
+            duration_seconds=duration,
+            stdout_path=str(stdout_path),
+            stderr_path=str(stderr_path),
+            error=str(exc),
+        )
+
+    except Exception as exc:
+        duration = time.perf_counter() - start
+        stderr_path.write_text(repr(exc), encoding="utf-8")
+
+        return RunRecord(
+            benchmark=spec.name,
+            group=spec.group,
+            workspace=str(workspace) if workspace else None,
+            root_workspace=str(root_workspace) if root_workspace else None,
+            command=command,
+            status="error",
+            returncode=None,
+            duration_seconds=duration,
+            stdout_path=str(stdout_path),
+            stderr_path=str(stderr_path),
+            error=repr(exc),
+        )
 
 
-def save_suite_summary(
-    run_results: list[BenchmarkRunResult],
-    output_path: Path,
-    total_time_seconds: float,
-) -> None:
-    """Save a machine-readable summary for the full benchmark suite."""
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    payload = {
-        "benchmark": "benchmark_suite",
-        "total_time_seconds": total_time_seconds,
-        "n_results": len(run_results),
-        "n_success": sum(result.status == "success" for result in run_results),
-        "n_failed": sum(result.status == "failed" for result in run_results),
-        "n_skipped_dry_run": sum(
-            result.status == "skipped_dry_run" for result in run_results
-        ),
-        "results": [
-            {
-                "name": result.name,
-                "command": result.command,
-                "command_string": format_command(result.command),
-                "status": result.status,
-                "returncode": result.returncode,
-                "duration_seconds": result.duration_seconds,
-                "error_type": result.error_type,
-                "error_message": result.error_message,
-            }
-            for result in run_results
-        ],
+def write_summary(args: argparse.Namespace, records: list[RunRecord]) -> None:
+    summary = {
+        "total": len(records),
+        "success": sum(record.status == "success" for record in records),
+        "failed": sum(record.status == "failed" for record in records),
+        "timeout": sum(record.status == "timeout" for record in records),
+        "error": sum(record.status == "error" for record in records),
+        "dry_run": sum(record.status == "dry_run" for record in records),
+        "skipped": sum(record.status == "skipped" for record in records),
+        "records": [asdict(record) for record in records],
     }
 
-    with output_path.open("w") as file:
-        json.dump(payload, file, indent=2, sort_keys=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
-
-def build_core_benchmarks(
-    n_runs: int,
-    n_evaluations: int,
-    workspaces: list[str],
-    target: str,
-    mode: str,
-    plot: bool,
-) -> list[BenchmarkCommand]:
-    """
-    Create the core benchmark commands.
-    """
-
-    plot_flag = ["--plot"] if plot else []
-
-    return [
-        BenchmarkCommand(
-            name="workspace_loading",
-            command=[
-                *module_command("run_workspace_loading.py"),
-                "--workspaces",
-                *workspaces,
-                "--n-runs",
-                str(n_runs),
-                *plot_flag,
-            ],
-        ),
-        BenchmarkCommand(
-            name="model_creation",
-            command=[
-                *module_command("run_model_creation.py"),
-                "--workspaces",
-                *workspaces,
-                "--targets",
-                target,
-                "--modes",
-                mode,
-                "--n-runs",
-                str(n_runs),
-                *plot_flag,
-            ],
-        ),
-        BenchmarkCommand(
-            name="log_prob_construction",
-            command=[
-                *module_command("run_log_prob_construction.py"),
-                "--workspaces",
-                *workspaces,
-                "--targets",
-                target,
-                "--modes",
-                mode,
-                "--n-runs",
-                str(n_runs),
-                *plot_flag,
-            ],
-        ),
-        BenchmarkCommand(
-            name="log_prob_compilation",
-            command=[
-                *module_command("run_log_prob_compilation.py"),
-                "--workspaces",
-                *workspaces,
-                "--targets",
-                target,
-                "--modes",
-                mode,
-                "--n-runs",
-                str(n_runs),
-                *plot_flag,
-            ],
-        ),
-        BenchmarkCommand(
-            name="compiled_evaluation",
-            command=[
-                *module_command("run_compiled_evaluation.py"),
-                "--workspaces",
-                *workspaces,
-                "--targets",
-                target,
-                "--modes",
-                mode,
-                "--n-evaluations",
-                str(n_evaluations),
-                *plot_flag,
-            ],
-        ),
-    ]
-
-
-def build_pdf_benchmarks(
-    n_evaluations: int,
-    plot: bool,
-) -> list[BenchmarkCommand]:
-    """
-    Create benchmarks for PDF evaluation.
-    """
-
-    plot_flag = ["--plot"] if plot else []
-
-    return [
-        BenchmarkCommand(
-            name="pdf_evaluation_simple",
-            command=[
-                *module_command("run_pdf_evaluation.py"),
-                "--workspaces",
-                *DEFAULT_SIMPLE_WORKSPACES,
-                "--targets",
-                "L_ch0",
-                "--distributions",
-                "sig_ch0",
-                "--n-evaluations",
-                str(n_evaluations),
-                *plot_flag,
-                "--plot-dir",
-                "plots/pdf_evaluation_simple",
-            ],
-        ),
-        BenchmarkCommand(
-            name="pdf_evaluation_scalar",
-            command=[
-                *module_command("run_pdf_evaluation.py"),
-                "--workspaces",
-                *DEFAULT_SCALAR_WORKSPACES,
-                "--targets",
-                "analysis",
-                "--distributions",
-                "pdf",
-                "--n-evaluations",
-                str(n_evaluations),
-                *plot_flag,
-                "--plot-dir",
-                "plots/pdf_evaluation_scalar",
-            ],
-        ),
-    ]
-
-
-def build_nll_scan_benchmark(
-    n_scan_points: int,
-    plot: bool,
-) -> BenchmarkCommand:
-    """
-    Create a benchmark for NLL scanning.
-    """
-
-    plot_flag = ["--plot"] if plot else []
-
-    return BenchmarkCommand(
-        name="nll_scan",
-        command=[
-            *module_command("run_nll_scan.py"),
-            "--workspaces",
-            *DEFAULT_SIMPLE_WORKSPACES,
-            "--targets",
-            "L_ch0",
-            "--scan-parameter",
-            "mu_sig",
-            "--n-scan-points",
-            str(n_scan_points),
-            *plot_flag,
-        ],
+    (args.output_dir / args.report_name).write_text(
+        json.dumps(summary, indent=2),
+        encoding="utf-8",
     )
 
+    failed_lines = []
+    for record in records:
+        if record.status in {"failed", "error", "timeout"}:
+            failed_lines.append(
+                "\n".join(
+                    [
+                        "=" * 80,
+                        f"benchmark: {record.benchmark}",
+                        f"workspace:  {record.workspace}",
+                        f"status:     {record.status}",
+                        f"stderr:     {record.stderr_path}",
+                        f"error:      {record.error or ''}",
+                    ]
+                )
+            )
 
-def build_scaling_benchmarks(
-    n_runs: int,
-    n_evaluations: int,
-    n_scan_points: int,
-    plot: bool,
-) -> list[BenchmarkCommand]:
-    """
-    Create scaling-related benchmark commands.
-    """
-
-    plot_flag = ["--plot"] if plot else []
-
-    return [
-        BenchmarkCommand(
-            name="memory_scaling",
-            command=[
-                *module_command("run_memory_scaling.py"),
-                "--workspaces",
-                *DEFAULT_SIMPLE_WORKSPACES,
-                "--targets",
-                "L_ch0",
-                "--n-runs",
-                str(n_runs),
-                "--n-evaluations",
-                str(n_evaluations),
-                "--n-scan-points",
-                str(n_scan_points),
-                *plot_flag,
-                "--plot-dir",
-                "plots/memory_scaling_all_stages",
-            ],
-        ),
-        BenchmarkCommand(
-            name="model_complexity_scaling",
-            command=[
-                *module_command("run_model_complexity_scaling.py"),
-                "--workspaces",
-                *DEFAULT_SIMPLE_WORKSPACES,
-                "--targets",
-                "L_ch0",
-                "--stages",
-                "all",
-                "--distribution",
-                "sig_ch0",
-                "--scan-parameter",
-                "mu_sig",
-                "--n-runs",
-                str(n_runs),
-                "--n-evaluations",
-                str(n_evaluations),
-                "--n-scan-points",
-                str(n_scan_points),
-                *plot_flag,
-                "--plot-dir",
-                "plots/model_complexity_all_stages",
-            ],
-        ),
-    ]
-
-
-def build_graph_benchmarks(
-    n_runs: int,
-    plot: bool,
-) -> list[BenchmarkCommand]:
-    """
-    Create graph processing benchmark commands.
-    """
-
-    plot_flag = ["--plot"] if plot else []
-
-    return [
-        BenchmarkCommand(
-            name="graph_canonicalization",
-            command=[
-                *module_command("run_graph_canonicalization.py"),
-                "--workspaces",
-                *DEFAULT_SIMPLE_WORKSPACES,
-                "--targets",
-                "L_ch0",
-                "--n-runs",
-                str(n_runs),
-                *plot_flag,
-                "--plot-dir",
-                "plots/graph_canonicalization_simple",
-            ],
-        ),
-        BenchmarkCommand(
-            name="graph_optimization",
-            command=[
-                *module_command("run_graph_optimization.py"),
-                "--workspaces",
-                *DEFAULT_SIMPLE_WORKSPACES,
-                "--targets",
-                "L_ch0",
-                "--n-runs",
-                str(n_runs),
-                *plot_flag,
-                "--plot-dir",
-                "plots/graph_optimization_simple",
-            ],
-        ),
-    ]
-
-
-def select_benchmarks(
-    benchmark_names: list[str],
-    all_benchmarks: list[BenchmarkCommand],
-) -> list[BenchmarkCommand]:
-    """
-    Select benchmarks requested by the user.
-    """
-
-    if benchmark_names == ["all"]:
-        return all_benchmarks
-
-    available = {benchmark.name: benchmark for benchmark in all_benchmarks}
-
-    unknown = [name for name in benchmark_names if name not in available]
-
-    if unknown:
-        raise ValueError(
-            f"Unknown benchmark(s): {unknown}. "
-            f"Available benchmarks: {sorted(available)}"
-        )
-
-    return [available[name] for name in benchmark_names]
-
-
-def apply_preset(args: argparse.Namespace) -> argparse.Namespace:
-    """
-    Apply a benchmark preset.
-
-    Explicit command-line overrides take priority over preset values.
-    """
-
-    if args.preset is None:
-        return args
-
-    preset = PRESETS[args.preset]
-
-    if args.n_runs is None:
-        args.n_runs = preset["n_runs"]
-
-    if args.n_evaluations is None:
-        args.n_evaluations = preset["n_evaluations"]
-
-    if args.n_scan_points is None:
-        args.n_scan_points = preset["n_scan_points"]
-
-    if not args.no_plot_was_set:
-        args.no_plot = not preset["plot"]
-
-    return args
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the PyHS3 benchmark suite.")
-
-    parser.add_argument(
-        "--benchmarks",
-        nargs="+",
-        default=["all"],
-        help="Benchmarks to run, or 'all'.",
+    (args.output_dir / "failed_summary.txt").write_text(
+        "\n\n".join(failed_lines),
+        encoding="utf-8",
     )
-    parser.add_argument(
-        "--preset",
-        choices=sorted(PRESETS),
-        default=None,
-    )
-    parser.add_argument(
-        "--n-runs",
-        type=int,
-        default=None,
-    )
-    parser.add_argument(
-        "--n-evaluations",
-        type=int,
-        default=None,
-    )
-    parser.add_argument(
-        "--n-scan-points",
-        type=int,
-        default=None,
-    )
-    parser.add_argument(
-        "--target",
-        default="L_ch0",
-    )
-    parser.add_argument(
-        "--mode",
-        default="FAST_RUN",
-    )
-    parser.add_argument(
-        "--no-plot",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--summary-output",
-        type=Path,
-        default=Path("results/benchmark_suite/benchmark_suite_summary.json"),
-        help="Path where a JSON summary of the benchmark suite will be saved.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--continue-on-failure",
-        action="store_true",
-    )
-
-    args = parser.parse_args()
-    args.no_plot_was_set = "--no-plot" in sys.argv
-    return args
 
 
 def main() -> None:
     args = parse_args()
+    specs = selected_benchmarks(args)
+    workspaces = discover_workspaces(args)
 
-    args = apply_preset(args)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    args.plot_dir.mkdir(parents=True, exist_ok=True)
 
-    if args.n_runs is None:
-        args.n_runs = 5
+    records: list[RunRecord] = []
 
-    if args.n_evaluations is None:
-        args.n_evaluations = 1000
-
-    if args.n_scan_points is None:
-        args.n_scan_points = 1001
-
-    validate_benchmark_config(
-        n_runs=args.n_runs,
-        n_evaluations=args.n_evaluations,
-        n_scan_points=args.n_scan_points,
-        target=args.target,
-        mode=args.mode,
-    )
-
-    plot = not args.no_plot
-
-    all_benchmarks = [
-        *build_core_benchmarks(
-            n_runs=args.n_runs,
-            n_evaluations=args.n_evaluations,
-            workspaces=DEFAULT_SIMPLE_WORKSPACES,
-            target=args.target,
-            mode=args.mode,
-            plot=plot,
-        ),
-        *build_pdf_benchmarks(
-            n_evaluations=args.n_evaluations,
-            plot=plot,
-        ),
-        build_nll_scan_benchmark(
-            n_scan_points=args.n_scan_points,
-            plot=plot,
-        ),
-        *build_scaling_benchmarks(
-            n_runs=args.n_runs,
-            n_evaluations=args.n_evaluations,
-            n_scan_points=args.n_scan_points,
-            plot=plot,
-        ),
-        *build_graph_benchmarks(
-            n_runs=args.n_runs,
-            plot=plot,
-        ),
-    ]
-
-    selected_benchmarks = select_benchmarks(
-        benchmark_names=args.benchmarks,
-        all_benchmarks=all_benchmarks,
-    )
-
-    print("Selected benchmarks:")
-    for benchmark in selected_benchmarks:
-        print(f"  - {benchmark.name}")
-
-    run_results: list[BenchmarkRunResult] = []
-    failures: list[str] = []
-
-    start = time.perf_counter()
-
-    try:
-        for benchmark in selected_benchmarks:
-            result = run_command(
-                benchmark=benchmark,
-                dry_run=args.dry_run,
-            )
-            run_results.append(result)
-
-            if result.status == "failed":
-                failures.append(benchmark.name)
-
-                if not args.continue_on_failure:
-                    break
-    except KeyboardInterrupt:
-        end = time.perf_counter()
-        total_time_seconds = end - start
-        save_suite_summary(
-            run_results=run_results,
-            output_path=args.summary_output,
-            total_time_seconds=total_time_seconds,
-        )
-        print()
-        print("Benchmark suite interrupted by user.")
-        print(f"Saved partial summary to {args.summary_output}")
-        raise SystemExit(130)
-
-    end = time.perf_counter()
-    total_time_seconds = end - start
-
-    save_suite_summary(
-        run_results=run_results,
-        output_path=args.summary_output,
-        total_time_seconds=total_time_seconds,
-    )
-
-    n_success = sum(result.status == "success" for result in run_results)
-    n_dry_run = sum(result.status == "skipped_dry_run" for result in run_results)
-
+    print(f"Selected benchmarks: {', '.join(spec.name for spec in specs)}")
+    print(f"Selected workspaces: {len(workspaces)}")
     print()
-    print("=" * 80)
-    print("Benchmark suite summary")
-    print("=" * 80)
-    print(f"Total time: {total_time_seconds:.2f} s")
-    print(f"Selected:   {len(selected_benchmarks)}")
-    print(f"Executed:   {len(run_results)}")
-    print(f"Succeeded:  {n_success}")
-    print(f"Dry-run:    {n_dry_run}")
-    print(f"Failed:     {len(failures)}")
-    print(f"Summary:    {args.summary_output}")
 
-    if failures:
-        print()
-        print("Failed benchmarks:")
-        for failure in failures:
-            print(f"  - {failure}")
+    for repeat_index in range(args.repeat):
+        print("=" * 80)
+        print(f"Repeat {repeat_index + 1} / {args.repeat}")
+        print("=" * 80)
 
-        raise SystemExit(1)
+        for spec in specs:
+            if spec.kind == "multi_workspace" and args.plot:
+                output_dir, plot_dir, output_name = make_batch_output_paths(
+                    args, spec.name, repeat_index
+                )
+                command = command_for_multi_workspace_batch(
+                    spec, workspaces, args, output_dir, plot_dir, output_name
+                )
 
+                print(f"[{spec.group}] {spec.name} all selected workspaces")
+                print(" ".join(command))
+
+                record = run_command(
+                    command=command,
+                    spec=spec,
+                    workspace=None,
+                    root_workspace=None,
+                    output_dir=output_dir,
+                    timeout_seconds=args.timeout_seconds,
+                    dry_run=args.dry_run,
+                )
+                records.append(record)
+                print(f"  -> {record.status}")
+
+                write_summary(args, records)
+
+                if args.fail_fast and record.status not in {"success", "dry_run"}:
+                    write_summary(args, records)
+                    raise SystemExit(1)
+
+                continue
+
+            if spec.run_once:
+                output_dir, plot_dir, output_name = make_output_paths(
+                    args, spec.name, None, repeat_index
+                )
+                command = command_for_run_once(
+                    spec, args, output_dir, plot_dir, output_name
+                )
+
+                print(f"[{spec.group}] {spec.name}")
+                print(" ".join(command))
+
+                record = run_command(
+                    command=command,
+                    spec=spec,
+                    workspace=None,
+                    root_workspace=None,
+                    output_dir=output_dir,
+                    timeout_seconds=args.timeout_seconds,
+                    dry_run=args.dry_run,
+                )
+                records.append(record)
+                print(f"  -> {record.status}")
+
+                write_summary(args, records)
+
+                if args.fail_fast and record.status not in {"success", "dry_run"}:
+                    write_summary(args, records)
+                    raise SystemExit(1)
+
+                continue
+
+            for workspace in workspaces:
+                output_dir, plot_dir, output_name = make_output_paths(
+                    args, spec.name, workspace, repeat_index
+                )
+
+                root_workspace = paired_root_path(workspace, args)
+
+                if spec.requires_root_pair and root_workspace is None:
+                    record = RunRecord(
+                        benchmark=spec.name,
+                        group=spec.group,
+                        workspace=str(workspace),
+                        root_workspace=None,
+                        command=[],
+                        status="skipped",
+                        returncode=None,
+                        duration_seconds=0.0,
+                        stdout_path=str(output_dir / "stdout.txt"),
+                        stderr_path=str(output_dir / "stderr.txt"),
+                        error="Missing matching ROOT workspace.",
+                    )
+                    records.append(record)
+                    print(f"[{spec.group}] {spec.name} {workspace.name} -> skipped")
+                    write_summary(args, records)
+                    continue
+
+                if spec.kind == "multi_workspace":
+                    command = command_for_multi_workspace(
+                        spec, workspace, args, output_dir, plot_dir, output_name
+                    )
+                elif spec.kind == "single_workspace":
+                    command = command_for_single_workspace(
+                        spec, workspace, args, output_dir, plot_dir, output_name
+                    )
+                elif spec.kind == "json_root_pair":
+                    assert root_workspace is not None
+                    command = command_for_json_root_pair(
+                        spec,
+                        workspace,
+                        root_workspace,
+                        args,
+                        output_dir,
+                        plot_dir,
+                        output_name,
+                    )
+                else:
+                    raise ValueError(f"Unsupported benchmark kind: {spec.kind}")
+
+                print(f"[{spec.group}] {spec.name} {workspace.name}")
+                print(" ".join(command))
+
+                record = run_command(
+                    command=command,
+                    spec=spec,
+                    workspace=workspace,
+                    root_workspace=root_workspace,
+                    output_dir=output_dir,
+                    timeout_seconds=args.timeout_seconds,
+                    dry_run=args.dry_run,
+                )
+                records.append(record)
+                print(f"  -> {record.status}")
+
+                write_summary(args, records)
+
+                if args.fail_fast and record.status not in {"success", "dry_run"}:
+                    write_summary(args, records)
+                    raise SystemExit(1)
+
+    write_summary(args, records)
     print()
-    if args.dry_run:
-        print("Dry run completed successfully.")
-    else:
-        print("All selected benchmarks completed successfully.")
+    print(f"Saved matrix summary to {args.output_dir / args.report_name}")
 
 
 if __name__ == "__main__":

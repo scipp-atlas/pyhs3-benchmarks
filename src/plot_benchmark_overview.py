@@ -177,7 +177,11 @@ def iter_result_files(results_dir: Path) -> list[Path]:
     if not results_dir.is_dir():
         raise NotADirectoryError(f"Results path is not a directory: {results_dir}")
 
-    return sorted(results_dir.glob("*/*_result.json"))
+    return sorted(
+        path
+        for path in results_dir.rglob("*.json")
+        if path.name.endswith("_result.json")
+    )
 
 
 def normalize_benchmark_name(name: str) -> str:
@@ -256,7 +260,13 @@ def collect_overview_records(
             print(f"Skipping result file {result_file}: {type(exc).__name__}: {exc}")
             continue
 
-        benchmark = payload.get("benchmark", result_file.parent.name)
+        benchmark = payload.get("benchmark")
+
+        if benchmark is None:
+            for parent in result_file.parents:
+                if parent.name in BENCHMARK_LABELS:
+                    benchmark = parent.name
+                    break
 
         for result in extract_results(payload):
             try:

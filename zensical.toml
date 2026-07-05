@@ -1,0 +1,65 @@
+# zensical.toml
+
+[project]
+site_name = "PyHS3 Benchmarks"
+site_description = "Benchmarking, validation, and profiling suite for PyHS3."
+docs_dir = "docs"
+site_dir = "site"
+
+nav = [
+  { "Home" = "index.md" },
+
+  { "Getting Started" = [
+    "installation.md",
+    "getting-started.md",
+    "repository-structure.md"
+  ] },
+
+  { "Concepts" = [
+    "benchmark-methodology.md",
+    "outputs.md"
+  ] },
+
+  { "Workspaces" = [
+    "workspaces/index.md",
+    "workspaces/benchmark-workspaces.md",
+    "workspaces/pyhf-workspaces.md"
+  ] },
+
+  { "Benchmarks" = [
+    "benchmarks/index.md",
+    "benchmarks/workspace-loading.md",
+    "benchmarks/model-creation.md",
+    "benchmarks/log-prob-construction.md",
+    "benchmarks/graph-canonicalization.md",
+    "benchmarks/graph-optimization.md",
+    "benchmarks/log-prob-compilation.md",
+    "benchmarks/compiled-evaluation.md",
+    "benchmarks/pdf-evaluation.md",
+    "benchmarks/nll-scan.md",
+    "benchmarks/memory-scaling.md",
+    "benchmarks/model-complexity-scaling.md"
+  ] },
+
+  { "Cross-Framework" = [
+    "cross-framework/index.md",
+    "cross-framework/scalar-pdf.md",
+    "cross-framework/vectorized-pdf.md",
+    "cross-framework/binned-likelihood.md",
+    "cross-framework/nll-scan.md",
+    "cross-framework/model-complexity.md",
+    "cross-framework/xroofit.md"
+  ] },
+
+  { "Development" = [
+    "development/index.md",
+    "development/adding-benchmarks.md",
+    "development/matrix-runner.md",
+    "development/benchmark-overview.md"
+  ] }
+]
+
+[project.theme]
+features = [
+  "navigation.path"
+]

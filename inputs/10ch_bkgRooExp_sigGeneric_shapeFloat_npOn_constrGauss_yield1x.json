@@ -1,0 +1,2714 @@
+{
+  "analyses": [
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch0",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch0",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch1",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch1",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch2",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch2",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch3",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch3",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch4",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch4",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch5",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch5",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch6",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch6",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch7",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch7",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch8",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch8",
+      "init": "default_values"
+    },
+    {
+      "domains": [
+        "sim_pdf_combData_nuisance_parameters",
+        "sim_pdf_combData_global_observables",
+        "sim_pdf_combData_parameters_of_interest"
+      ],
+      "name": "L_ch9",
+      "parameters_of_interest": [
+        "mu_sig"
+      ],
+      "likelihood": "L_ch9",
+      "init": "default_values"
+    }
+  ],
+  "data": [
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          12.311191482067443
+        ],
+        [
+          12.557979209050245
+        ],
+        [
+          12.745802633171479
+        ],
+        [
+          10.800050842226483
+        ],
+        [
+          12.810940703675442
+        ],
+        [
+          15.995682530397062
+        ],
+        [
+          10.24786841839159
+        ],
+        [
+          12.283915618654646
+        ],
+        [
+          12.286559725998814
+        ],
+        [
+          13.072260881008333
+        ],
+        [
+          14.755970534428116
+        ],
+        [
+          10.032012567626225
+        ],
+        [
+          12.732867726663244
+        ],
+        [
+          11.947829388914215
+        ],
+        [
+          13.692308661993593
+        ],
+        [
+          16.519559837827273
+        ],
+        [
+          11.720990405724478
+        ],
+        [
+          14.488439301357232
+        ],
+        [
+          13.094912974165709
+        ],
+        [
+          10.741825402801624
+        ],
+        [
+          11.029211833520094
+        ],
+        [
+          13.594121054884454
+        ],
+        [
+          15.840265616104716
+        ],
+        [
+          11.230311604012968
+        ],
+        [
+          12.75647008870692
+        ],
+        [
+          12.861669768253705
+        ]
+      ],
+      "name": "combData_ch0",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          17.30391438804986
+        ],
+        [
+          11.701014091026991
+        ],
+        [
+          14.598879924578796
+        ],
+        [
+          10.184927501250058
+        ],
+        [
+          19.732440745674467
+        ],
+        [
+          14.4458995010109
+        ],
+        [
+          13.459055720268225
+        ],
+        [
+          14.087032467260485
+        ],
+        [
+          14.91863716019111
+        ],
+        [
+          11.32501383102408
+        ],
+        [
+          12.235721483934867
+        ],
+        [
+          10.071511618734803
+        ],
+        [
+          13.08402931105661
+        ],
+        [
+          12.205835804443268
+        ],
+        [
+          13.218276900543202
+        ],
+        [
+          14.03591798466195
+        ],
+        [
+          13.882292377898153
+        ],
+        [
+          16.72071977037149
+        ],
+        [
+          13.053860132617956
+        ],
+        [
+          11.237532792592901
+        ],
+        [
+          12.405768979874665
+        ],
+        [
+          14.9355206386997
+        ],
+        [
+          12.0244553747807
+        ],
+        [
+          11.420847383316186
+        ],
+        [
+          11.590712652266575
+        ],
+        [
+          10.02684155726456
+        ]
+      ],
+      "name": "combData_ch1",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          15.398739825292367
+        ],
+        [
+          13.16673586411909
+        ],
+        [
+          10.600929790082887
+        ],
+        [
+          18.328480674700813
+        ],
+        [
+          11.277781166570549
+        ],
+        [
+          12.119292212738912
+        ],
+        [
+          15.976581009290207
+        ],
+        [
+          13.743580126761117
+        ],
+        [
+          15.87008688592391
+        ],
+        [
+          15.18349203405343
+        ],
+        [
+          17.30915020737143
+        ],
+        [
+          15.199560387241444
+        ],
+        [
+          11.341772631819822
+        ],
+        [
+          13.630725037024831
+        ],
+        [
+          10.767204781344617
+        ],
+        [
+          11.739816473966584
+        ],
+        [
+          13.312197075607628
+        ],
+        [
+          16.234923832932395
+        ],
+        [
+          10.73399985099627
+        ],
+        [
+          10.25077246249566
+        ],
+        [
+          15.007729943881714
+        ],
+        [
+          13.490022764314062
+        ],
+        [
+          10.910052440488585
+        ],
+        [
+          15.077110228720585
+        ],
+        [
+          12.719056557825184
+        ],
+        [
+          14.070736288267653
+        ],
+        [
+          10.96088351201331
+        ],
+        [
+          15.5026477649767
+        ],
+        [
+          11.056621610872526
+        ],
+        [
+          16.831415380711405
+        ],
+        [
+          11.188061031832603
+        ],
+        [
+          12.903023368808135
+        ],
+        [
+          17.772100507290816
+        ],
+        [
+          12.027700471528817
+        ],
+        [
+          10.378803775674896
+        ],
+        [
+          18.020455315497657
+        ],
+        [
+          16.96460458115297
+        ],
+        [
+          12.512751473090304
+        ],
+        [
+          12.913671194230574
+        ],
+        [
+          11.829467006097332
+        ],
+        [
+          13.759082946507988
+        ]
+      ],
+      "name": "combData_ch2",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          14.992548475877925
+        ],
+        [
+          12.288012007297198
+        ],
+        [
+          13.12012012645937
+        ],
+        [
+          11.603836348719483
+        ],
+        [
+          10.554111050668666
+        ],
+        [
+          12.1788225292471
+        ],
+        [
+          17.705982052607965
+        ],
+        [
+          16.243017600409075
+        ],
+        [
+          15.50756904137927
+        ],
+        [
+          14.915273897248653
+        ],
+        [
+          16.912341798451962
+        ],
+        [
+          15.829744624790791
+        ],
+        [
+          15.207090165924413
+        ],
+        [
+          16.032078440460822
+        ],
+        [
+          14.587045930661162
+        ],
+        [
+          14.239917509338511
+        ],
+        [
+          12.710991747980813
+        ],
+        [
+          10.742569131834898
+        ],
+        [
+          10.187854012228854
+        ],
+        [
+          17.12220009472219
+        ],
+        [
+          11.092208684171396
+        ],
+        [
+          10.535613640309407
+        ],
+        [
+          16.410055550924767
+        ],
+        [
+          14.14995199692271
+        ],
+        [
+          10.061650708244088
+        ],
+        [
+          14.190099722936793
+        ],
+        [
+          15.33920757644978
+        ],
+        [
+          15.71369916434982
+        ],
+        [
+          10.919817046054732
+        ],
+        [
+          14.679436781865434
+        ],
+        [
+          14.872483296745713
+        ],
+        [
+          17.48521939574175
+        ]
+      ],
+      "name": "combData_ch3",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          11.859814515729
+        ],
+        [
+          10.264901201467183
+        ],
+        [
+          19.395976023208732
+        ],
+        [
+          11.792137197882084
+        ],
+        [
+          18.812837392279107
+        ],
+        [
+          14.58021115825801
+        ],
+        [
+          13.466974434750227
+        ],
+        [
+          13.648250354567608
+        ],
+        [
+          13.79480782448013
+        ],
+        [
+          13.654672000161554
+        ],
+        [
+          11.180592657300252
+        ],
+        [
+          11.944921044094485
+        ],
+        [
+          11.088637325682242
+        ],
+        [
+          14.80757705418199
+        ],
+        [
+          16.69778429502003
+        ],
+        [
+          15.480920298314231
+        ],
+        [
+          12.663916062701901
+        ],
+        [
+          13.820433326163766
+        ],
+        [
+          17.407507814386918
+        ],
+        [
+          13.7477131558353
+        ],
+        [
+          15.815517155824637
+        ],
+        [
+          10.846833801118976
+        ],
+        [
+          10.097150881392736
+        ],
+        [
+          12.051421530049993
+        ],
+        [
+          13.557483559357024
+        ],
+        [
+          10.898329451557203
+        ],
+        [
+          18.84448238844925
+        ],
+        [
+          12.317847469757908
+        ],
+        [
+          10.669904013140012
+        ],
+        [
+          12.527366277079182
+        ],
+        [
+          16.413396605362323
+        ],
+        [
+          12.558334561118727
+        ],
+        [
+          14.083141235728363
+        ],
+        [
+          10.38446361871138
+        ],
+        [
+          13.987777045276744
+        ]
+      ],
+      "name": "combData_ch4",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          12.455403537490213
+        ],
+        [
+          19.22820491242703
+        ],
+        [
+          11.220780721760093
+        ],
+        [
+          11.236958806275652
+        ],
+        [
+          14.102742060158562
+        ],
+        [
+          14.636030612582545
+        ],
+        [
+          13.64668884951243
+        ],
+        [
+          10.594228618101624
+        ],
+        [
+          19.717774689358407
+        ],
+        [
+          11.223287641817876
+        ],
+        [
+          10.176904069230659
+        ],
+        [
+          18.229020099813624
+        ],
+        [
+          11.171906562205436
+        ],
+        [
+          14.85681877862362
+        ],
+        [
+          11.436102310315448
+        ],
+        [
+          12.126531696723362
+        ],
+        [
+          11.408590226450599
+        ],
+        [
+          10.672678955816082
+        ],
+        [
+          11.844068545271682
+        ],
+        [
+          11.82858988426915
+        ],
+        [
+          15.346024975677324
+        ],
+        [
+          10.517331168412056
+        ],
+        [
+          11.10606739430608
+        ],
+        [
+          10.113345889440097
+        ],
+        [
+          11.962258254926041
+        ],
+        [
+          13.148337338388956
+        ],
+        [
+          15.754174890176813
+        ],
+        [
+          13.263870036134904
+        ],
+        [
+          16.128686382576234
+        ],
+        [
+          16.91907543376601
+        ]
+      ],
+      "name": "combData_ch5",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          13.818038279504208
+        ],
+        [
+          12.922715923709802
+        ],
+        [
+          15.643511676544222
+        ],
+        [
+          12.440315365602146
+        ],
+        [
+          16.58173169798829
+        ],
+        [
+          13.456526092616059
+        ],
+        [
+          12.71979219926834
+        ],
+        [
+          15.716614482230398
+        ],
+        [
+          12.39176919174497
+        ],
+        [
+          14.753824512590654
+        ],
+        [
+          10.35329137052031
+        ],
+        [
+          10.73212413940837
+        ],
+        [
+          14.149326011645371
+        ],
+        [
+          17.188448493980104
+        ],
+        [
+          10.758025399353528
+        ],
+        [
+          10.06565049647179
+        ],
+        [
+          18.63853496419324
+        ],
+        [
+          16.21178513333689
+        ],
+        [
+          11.735684727209446
+        ],
+        [
+          10.425378634463414
+        ],
+        [
+          11.27183768665418
+        ],
+        [
+          10.152653759869281
+        ],
+        [
+          18.555675068419077
+        ],
+        [
+          16.67496784241891
+        ],
+        [
+          15.35860099726051
+        ],
+        [
+          13.771378200270874
+        ],
+        [
+          15.909189991075436
+        ],
+        [
+          14.927338642153245
+        ],
+        [
+          16.38472247603204
+        ],
+        [
+          11.14518115366991
+        ],
+        [
+          13.194531967379817
+        ],
+        [
+          15.846484663561569
+        ],
+        [
+          11.744204995629843
+        ]
+      ],
+      "name": "combData_ch6",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          11.303170889950707
+        ],
+        [
+          16.319283160443092
+        ],
+        [
+          16.370159518389187
+        ],
+        [
+          13.227091226508492
+        ],
+        [
+          15.785798005076117
+        ],
+        [
+          11.329296546755359
+        ],
+        [
+          14.263252921500396
+        ],
+        [
+          16.327459970456175
+        ],
+        [
+          10.079301912992378
+        ],
+        [
+          10.304427668434073
+        ],
+        [
+          11.596277541793825
+        ],
+        [
+          12.753063258041948
+        ],
+        [
+          15.727015559950246
+        ],
+        [
+          15.603183031926164
+        ],
+        [
+          14.741011802852881
+        ],
+        [
+          10.083634714483196
+        ],
+        [
+          13.764205865454642
+        ],
+        [
+          17.159796401206222
+        ],
+        [
+          10.302535829198405
+        ],
+        [
+          12.098705564567354
+        ],
+        [
+          12.824585369380657
+        ],
+        [
+          11.981260175616626
+        ],
+        [
+          17.378156570096053
+        ],
+        [
+          16.319777337316737
+        ],
+        [
+          12.56055348105292
+        ],
+        [
+          10.59250000694874
+        ],
+        [
+          18.990230466858975
+        ],
+        [
+          11.939071343476826
+        ],
+        [
+          11.366297126805875
+        ],
+        [
+          17.039758301571055
+        ],
+        [
+          16.077799808318787
+        ],
+        [
+          15.56089993949115
+        ],
+        [
+          12.41085479652611
+        ],
+        [
+          12.806688574037253
+        ],
+        [
+          15.212242179968598
+        ]
+      ],
+      "name": "combData_ch7",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          18.515511031439473
+        ],
+        [
+          12.202418808101356
+        ],
+        [
+          19.64226551583124
+        ],
+        [
+          10.100200575266172
+        ],
+        [
+          14.21906127269267
+        ],
+        [
+          19.340460231724137
+        ],
+        [
+          11.713410295592439
+        ],
+        [
+          10.252364350913012
+        ],
+        [
+          13.02344151537909
+        ],
+        [
+          11.7979724445172
+        ],
+        [
+          16.120871609400638
+        ],
+        [
+          15.18012612743405
+        ],
+        [
+          14.839808563847328
+        ],
+        [
+          10.959382760675282
+        ],
+        [
+          18.924011255530786
+        ],
+        [
+          11.692130757230643
+        ],
+        [
+          15.731778043730174
+        ],
+        [
+          17.35890601068604
+        ],
+        [
+          13.799091812743427
+        ],
+        [
+          13.031685158457549
+        ],
+        [
+          10.221242090810847
+        ],
+        [
+          15.34366896296774
+        ],
+        [
+          10.10429202072828
+        ],
+        [
+          15.957291720216062
+        ],
+        [
+          12.38381175979157
+        ],
+        [
+          15.910833943889884
+        ],
+        [
+          11.490683763386187
+        ],
+        [
+          10.325135038856388
+        ],
+        [
+          15.96367903304781
+        ],
+        [
+          14.981919305404148
+        ],
+        [
+          12.693205944979127
+        ],
+        [
+          14.776262696701394
+        ],
+        [
+          12.455845052791119
+        ],
+        [
+          11.980739831269602
+        ]
+      ],
+      "name": "combData_ch8",
+      "type": "unbinned"
+    },
+    {
+      "axes": [
+        {
+          "name": "x",
+          "min": 10.0,
+          "max": 20.0
+        }
+      ],
+      "entries": [
+        [
+          11.174416752446632
+        ],
+        [
+          13.186580510917736
+        ],
+        [
+          14.657757338158888
+        ],
+        [
+          17.658179828404172
+        ],
+        [
+          14.963393158504914
+        ],
+        [
+          15.875818571388436
+        ],
+        [
+          10.848782373332142
+        ],
+        [
+          10.590156977268634
+        ],
+        [
+          12.69697771087067
+        ],
+        [
+          18.008198606612495
+        ],
+        [
+          11.205053625826622
+        ],
+        [
+          16.520976156662073
+        ],
+        [
+          12.770935409766935
+        ],
+        [
+          18.69702143143968
+        ],
+        [
+          10.869585738537353
+        ],
+        [
+          13.852591243817471
+        ],
+        [
+          14.232151138378129
+        ],
+        [
+          12.497819557165712
+        ],
+        [
+          15.92641601131163
+        ],
+        [
+          13.322102695521778
+        ],
+        [
+          15.755838534319082
+        ],
+        [
+          15.534265081132617
+        ],
+        [
+          14.755671789272355
+        ],
+        [
+          16.97442393633537
+        ],
+        [
+          10.216506899560045
+        ],
+        [
+          12.23944052359002
+        ],
+        [
+          13.823753944414534
+        ],
+        [
+          11.946984324004006
+        ],
+        [
+          17.1920401924217
+        ],
+        [
+          14.406846253916399
+        ],
+        [
+          11.990391437666403
+        ],
+        [
+          13.167075112149575
+        ],
+        [
+          11.379445766124263
+        ],
+        [
+          13.654686590716949
+        ],
+        [
+          11.883667294432598
+        ],
+        [
+          15.090095871388769
+        ],
+        [
+          10.158201347985596
+        ],
+        [
+          15.676015681556237
+        ]
+      ],
+      "name": "combData_ch9",
+      "type": "unbinned"
+    }
+  ],
+  "distributions": [
+    {
+      "mean": "alpha_sigma",
+      "name": "constr_alpha_sigma",
+      "sigma": "sigma_constr",
+      "type": "gaussian_dist",
+      "x": "nom_alpha_sigma"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch0",
+        "nbkg_ch0"
+      ],
+      "extended": true,
+      "name": "model_ch0",
+      "summands": [
+        "sig_ch0",
+        "bkg_ch0"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch0",
+      "name": "bkg_ch0",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch0)/sigma_ch0)**2)",
+      "name": "sig_ch0",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch1",
+        "nbkg_ch1"
+      ],
+      "extended": true,
+      "name": "model_ch1",
+      "summands": [
+        "sig_ch1",
+        "bkg_ch1"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch1",
+      "name": "bkg_ch1",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch1)/sigma_ch1)**2)",
+      "name": "sig_ch1",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch2",
+        "nbkg_ch2"
+      ],
+      "extended": true,
+      "name": "model_ch2",
+      "summands": [
+        "sig_ch2",
+        "bkg_ch2"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch2",
+      "name": "bkg_ch2",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch2)/sigma_ch2)**2)",
+      "name": "sig_ch2",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch3",
+        "nbkg_ch3"
+      ],
+      "extended": true,
+      "name": "model_ch3",
+      "summands": [
+        "sig_ch3",
+        "bkg_ch3"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch3",
+      "name": "bkg_ch3",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch3)/sigma_ch3)**2)",
+      "name": "sig_ch3",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch4",
+        "nbkg_ch4"
+      ],
+      "extended": true,
+      "name": "model_ch4",
+      "summands": [
+        "sig_ch4",
+        "bkg_ch4"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch4",
+      "name": "bkg_ch4",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch4)/sigma_ch4)**2)",
+      "name": "sig_ch4",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch5",
+        "nbkg_ch5"
+      ],
+      "extended": true,
+      "name": "model_ch5",
+      "summands": [
+        "sig_ch5",
+        "bkg_ch5"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch5",
+      "name": "bkg_ch5",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch5)/sigma_ch5)**2)",
+      "name": "sig_ch5",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch6",
+        "nbkg_ch6"
+      ],
+      "extended": true,
+      "name": "model_ch6",
+      "summands": [
+        "sig_ch6",
+        "bkg_ch6"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch6",
+      "name": "bkg_ch6",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch6)/sigma_ch6)**2)",
+      "name": "sig_ch6",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch7",
+        "nbkg_ch7"
+      ],
+      "extended": true,
+      "name": "model_ch7",
+      "summands": [
+        "sig_ch7",
+        "bkg_ch7"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch7",
+      "name": "bkg_ch7",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch7)/sigma_ch7)**2)",
+      "name": "sig_ch7",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch8",
+        "nbkg_ch8"
+      ],
+      "extended": true,
+      "name": "model_ch8",
+      "summands": [
+        "sig_ch8",
+        "bkg_ch8"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch8",
+      "name": "bkg_ch8",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch8)/sigma_ch8)**2)",
+      "name": "sig_ch8",
+      "type": "generic_dist"
+    },
+    {
+      "coefficients": [
+        "nsig_tot_ch9",
+        "nbkg_ch9"
+      ],
+      "extended": true,
+      "name": "model_ch9",
+      "summands": [
+        "sig_ch9",
+        "bkg_ch9"
+      ],
+      "type": "mixture_dist"
+    },
+    {
+      "c": "tau_ch9",
+      "name": "bkg_ch9",
+      "type": "exponential_dist",
+      "x": "x"
+    },
+    {
+      "expression": "exp(-0.5*((x-mean_ch9)/sigma_ch9)**2)",
+      "name": "sig_ch9",
+      "type": "generic_dist"
+    }
+  ],
+  "domains": [
+    {
+      "axes": [
+        {
+          "max": 5.0,
+          "min": -5.0,
+          "name": "alpha_sigma"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch0"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch1"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch2"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch3"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch4"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch5"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch6"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch7"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch8"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch9"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch0"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch1"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch2"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch3"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch4"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch5"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch6"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch7"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch8"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch9"
+        }
+      ],
+      "name": "sim_pdf_combData_nuisance_parameters",
+      "type": "product_domain"
+    },
+    {
+      "axes": [
+        {
+          "name": "nom_alpha_sigma",
+          "min": -5.0,
+          "max": 5.0
+        }
+      ],
+      "name": "sim_pdf_combData_global_observables",
+      "type": "product_domain"
+    },
+    {
+      "axes": [
+        {
+          "max": 10.0,
+          "min": -5.0,
+          "name": "mu_sig"
+        }
+      ],
+      "name": "sim_pdf_combData_parameters_of_interest",
+      "type": "product_domain"
+    },
+    {
+      "axes": [
+        {
+          "max": 5.0,
+          "min": -5.0,
+          "name": "alpha_sigma"
+        },
+        {
+          "max": 10.0,
+          "min": -5.0,
+          "name": "mu_sig"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch0"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch1"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch2"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch3"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch4"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch5"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch6"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch7"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch8"
+        },
+        {
+          "max": 500.0,
+          "min": 0.0,
+          "name": "nbkg_ch9"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch0"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch1"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch2"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch3"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch4"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch5"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch6"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch7"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch8"
+        },
+        {
+          "max": 2.0,
+          "min": 0.001,
+          "name": "tau_ch9"
+        },
+        {
+          "max": 20.0,
+          "min": 10.0,
+          "name": "x"
+        }
+      ],
+      "name": "default_domain",
+      "type": "product_domain"
+    }
+  ],
+  "functions": [
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch0"
+      ],
+      "name": "nsig_tot_ch0",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch0 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch0",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch1"
+      ],
+      "name": "nsig_tot_ch1",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch1 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch1",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch2"
+      ],
+      "name": "nsig_tot_ch2",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch2 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch2",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch3"
+      ],
+      "name": "nsig_tot_ch3",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch3 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch3",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch4"
+      ],
+      "name": "nsig_tot_ch4",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch4 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch4",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch5"
+      ],
+      "name": "nsig_tot_ch5",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch5 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch5",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch6"
+      ],
+      "name": "nsig_tot_ch6",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch6 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch6",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch7"
+      ],
+      "name": "nsig_tot_ch7",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch7 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch7",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch8"
+      ],
+      "name": "nsig_tot_ch8",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch8 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch8",
+      "type": "generic_function"
+    },
+    {
+      "factors": [
+        "mu_sig",
+        "nsig_ch9"
+      ],
+      "name": "nsig_tot_ch9",
+      "type": "product"
+    },
+    {
+      "expression": "sigma_nom_ch9 * (1.0 + 0.1 * alpha_sigma)",
+      "name": "sigma_ch9",
+      "type": "generic_function"
+    }
+  ],
+  "likelihoods": [
+    {
+      "name": "L_ch0",
+      "distributions": [
+        "model_ch0"
+      ],
+      "data": [
+        "combData_ch0"
+      ],
+      "aux_distributions": [
+        "constr_alpha_sigma"
+      ],
+      "aux_data": [
+        "global_obs_data"
+      ]
+    },
+    {
+      "name": "L_ch1",
+      "distributions": [
+        "model_ch1"
+      ],
+      "data": [
+        "combData_ch1"
+      ]
+    },
+    {
+      "name": "L_ch2",
+      "distributions": [
+        "model_ch2"
+      ],
+      "data": [
+        "combData_ch2"
+      ]
+    },
+    {
+      "name": "L_ch3",
+      "distributions": [
+        "model_ch3"
+      ],
+      "data": [
+        "combData_ch3"
+      ]
+    },
+    {
+      "name": "L_ch4",
+      "distributions": [
+        "model_ch4"
+      ],
+      "data": [
+        "combData_ch4"
+      ]
+    },
+    {
+      "name": "L_ch5",
+      "distributions": [
+        "model_ch5"
+      ],
+      "data": [
+        "combData_ch5"
+      ]
+    },
+    {
+      "name": "L_ch6",
+      "distributions": [
+        "model_ch6"
+      ],
+      "data": [
+        "combData_ch6"
+      ]
+    },
+    {
+      "name": "L_ch7",
+      "distributions": [
+        "model_ch7"
+      ],
+      "data": [
+        "combData_ch7"
+      ]
+    },
+    {
+      "name": "L_ch8",
+      "distributions": [
+        "model_ch8"
+      ],
+      "data": [
+        "combData_ch8"
+      ]
+    },
+    {
+      "name": "L_ch9",
+      "distributions": [
+        "model_ch9"
+      ],
+      "data": [
+        "combData_ch9"
+      ]
+    }
+  ],
+  "metadata": {
+    "hs3_version": "0.2",
+    "packages": [
+      {
+        "name": "ROOT",
+        "version": "6.36.02"
+      }
+    ]
+  },
+  "misc": {
+    "ROOT_internal": {
+      "ModelConfigs": {
+        "sim_pdf_combData": {
+          "mcName": "ModelConfig",
+          "pdfName": "sim_pdf"
+        }
+      },
+      "attributes": {
+        "alpha_sigma": {
+          "dict": {
+            "origName": "alpha_sigma"
+          }
+        },
+        "mean_ch0": {
+          "dict": {
+            "origName": "mean_ch0"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch1": {
+          "dict": {
+            "origName": "mean_ch1"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch2": {
+          "dict": {
+            "origName": "mean_ch2"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch3": {
+          "dict": {
+            "origName": "mean_ch3"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch4": {
+          "dict": {
+            "origName": "mean_ch4"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch5": {
+          "dict": {
+            "origName": "mean_ch5"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch6": {
+          "dict": {
+            "origName": "mean_ch6"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch7": {
+          "dict": {
+            "origName": "mean_ch7"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch8": {
+          "dict": {
+            "origName": "mean_ch8"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "mean_ch9": {
+          "dict": {
+            "origName": "mean_ch9"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nom_alpha_sigma": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch0": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch1": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch2": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch3": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch4": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch5": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch6": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch7": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch8": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "nsig_ch9": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_ch0": {
+          "dict": {
+            "origName": "sigma_ch0"
+          }
+        },
+        "sigma_ch1": {
+          "dict": {
+            "origName": "sigma_ch1"
+          }
+        },
+        "sigma_ch2": {
+          "dict": {
+            "origName": "sigma_ch2"
+          }
+        },
+        "sigma_ch3": {
+          "dict": {
+            "origName": "sigma_ch3"
+          }
+        },
+        "sigma_ch4": {
+          "dict": {
+            "origName": "sigma_ch4"
+          }
+        },
+        "sigma_ch5": {
+          "dict": {
+            "origName": "sigma_ch5"
+          }
+        },
+        "sigma_ch6": {
+          "dict": {
+            "origName": "sigma_ch6"
+          }
+        },
+        "sigma_ch7": {
+          "dict": {
+            "origName": "sigma_ch7"
+          }
+        },
+        "sigma_ch8": {
+          "dict": {
+            "origName": "sigma_ch8"
+          }
+        },
+        "sigma_ch9": {
+          "dict": {
+            "origName": "sigma_ch9"
+          }
+        },
+        "sigma_constr": {
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch0": {
+          "dict": {
+            "origName": "sigma_nom_ch0"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch1": {
+          "dict": {
+            "origName": "sigma_nom_ch1"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch2": {
+          "dict": {
+            "origName": "sigma_nom_ch2"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch3": {
+          "dict": {
+            "origName": "sigma_nom_ch3"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch4": {
+          "dict": {
+            "origName": "sigma_nom_ch4"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch5": {
+          "dict": {
+            "origName": "sigma_nom_ch5"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch6": {
+          "dict": {
+            "origName": "sigma_nom_ch6"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch7": {
+          "dict": {
+            "origName": "sigma_nom_ch7"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch8": {
+          "dict": {
+            "origName": "sigma_nom_ch8"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "sigma_nom_ch9": {
+          "dict": {
+            "origName": "sigma_nom_ch9"
+          },
+          "tags": [
+            "Constant"
+          ]
+        },
+        "x": {
+          "dict": {
+            "origName": "x"
+          }
+        }
+      },
+      "combined_datasets": {
+        "combData": {
+          "index_cat": "index",
+          "indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "labels": [
+            "ch0",
+            "ch1",
+            "ch2",
+            "ch3",
+            "ch4",
+            "ch5",
+            "ch6",
+            "ch7",
+            "ch8",
+            "ch9"
+          ]
+        }
+      },
+      "combined_distributions": {
+        "sim_pdf": {
+          "distributions": [
+            "model_ch0",
+            "model_ch1",
+            "model_ch2",
+            "model_ch3",
+            "model_ch4",
+            "model_ch5",
+            "model_ch6",
+            "model_ch7",
+            "model_ch8",
+            "model_ch9"
+          ],
+          "index_cat": "index",
+          "indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ],
+          "labels": [
+            "ch0",
+            "ch1",
+            "ch2",
+            "ch3",
+            "ch4",
+            "ch5",
+            "ch6",
+            "ch7",
+            "ch8",
+            "ch9"
+          ]
+        }
+      }
+    }
+  },
+  "parameter_points": [
+    {
+      "name": "default_values",
+      "parameters": [
+        {
+          "name": "nom_alpha_sigma",
+          "value": 0.0
+        },
+        {
+          "name": "alpha_sigma",
+          "value": 0.0
+        },
+        {
+          "const": true,
+          "name": "sigma_constr",
+          "value": 1.0
+        },
+        {
+          "name": "tau_ch0",
+          "value": 0.3
+        },
+        {
+          "name": "nbkg_ch0",
+          "value": 23.0
+        },
+        {
+          "name": "mu_sig",
+          "value": 1.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch0",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch0",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch0",
+          "value": 1.0
+        },
+        {
+          "name": "tau_ch1",
+          "value": 0.25
+        },
+        {
+          "name": "nbkg_ch1",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch1",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch1",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch1",
+          "value": 0.9
+        },
+        {
+          "name": "tau_ch2",
+          "value": 0.35
+        },
+        {
+          "name": "nbkg_ch2",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch2",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch2",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch2",
+          "value": 1.1
+        },
+        {
+          "name": "tau_ch3",
+          "value": 0.28
+        },
+        {
+          "name": "nbkg_ch3",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch3",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch3",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch3",
+          "value": 0.95
+        },
+        {
+          "name": "tau_ch4",
+          "value": 0.32
+        },
+        {
+          "name": "nbkg_ch4",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch4",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch4",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch4",
+          "value": 1.05
+        },
+        {
+          "name": "tau_ch5",
+          "value": 0.27
+        },
+        {
+          "name": "nbkg_ch5",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch5",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch5",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch5",
+          "value": 0.85
+        },
+        {
+          "name": "tau_ch6",
+          "value": 0.33
+        },
+        {
+          "name": "nbkg_ch6",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch6",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch6",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch6",
+          "value": 1.15
+        },
+        {
+          "name": "tau_ch7",
+          "value": 0.31
+        },
+        {
+          "name": "nbkg_ch7",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch7",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch7",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch7",
+          "value": 1.0
+        },
+        {
+          "name": "tau_ch8",
+          "value": 0.26
+        },
+        {
+          "name": "nbkg_ch8",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch8",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch8",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch8",
+          "value": 0.92
+        },
+        {
+          "name": "tau_ch9",
+          "value": 0.34
+        },
+        {
+          "name": "nbkg_ch9",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nsig_ch9",
+          "value": 7.0
+        },
+        {
+          "const": true,
+          "name": "mean_ch9",
+          "value": 15.0
+        },
+        {
+          "const": true,
+          "name": "sigma_nom_ch9",
+          "value": 1.08
+        }
+      ]
+    },
+    {
+      "name": "nominal",
+      "parameters": [
+        {
+          "name": "alpha_sigma",
+          "value": 0.0
+        },
+        {
+          "name": "mu_sig",
+          "value": 1.0
+        },
+        {
+          "name": "nbkg_ch0",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch1",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch2",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch3",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch4",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch5",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch6",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch7",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch8",
+          "value": 23.0
+        },
+        {
+          "name": "nbkg_ch9",
+          "value": 23.0
+        },
+        {
+          "const": true,
+          "name": "nom_alpha_sigma",
+          "value": 0.0
+        },
+        {
+          "name": "tau_ch0",
+          "value": 0.3
+        },
+        {
+          "name": "tau_ch1",
+          "value": 0.25
+        },
+        {
+          "name": "tau_ch2",
+          "value": 0.35
+        },
+        {
+          "name": "tau_ch3",
+          "value": 0.28
+        },
+        {
+          "name": "tau_ch4",
+          "value": 0.32
+        },
+        {
+          "name": "tau_ch5",
+          "value": 0.27
+        },
+        {
+          "name": "tau_ch6",
+          "value": 0.33
+        },
+        {
+          "name": "tau_ch7",
+          "value": 0.31
+        },
+        {
+          "name": "tau_ch8",
+          "value": 0.26
+        },
+        {
+          "name": "tau_ch9",
+          "value": 0.34
+        }
+      ]
+    }
+  ]
+}

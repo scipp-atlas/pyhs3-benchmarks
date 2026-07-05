@@ -121,3 +121,6 @@ reports/*
 !reports/.gitkeep
 
 .vscode/
+
+external/
+site/
