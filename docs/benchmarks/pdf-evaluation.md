@@ -1,0 +1,106 @@
+# PDF Evaluation Benchmark
+
+Measures the performance of repeated `model.pdf(...)` evaluation for a selected probability distribution.
+
+The benchmark separates the first (cold-start) evaluation from repeated warm evaluations to distinguish initialization overhead from steady-state execution.
+
+## What is measured
+
+For every benchmark configuration the following metrics are collected:
+
+- cold-start evaluation time;
+- average warm evaluation time;
+- warm throughput;
+- current RSS memory delta;
+- peak RSS memory delta;
+- output stability.
+
+The benchmark also verifies that
+
+- every PDF value is finite;
+- repeated evaluations produce numerically stable results.
+
+---
+
+## Running
+
+Example:
+
+```bash
+pixi run python -m src.run_pdf_evaluation \
+    --workspaces \
+        inputs/1ch_bkgRooExp_sigGauss_shapeFloat_npOn_constrGauss_yield1x.json \
+        inputs/3ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
+        inputs/5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json \
+        inputs/10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x.json \
+        inputs/30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
+    --targets L_ch0 \
+    --modes FAST_RUN \
+    --distributions sig_ch0 \
+    --n-evaluations 1 10 100 1000 10000 \
+    --output-dir results/docs_examples/pdf_evaluation \
+    --plot \
+    --plot-dir docs/assets/plots/pdf_evaluation
+```
+
+---
+
+## Results
+
+The benchmark writes
+
+```
+pdf_evaluation_result.json
+```
+
+containing one result for every combination of
+
+- workspace;
+- target;
+- execution mode;
+- distribution;
+- number of evaluations.
+
+Each result contains
+
+- cold-start timing;
+- warm timing;
+- throughput;
+- memory statistics;
+- numerical validation results.
+
+---
+
+## Plots
+
+### Cold-start time
+
+Shows the execution time of the first `model.pdf(...)` call.
+
+![PDF cold start](../assets/plots/pdf_evaluation/pdf_evaluation_cold_start_time_grouped.png)
+
+---
+
+### Average warm evaluation time
+
+Average wall time per evaluation after the initial cold-start call.
+
+![Average warm evaluation time](../assets/plots/pdf_evaluation/pdf_evaluation_average_time_lines.png)
+
+---
+
+### Warm throughput
+
+Number of PDF evaluations executed per second during repeated execution.
+
+![Warm throughput](../assets/plots/pdf_evaluation/pdf_evaluation_throughput_lines.png)
+
+---
+
+### Current RSS delta
+
+Memory growth measured using current resident set size.
+
+The plot is generated only when at least one benchmark exhibits a non-zero RSS increase.
+
+![Current RSS delta](../assets/plots/pdf_evaluation/pdf_evaluation_current_rss_delta_grouped.png)

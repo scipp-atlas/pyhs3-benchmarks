@@ -210,7 +210,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stages", nargs="+", default=["all"])
 
     parser.add_argument("--n-runs", type=int, default=3)
-    parser.add_argument("--n-evaluations", type=int, default=100)
+    parser.add_argument(
+        "--n-evaluations",
+        nargs="+",
+        type=int,
+        default=[100],
+    )
     parser.add_argument("--n-scan-points", nargs="+", type=int, default=[101])
     parser.add_argument("--n-points", nargs="+", type=int, default=[101])
     parser.add_argument("--warmup-iterations", type=int, default=1)
@@ -380,7 +385,7 @@ def command_for_multi_workspace(
         "memory_scaling",
         "model_complexity_scaling",
     }:
-        cmd += ["--n-evaluations", str(args.n_evaluations)]
+        cmd += ["--n-evaluations", *[str(value) for value in args.n_evaluations]]
 
     if spec.name in {"pdf_evaluation", "memory_scaling", "model_complexity_scaling"}:
         cmd += ["--distribution", args.distribution]
@@ -460,7 +465,7 @@ def command_for_multi_workspace_batch(
         "memory_scaling",
         "model_complexity_scaling",
     }:
-        cmd += ["--n-evaluations", str(args.n_evaluations)]
+        cmd += ["--n-evaluations", *[str(value) for value in args.n_evaluations]]
 
     if spec.name in {"pdf_evaluation", "memory_scaling", "model_complexity_scaling"}:
         cmd += ["--distribution", args.distribution]
