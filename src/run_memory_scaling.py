@@ -404,7 +404,7 @@ def make_plot_records(
 
             records.append(
                 {
-                    "plot_label": (f"{result['workspace']}\n{stage['stage']}"),
+                    "plot_label": stage["stage"].replace("_", "\n"),
                     "workspace": result["workspace"],
                     "stage": stage["stage"],
                     "current_rss_delta_mb": stage["current_rss_delta_mb"],
@@ -436,7 +436,7 @@ def make_plots(
         make_bar_plot(
             results=records,
             output_path=plot_dir / "memory_scaling_current_rss_delta.png",
-            title="Current RSS delta by workflow stage",
+            title=f"Current RSS delta by workflow stage\n{results[0]['workspace'].removesuffix('.json').replace('_', ' / ')}",
             metric_key="current_rss_delta_mb",
             metric_label="Current RSS delta [MB]",
         )
@@ -445,7 +445,7 @@ def make_plots(
         make_bar_plot(
             results=records,
             output_path=plot_dir / "memory_scaling_peak_rss_delta.png",
-            title="Peak RSS delta by workflow stage",
+            title=f"Peak RSS delta by workflow stage\n{results[0]['workspace'].removesuffix('.json').replace('_', ' / ')}",
             metric_key="peak_rss_delta_mb",
             metric_label="Peak RSS delta [MB]",
         )
@@ -453,7 +453,7 @@ def make_plots(
     make_bar_plot(
         results=records,
         output_path=plot_dir / "memory_scaling_peak_rss_after.png",
-        title="Peak RSS after workflow stage",
+        title=f"Peak RSS after workflow stage\n{results[0]['workspace'].removesuffix('.json').replace('_', ' / ')}",
         metric_key="peak_rss_after_mb",
         metric_label="Peak RSS after stage [MB]",
     )
