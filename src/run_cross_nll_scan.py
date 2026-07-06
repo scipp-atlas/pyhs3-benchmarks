@@ -422,7 +422,7 @@ def _make_single_observable_norm_set(
     """Return (observable, norm_set) for normalized RooFit PDF evaluation.
 
     For apples-to-apples comparison with ``PyHS3 model.logpdf(target, ...)`` on
-    Alexx-generated unbinned workspaces, RooFit is evaluated point-by-point as a
+    generated unbinned workspaces, RooFit is evaluated point-by-point as a
     normalized PDF value over the same observable values from the HS3 JSON data.
     This deliberately avoids ``createNLL`` because RooFit may silently choose an
     extended-likelihood convention that does not match the PyHS3 target logpdf.
@@ -1430,7 +1430,7 @@ def run(
     summary = summarize_status(results)
     output_data = {
         "benchmark": BENCHMARK_NAME,
-        "benchmark_mode": "alexx_workspace_pyhs3_vs_roofit",
+        "benchmark_mode": "pyhs3_vs_roofit",
         "summary": summary,
         "configuration": {
             "frameworks": frameworks,

@@ -73,7 +73,7 @@ This section describes the benchmark inputs used throughout the project.
 
 Topics include:
 
-- Alexx benchmark workspaces
+- Benchmark workspaces
 - Synthetic scalar PDF workspaces
 - Synthetic binned likelihood models
 - ROOT workspaces
@@ -159,8 +159,8 @@ pixi install
 Run a benchmark:
 
 ```bash
-pixi run python -m src.run_alexx_workspace_benchmark_matrix \
-    --workspace-dir inputs/alexx_workspaces \
+pixi run python -m src.run_all_workspace_benchmark_matrix \
+    --workspace-dir inputs/all_workspaces \
     --benchmarks workspace_loading
 ```
 
@@ -168,8 +168,8 @@ Generate the benchmark overview:
 
 ```bash
 pixi run python -m src.plot_benchmark_overview \
-    --results-dir results/alexx_full_matrix \
-    --plot-dir plots/alexx_full_matrix/benchmark_overview
+    --results-dir results/all_full_matrix \
+    --plot-dir plots/all_full_matrix/benchmark_overview
 ```
 
 For detailed instructions, continue with the Getting Started guide.

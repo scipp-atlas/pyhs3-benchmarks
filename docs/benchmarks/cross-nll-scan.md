@@ -1,6 +1,6 @@
 # Cross-framework ΔNLL Scan Benchmark
 
-This benchmark performs an **apples-to-apples numerical and performance comparison** between **PyHS3** and **RooFit** by evaluating the same ΔNLL scan on matching Alexx-generated workspaces.
+This benchmark performs an **apples-to-apples numerical and performance comparison** between **PyHS3** and **RooFit** by evaluating the same ΔNLL scan on matching generated workspaces.
 
 Unlike the generic performance benchmarks, this benchmark is designed to verify that both frameworks evaluate **the same statistical model**, using the **same parameter values**, **same observed events**, and **same scan grid** before comparing execution time.
 

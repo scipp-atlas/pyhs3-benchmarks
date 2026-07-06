@@ -25,12 +25,14 @@ AVAILABLE_PLOTS = [
     "stage_timing",
     "stage_memory",
     "diagnostics",
+    "cross_framework_summary",
 ]
 
 DEFAULT_PLOTS = [
     "performance_summary",
     "stage_timing",
     "stage_memory",
+    "cross_framework_summary",
 ]
 
 STAGE_TIME_KEYS = {
@@ -84,6 +86,10 @@ BENCHMARK_LABELS = {
     "nll_scan": "NLL scan",
     "model_complexity_scaling": "Model complexity",
     "memory_scaling": "Memory scaling",
+    "cross_scalar_pdf_evaluation": "Cross scalar PDF",
+    "cross_nll_scan": "Cross ΔNLL scan",
+    "pyhs3_xroofit_benchmark": "PyHS3 vs xRooFit",
+    "cross_model_complexity_scaling": "Cross model complexity",
 }
 
 WORKSPACE_LABELS = {
@@ -192,18 +198,96 @@ def compact_workspace_name(name: str | None) -> str:
     if not name:
         return "Unknown"
 
-    cleaned = str(name).replace(".json", "")
-    return WORKSPACE_LABELS.get(cleaned, cleaned.replace("_", " ").title())
+    cleaned = Path(str(name)).name.removesuffix(".json").removesuffix(".root")
+    if cleaned in WORKSPACE_LABELS:
+        return WORKSPACE_LABELS[cleaned]
+
+    parts = cleaned.split("_")
+    if parts and parts[0].endswith("ch"):
+        channel = parts[0]
+        bkg = next((p.replace("bkg", "") for p in parts if p.startswith("bkg")), "")
+        sig = next((p.replace("sig", "") for p in parts if p.startswith("sig")), "")
+        np_state = next((p for p in parts if p.startswith("np")), "")
+        constr = next((p for p in parts if p.startswith("constr")), "")
+        yld = next((p for p in parts if p.startswith("yield")), "")
+
+        line1 = channel
+        line2 = " / ".join(p for p in [bkg, sig] if p)
+        line3 = " / ".join(p for p in [np_state, constr, yld] if p)
+
+        return "\n".join(line for line in [line1, line2, line3] if line)
+
+    return cleaned.replace("_", "\n")
+
+
+def workspace_from_result(
+    payload: dict[str, Any], result: dict[str, Any]
+) -> str | None:
+    """Resolve a workspace name across old and new benchmark schemas."""
+
+    for key in ("workspace", "workspace_name"):
+        value = result.get(key)
+        if value:
+            return Path(str(value)).name
+
+    for key in ("workspace_path", "json_path", "root_path"):
+        value = result.get(key) or payload.get(key)
+        if value:
+            return Path(str(value)).name
+
+    case = result.get("case")
+    if case:
+        return str(case)
+
+    return None
+
+
+def framework_from_result(result: dict[str, Any]) -> str | None:
+    framework = result.get("framework")
+    if framework:
+        return str(framework)
+    label = result.get("framework_label")
+    if label:
+        return str(label)
+    return None
 
 
 def get_workspace_label(result: dict[str, Any]) -> str:
     workspace = compact_workspace_name(result.get("workspace"))
     target = result.get("target")
+    framework = framework_from_result(result)
 
+    pieces = [workspace]
     if target:
-        return f"{workspace}\n{target}"
+        pieces.append(str(target))
+    if framework:
+        pieces.append(str(framework))
 
-    return workspace
+    return "\n".join(pieces)
+
+
+def flatten_nested_result(
+    payload: dict[str, Any], result: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Flatten result schemas that store one row per case with nested frameworks."""
+
+    flattened: list[dict[str, Any]] = []
+    for framework in ("pyhs3", "roofit", "root", "xroofit"):
+        nested = result.get(framework)
+        if not isinstance(nested, dict):
+            continue
+        row = dict(nested)
+        row.setdefault("framework", framework)
+        row.setdefault("workspace", workspace_from_result(payload, result))
+        row.setdefault("target", result.get("target"))
+        row.setdefault("mode", result.get("mode") or payload.get("mode"))
+        row.setdefault("status", nested.get("status", result.get("status", "unknown")))
+        row.setdefault("case", result.get("case"))
+        row.setdefault(
+            "analysis", result.get("analysis") or result.get("analysis_name")
+        )
+        flattened.append(row)
+    return flattened
 
 
 def extract_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -214,7 +298,17 @@ def extract_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(results, list):
         return []
 
-    return [result for result in results if isinstance(result, dict)]
+    extracted: list[dict[str, Any]] = []
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        nested = flatten_nested_result(payload, result)
+        if nested:
+            extracted.extend(nested)
+        else:
+            extracted.append(result)
+
+    return extracted
 
 
 def maybe_to_float(value: Any) -> float | None:
@@ -270,33 +364,87 @@ def collect_overview_records(
 
         for result in extract_results(payload):
             try:
+                resolved_workspace = workspace_from_result(payload, result)
+                result_for_label = dict(result)
+                result_for_label["workspace"] = resolved_workspace
+
                 record: dict[str, Any] = {
                     "benchmark": benchmark,
                     "benchmark_label": normalize_benchmark_name(str(benchmark)),
-                    "workspace": result.get("workspace"),
-                    "workspace_label": get_workspace_label(result),
+                    "workspace": resolved_workspace,
+                    "workspace_label": get_workspace_label(result_for_label),
                     "target": result.get("target"),
-                    "mode": result.get("mode"),
+                    "mode": result.get("mode") or payload.get("mode"),
+                    "framework": framework_from_result(result),
                     "source_file": str(result_file),
                     "status": result.get("status", "unknown"),
-                    "n_runs": result.get("n_runs"),
-                    "n_evaluations": result.get("n_evaluations"),
-                    "n_scan_points": result.get("n_scan_points"),
+                    "n_runs": result.get("n_runs") or payload.get("n_runs"),
+                    "n_evaluations": result.get("n_evaluations")
+                    or payload.get("n_evaluations"),
+                    "n_scan_points": result.get("n_scan_points")
+                    or payload.get("n_points"),
                 }
+
+                n_evaluations = maybe_to_float(record["n_evaluations"])
+                warm_total = maybe_to_float(
+                    result.get("warm_total_time_seconds")
+                    or result.get("warm_total_seconds")
+                    or result.get("warm_runtime_seconds")
+                )
+                derived_time_per_evaluation = None
+                if warm_total is not None and n_evaluations and n_evaluations > 0:
+                    derived_time_per_evaluation = warm_total / n_evaluations
 
                 metric_candidates = {
                     "wall_time_seconds_mean": result.get("wall_time_seconds_mean"),
-                    "average_runtime_seconds_per_evaluation": result.get(
-                        "average_runtime_seconds_per_evaluation"
+                    "average_runtime_seconds_per_evaluation": (
+                        result.get("average_runtime_seconds_per_evaluation")
+                        or result.get("time_per_evaluation_seconds")
+                        or result.get("time_per_value_seconds")
+                        or result.get("warm_time_per_evaluation_seconds")
+                        or result.get("warm_per_evaluation_seconds")
+                        or derived_time_per_evaluation
                     ),
-                    "runtime_per_scan_point_seconds": result.get(
-                        "runtime_per_scan_point_seconds"
+                    "runtime_per_scan_point_seconds": (
+                        result.get("runtime_per_scan_point_seconds")
+                        or result.get("time_per_scan_point_seconds")
                     ),
-                    "total_runtime_seconds": result.get("total_runtime_seconds"),
-                    "total_setup_time_seconds": result.get("total_setup_time_seconds"),
-                    "current_rss_delta_mb": result.get("current_rss_delta_mb"),
+                    "total_runtime_seconds": (
+                        result.get("total_runtime_seconds")
+                        or result.get("full_scan_time_seconds")
+                        or result.get("scan_time_seconds")
+                    ),
+                    "total_setup_time_seconds": (
+                        result.get("total_setup_time_seconds")
+                        or result.get("model_build_time_seconds")
+                        or result.get("build_time_seconds")
+                    ),
+                    "cold_first_evaluation_time_seconds": result.get(
+                        "cold_first_evaluation_time_seconds"
+                    ),
+                    "warm_evaluation_time_seconds_mean": (
+                        result.get("warm_evaluation_time_seconds_mean")
+                        or (result.get("warm_evaluation") or {}).get("mean_seconds")
+                    ),
+                    "current_rss_delta_mb": (
+                        result.get("current_rss_delta_mb") or result.get("rss_delta_mb")
+                    ),
                     "peak_rss_delta_mb": result.get("peak_rss_delta_mb"),
                     "total_peak_rss_delta_mb": result.get("total_peak_rss_delta_mb"),
+                    "throughput_evaluations_per_second": (
+                        result.get("throughput_evaluations_per_second")
+                        or result.get("throughput")
+                    ),
+                    "delta_nll_shape_max_abs_diff": (
+                        result.get("delta_nll_shape_max_abs_diff")
+                        or result.get("delta_nll_max_abs_diff")
+                        or (result.get("agreement") or {}).get("delta_nll_max_abs_diff")
+                    ),
+                    "minimum_mu_abs_diff": (
+                        result.get("minimum_mu_abs_diff")
+                        or result.get("minimum_poi_abs_diff")
+                        or (result.get("agreement") or {}).get("minimum_poi_abs_diff")
+                    ),
                 }
                 record.update(metric_candidates)
 
@@ -321,11 +469,23 @@ def collect_overview_records(
                     )
                     if value is not None:
                         record["average_runtime_ms_per_evaluation"] = value * 1000.0
+                        record["time_per_evaluation_us"] = value * 1_000_000.0
 
                 if record["runtime_per_scan_point_seconds"] is not None:
                     value = maybe_to_float(record["runtime_per_scan_point_seconds"])
                     if value is not None:
                         record["runtime_ms_per_scan_point"] = value * 1000.0
+                        record["time_per_scan_point_us"] = value * 1_000_000.0
+
+                if record["cold_first_evaluation_time_seconds"] is not None:
+                    value = maybe_to_float(record["cold_first_evaluation_time_seconds"])
+                    if value is not None:
+                        record["cold_first_evaluation_ms"] = value * 1000.0
+
+                if record["warm_evaluation_time_seconds_mean"] is not None:
+                    value = maybe_to_float(record["warm_evaluation_time_seconds_mean"])
+                    if value is not None:
+                        record["warm_evaluation_us"] = value * 1_000_000.0
 
                 if record["total_runtime_seconds"] is not None:
                     value = maybe_to_float(record["total_runtime_seconds"])
@@ -485,11 +645,15 @@ def make_ranked_horizontal_plot(
     ]
     plot_records = list(reversed(plot_records))
 
-    labels = [
-        f"{normalize_benchmark_name(str(record['benchmark']))} · "
-        f"{compact_workspace_name(record.get('workspace'))}"
-        for record, _value in plot_records
-    ]
+    labels = []
+    for record, _value in plot_records:
+        label = (
+            f"{normalize_benchmark_name(str(record['benchmark']))} · "
+            f"{compact_workspace_name(record.get('workspace'))}"
+        )
+        if record.get("framework"):
+            label += f" · {record['framework']}"
+        labels.append(label)
     values = [value for _record, value in plot_records]
 
     fig_height = max(5.0, 0.48 * len(labels) + 1.8)
@@ -618,10 +782,22 @@ def make_performance_summary_plot(
             "ms/eval",
         ),
         (
+            "Cross scalar PDF",
+            "time_per_evaluation_us",
+            {"cross_scalar_pdf_evaluation"},
+            "µs/eval",
+        ),
+        (
             "NLL scan time",
             "runtime_ms_per_scan_point",
             {"nll_scan"},
             "ms/point",
+        ),
+        (
+            "Cross ΔNLL scan",
+            "time_per_scan_point_us",
+            {"cross_nll_scan", "pyhs3_xroofit_benchmark"},
+            "µs/point",
         ),
     ]
 
@@ -646,16 +822,23 @@ def make_performance_summary_plot(
     fig, axes = plt.subplots(
         1,
         n_panels,
-        figsize=(max(7.0, 4.4 * n_panels), 5.5),
+        figsize=(max(9.0, 5.4 * n_panels), 7.2),
         squeeze=False,
     )
 
-    for ax, (title, metric_key, _benchmark_filter, unit, panel_records) in zip(
-        axes[0], available_panels, strict=False
-    ):
+    for panel_index, (
+        ax,
+        (title, metric_key, _benchmark_filter, unit, panel_records),
+    ) in enumerate(zip(axes[0], available_panels, strict=False)):
         grouped: dict[str, list[float]] = {}
         for record in panel_records:
             workspace = compact_workspace_name(record.get("workspace"))
+            if record.get("framework") and record.get("benchmark") in {
+                "cross_scalar_pdf_evaluation",
+                "cross_nll_scan",
+                "pyhs3_xroofit_benchmark",
+            }:
+                workspace = f"{workspace}\n{record['framework']}"
             value = maybe_to_float(record.get(metric_key))
             if value is not None:
                 grouped.setdefault(workspace, []).append(value)
@@ -675,7 +858,11 @@ def make_performance_summary_plot(
         ax.barh(y, values, color="#4E79A7", height=0.62)
         ax.set_title(title, loc="left", fontsize=15, fontweight="bold")
         ax.set_yticks(y)
-        ax.set_yticklabels(labels)
+        if panel_index == 0:
+            ax.set_yticklabels(labels, fontsize=9)
+        else:
+            ax.set_yticklabels([])
+            ax.tick_params(axis="y", length=0)
         ax.invert_yaxis()
         ax.set_xlabel(unit)
         annotate_horizontal_bars(
@@ -693,6 +880,7 @@ def make_performance_summary_plot(
         fontweight="bold",
     )
     fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.subplots_adjust(left=0.06, right=0.98, bottom=0.28, wspace=0.65)
     save_figure(fig, plot_dir / "benchmark_overview_performance_summary.png")
 
 
@@ -730,7 +918,7 @@ def make_scan_summary_plot(records: list[dict[str, Any]], plot_dir: Path) -> Non
         metric_key="runtime_ms_per_scan_point",
         metric_label="Runtime per scan point [ms]",
         unit="ms/point",
-        benchmark_filter={"nll_scan"},
+        benchmark_filter={"nll_scan", "cross_nll_scan", "pyhs3_xroofit_benchmark"},
         max_rows=10,
     )
 
@@ -806,8 +994,8 @@ def make_stacked_stage_plot(
     labels = [labels[index] for index in order]
     totals = totals[order]
 
-    fig_width = max(9.5, 1.45 * len(labels) + 3.0)
-    fig, ax = plt.subplots(figsize=(fig_width, 6.4))
+    fig_width = max(12.0, 2.2 * len(labels) + 3.0)
+    fig, ax = plt.subplots(figsize=(fig_width, 7.4))
 
     x = np.arange(len(labels))
     bottom = np.zeros(len(labels))
@@ -853,7 +1041,7 @@ def make_stacked_stage_plot(
     ax.set_ylabel(y_label)
     ax.set_xlabel("Workspace")
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=18, ha="right")
+    ax.set_xticklabels(labels, rotation=30, ha="right")
     ax.set_ylim(0, max(totals) * 1.17)
     finalize_axes(ax)
 
@@ -864,6 +1052,7 @@ def make_stacked_stage_plot(
         borderaxespad=0.0,
     )
 
+    fig.subplots_adjust(bottom=0.32, right=0.80)
     save_figure(fig, plot_dir / output_name)
 
 
@@ -891,6 +1080,137 @@ def make_stage_memory_plot(records: list[dict[str, Any]], plot_dir: Path) -> Non
         suffix="_peak_rss_delta_mb",
         stage_keys=STAGE_MEMORY_KEYS,
     )
+
+
+def make_cross_framework_summary_plot(
+    records: list[dict[str, Any]], plot_dir: Path
+) -> None:
+    """Compare cross-framework runtime on apples-to-apples benchmarks."""
+
+    selected = [
+        record
+        for record in records
+        if record.get("benchmark")
+        in {
+            "cross_scalar_pdf_evaluation",
+            "cross_nll_scan",
+            "pyhs3_xroofit_benchmark",
+        }
+        and record.get("framework")
+        and record.get("status") == "success"
+    ]
+    if not selected:
+        return
+
+    grouped: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for record in selected:
+        benchmark = record.get("benchmark")
+        framework = str(record["framework"])
+
+        if benchmark == "cross_scalar_pdf_evaluation":
+            value = maybe_to_float(record.get("time_per_evaluation_us"))
+            metric = "Scalar PDF"
+            unit = "µs/eval"
+        elif benchmark in {"cross_nll_scan", "pyhs3_xroofit_benchmark"}:
+            value = maybe_to_float(record.get("time_per_scan_point_us"))
+            metric = "ΔNLL scan"
+            unit = "µs/point"
+        else:
+            continue
+
+        if value is None or value <= 0:
+            continue
+
+        workspace = compact_workspace_name(record.get("workspace"))
+        key = (metric, workspace, framework)
+
+        # If repeated runs / evaluation counts exist, keep the fastest stable row.
+        previous = grouped.get(key)
+        if previous is None or value < previous["value"]:
+            grouped[key] = {
+                "metric": metric,
+                "workspace": workspace,
+                "framework": framework,
+                "value": value,
+                "unit": unit,
+            }
+
+    rows = list(grouped.values())
+    if not rows:
+        return
+
+    metric_order = {"Scalar PDF": 0, "ΔNLL scan": 1}
+    framework_order = {
+        "pyhs3": 0,
+        "PyHS3": 0,
+        "root": 1,
+        "roofit": 1,
+        "RooFit": 1,
+        "xroofit": 2,
+    }
+
+    rows = sorted(
+        rows,
+        key=lambda row: (
+            metric_order.get(row["metric"], 99),
+            row["workspace"],
+            framework_order.get(row["framework"], 99),
+            row["value"],
+        ),
+    )
+
+    labels = [
+        f"{row['metric']}\n{row['workspace']}\n{row['framework']}" for row in rows
+    ]
+    values = [row["value"] for row in rows]
+    colors = ["#4E79A7" if row["metric"] == "Scalar PDF" else "#59A14F" for row in rows]
+
+    y = np.arange(len(rows)) * 1.45
+
+    fig_height = max(9.0, 0.62 * len(rows) + 2.5)
+    fig, ax = plt.subplots(figsize=(16.5, fig_height))
+
+    ax.barh(y, values, color=colors, height=0.95)
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, fontsize=8.5, linespacing=1.25)
+
+    max_value = max(values)
+    for index, row in enumerate(rows):
+        value = row["value"]
+        ax.text(
+            value + max_value * 0.018,
+            y[index],
+            f"{value:.2f} {row['unit']}",
+            va="center",
+            ha="left",
+            fontsize=9.5,
+            fontweight="bold",
+        )
+
+    ax.set_xlabel("Runtime")
+    ax.set_title(
+        "Cross-framework runtime comparison",
+        loc="left",
+        pad=16,
+        fontweight="bold",
+    )
+
+    ax.set_xlim(0, max_value * 1.30)
+    ax.set_ylim(y[0] - 1.0, y[-1] + 1.0)
+
+    finalize_axes(ax)
+
+    legend_handles = [
+        plt.Rectangle((0, 0), 1, 1, color="#4E79A7", label="Scalar PDF"),
+        plt.Rectangle((0, 0), 1, 1, color="#59A14F", label="ΔNLL scan"),
+    ]
+    ax.legend(handles=legend_handles, frameon=False, loc="lower right")
+
+    fig.subplots_adjust(left=0.38, right=0.97, top=0.93, bottom=0.07)
+
+    save_figure(fig, plot_dir / "benchmark_overview_cross_framework_summary.png")
 
 
 def make_diagnostics_plot(records: list[dict[str, Any]], plot_dir: Path) -> None:
@@ -1010,6 +1330,9 @@ def main() -> None:
         "stage_timing": lambda: make_stage_timing_plot(records, plot_dir),
         "stage_memory": lambda: make_stage_memory_plot(records, plot_dir),
         "diagnostics": lambda: make_diagnostics_plot(records, plot_dir),
+        "cross_framework_summary": lambda: make_cross_framework_summary_plot(
+            records, plot_dir
+        ),
     }
 
     completed_plots = []

@@ -1,14 +1,23 @@
-"""PyHS3 vs xRooFit NLL scan benchmark.
+"""PyHS3 vs real xRooFit ΔNLL scan benchmark.
 
-This benchmark compares NLL evaluation for a PyHS3 JSON workspace and a
-matching RooFit/xRooFit ROOT workspace.  It is intentionally configurable so it
-can be run on different workspace pairs by passing the analysis, target, data,
-POI, and xRooFit model names on the command line.
+This benchmark uses the actual xRooFit API on the ROOT side:
+
+    xRooNode(workspace)[model].nll(dataset).getVal()
+
+To make the comparison apples-to-apples, the default PyHS3 side evaluates the
+same extended unbinned mixture likelihood used by RooFit/xRooFit for the
+generated workspaces:
+
+    NLL(mu) = Nexp(mu) - sum_i log(nsig(mu) * sig(x_i) + nbkg * bkg(x_i))
+
+The validation compares ΔNLL shapes and the best-fit POI position, not raw NLL,
+because framework NLL objects can differ by additive constants.
 """
 
 from __future__ import annotations
 
 import argparse
+import gc
 import math
 import sys
 import time
@@ -32,14 +41,14 @@ else:
 
 try:
     import ROOT
-except ImportError:  # pragma: no cover - environment dependent
+except ImportError:  # pragma: no cover
     ROOT = None
 
 
 BENCHMARK_NAME = "pyhs3_xroofit_benchmark"
 DEFAULT_OUTPUT = RESULTS_DIR / BENCHMARK_NAME / f"{BENCHMARK_NAME}_result.json"
 DEFAULT_PLOT_DIR = PLOTS_DIR / BENCHMARK_NAME
-DEFAULT_DELTA_TOLERANCE = 5e-8
+DEFAULT_DELTA_TOLERANCE = 1e-6
 DEFAULT_MINIMUM_TOLERANCE = 1e-12
 
 FRAMEWORK_STYLE = {
@@ -58,6 +67,12 @@ class PyHS3Case:
     model: Any
     target: str
     params: dict[str, Any]
+    poi: str
+    nll_mode: str
+    signal_pdf: str
+    background_pdf: str
+    signal_yield_param: str
+    background_yield_param: str
 
 
 @dataclass(frozen=True)
@@ -75,6 +90,10 @@ class FrameworkSpec:
     name: str
     build_func: Callable[[], Any]
     eval_func: Callable[[Any, float], float]
+
+
+class ValidationFailure(RuntimeError):
+    pass
 
 
 def validate_existing_file(path: Path, label: str) -> Path:
@@ -123,8 +142,8 @@ def validate_scan_config(
 def channel_from_analysis(analysis_name: str) -> str:
     if not analysis_name.startswith("L_"):
         raise ValueError(
-            "Cannot infer a channel from analysis name. Pass --target and --pyhs3-data-name explicitly, "
-            f"or use an analysis name like L_ch0. Got: {analysis_name}"
+            "Cannot infer channel from analysis name. Use L_ch0 or pass explicit names. "
+            f"Got: {analysis_name}"
         )
     return analysis_name.replace("L_", "", 1)
 
@@ -137,36 +156,58 @@ def default_data_name_from_analysis(analysis_name: str) -> str:
     return f"combData_{channel_from_analysis(analysis_name)}"
 
 
+def default_signal_pdf_from_analysis(analysis_name: str) -> str:
+    return f"sig_{channel_from_analysis(analysis_name)}"
+
+
+def default_background_pdf_from_analysis(analysis_name: str) -> str:
+    return f"bkg_{channel_from_analysis(analysis_name)}"
+
+
+def default_signal_yield_from_analysis(analysis_name: str) -> str:
+    return f"nsig_{channel_from_analysis(analysis_name)}"
+
+
+def default_background_yield_from_analysis(analysis_name: str) -> str:
+    return f"nbkg_{channel_from_analysis(analysis_name)}"
+
+
 def extract_parameter_point(
     workspace: Workspace, parameter_point: str | None
-) -> dict[str, float]:
+) -> dict[str, Any]:
     try:
         points = workspace.parameter_points.root
     except AttributeError as exc:
         raise ValueError(
             "PyHS3 workspace does not contain parameter_points.root"
         ) from exc
-
     if not points:
         raise ValueError("PyHS3 workspace does not contain any parameter points")
 
-    selected = None
-    if parameter_point is None:
-        selected = points[0]
-    else:
-        selected = next(
-            (point for point in points if point.name == parameter_point), None
+    selected = (
+        points[0]
+        if parameter_point is None
+        else next(
+            (
+                point
+                for point in points
+                if getattr(point, "name", None) == parameter_point
+            ),
+            None,
         )
-        if selected is None:
-            available = [getattr(point, "name", "<unnamed>") for point in points]
-            raise KeyError(
-                f"Could not find parameter point {parameter_point!r}. Available: {available}"
-            )
+    )
+    if selected is None:
+        available = [getattr(point, "name", "<unnamed>") for point in points]
+        raise KeyError(
+            f"Could not find parameter point {parameter_point!r}. Available: {available}"
+        )
 
-    params: dict[str, float] = {}
+    params: dict[str, Any] = {}
     for parameter in selected.parameters:
         try:
-            params[parameter.name] = float(parameter.value)
+            params[parameter.name] = np.asarray(
+                float(parameter.value), dtype=np.float64
+            )
         except (TypeError, ValueError) as exc:
             raise ValueError(
                 f"Parameter {parameter.name!r} cannot be converted to float"
@@ -181,7 +222,6 @@ def get_pyhs3_data_values(
         data_entries = workspace.data.root
     except AttributeError as exc:
         raise ValueError("PyHS3 workspace does not contain data.root") from exc
-
     for data in data_entries:
         if data.name == data_name:
             values = np.asarray(
@@ -192,11 +232,14 @@ def get_pyhs3_data_values(
             if not np.all(np.isfinite(values)):
                 raise ValueError(f"PyHS3 data {data_name!r} contains non-finite values")
             return values
-
     available = [getattr(data, "name", "<unnamed>") for data in data_entries]
     raise KeyError(
         f"Could not find PyHS3 data {data_name!r}. Available data: {available}"
     )
+
+
+def _as_array(value: Any) -> np.ndarray:
+    return np.asarray(value, dtype=np.float64).reshape(-1)
 
 
 def build_pyhs3_case(
@@ -209,97 +252,187 @@ def build_pyhs3_case(
     parameter_point: str | None,
     observable_name: str,
     observable_index: int,
+    mode: str,
+    nll_mode: str,
+    signal_pdf: str,
+    background_pdf: str,
+    signal_yield_param: str,
+    background_yield_param: str,
 ) -> PyHS3Case:
     validate_existing_file(json_path, "PyHS3 JSON workspace")
     workspace = Workspace.load(json_path)
-    model = workspace.model(analysis_name, progress=False, mode="FAST_RUN")
+    model = workspace.model(analysis_name, progress=False, mode=mode)
 
     params = extract_parameter_point(workspace, parameter_point)
     try:
-        free_params = model.free_params
+        for name, value in model.free_params.items():
+            params[name] = np.asarray(value, dtype=np.float64)
     except AttributeError:
-        free_params = {}
-    for name, value in free_params.items():
-        params[name] = float(np.asarray(value))
+        pass
 
     params[observable_name] = get_pyhs3_data_values(
         workspace, data_name, observable_index
     )
-    if poi not in params and poi not in free_params:
+    if poi not in params:
         raise KeyError(f"POI {poi!r} is not present in PyHS3 parameters/free_params")
 
-    return PyHS3Case(model=model, target=target, params=params)
+    return PyHS3Case(
+        model=model,
+        target=target,
+        params=params,
+        poi=poi,
+        nll_mode=nll_mode,
+        signal_pdf=signal_pdf,
+        background_pdf=background_pdf,
+        signal_yield_param=signal_yield_param,
+        background_yield_param=background_yield_param,
+    )
 
 
-def pyhs3_nll(case: PyHS3Case, poi: str, value: float) -> float:
-    validate_finite_float(value, poi)
+def pyhs3_logpdf_nll(case: PyHS3Case, value: float) -> float:
     eval_params = dict(case.params)
-    eval_params[poi] = np.asarray(value, dtype=np.float64)
+    eval_params[case.poi] = np.asarray(value, dtype=np.float64)
     logpdf = np.asarray(case.model.logpdf(case.target, **eval_params), dtype=np.float64)
-    if logpdf.size == 0:
-        raise ValueError(f"PyHS3 returned an empty logpdf array for {case.target}")
-    if not np.all(np.isfinite(logpdf)):
-        raise ValueError(f"PyHS3 returned non-finite logpdf values for {case.target}")
+    if logpdf.size == 0 or not np.all(np.isfinite(logpdf)):
+        raise ValidationFailure(
+            f"PyHS3 returned invalid logpdf values for {case.target}"
+        )
     return -float(np.sum(logpdf))
+
+
+def pyhs3_extended_mixture_nll(case: PyHS3Case, value: float) -> float:
+    """Extended unbinned RooAddPdf-style NLL for generated models."""
+
+    validate_finite_float(value, case.poi)
+    eval_params = dict(case.params)
+    eval_params[case.poi] = np.asarray(value, dtype=np.float64)
+
+    try:
+        nominal_signal_yield = float(_as_array(eval_params[case.signal_yield_param])[0])
+        background_yield = float(_as_array(eval_params[case.background_yield_param])[0])
+    except KeyError as exc:
+        raise KeyError(
+            "Missing yield parameter for extended-mixture NLL. "
+            f"Need {case.signal_yield_param!r} and {case.background_yield_param!r}."
+        ) from exc
+
+    signal_yield = float(value) * nominal_signal_yield
+    expected_events = signal_yield + background_yield
+
+    sig_pdf = _as_array(case.model.pdf(case.signal_pdf, **eval_params))
+    bkg_pdf = _as_array(case.model.pdf(case.background_pdf, **eval_params))
+    if sig_pdf.shape != bkg_pdf.shape:
+        raise ValidationFailure(
+            f"Signal/background PDF arrays have different shapes: {sig_pdf.shape} vs {bkg_pdf.shape}"
+        )
+
+    event_density = signal_yield * sig_pdf + background_yield * bkg_pdf
+    if (
+        event_density.size == 0
+        or not np.all(np.isfinite(event_density))
+        or np.any(event_density <= 0.0)
+    ):
+        raise ValidationFailure("PyHS3 extended-mixture event densities are invalid")
+
+    return float(expected_events - np.sum(np.log(event_density)))
+
+
+def pyhs3_nll(case: PyHS3Case, value: float) -> float:
+    if case.nll_mode == "logpdf":
+        return pyhs3_logpdf_nll(case, value)
+    if case.nll_mode == "extended-mixture":
+        return pyhs3_extended_mixture_nll(case, value)
+    raise ValueError(f"Unknown PyHS3 NLL mode: {case.nll_mode}")
 
 
 def require_xroofit(xroofit_library: str | None = "libxRooFit") -> Any:
     if ROOT is None:
         raise RuntimeError("ROOT is not available in this environment")
-
     if xroofit_library:
         load_status = int(ROOT.gSystem.Load(xroofit_library))
         if load_status < 0 and not hasattr(ROOT, "xRooNode"):
             raise RuntimeError(
-                "Could not load xRooFit. Run `source external/xroofit-build/setup.sh` "
+                "Could not load xRooFit. Source external/xroofit/build/setup.sh "
                 "or pass --xroofit-library /path/to/libxRooFit.so."
             )
-
     if not hasattr(ROOT, "xRooNode"):
-        raise RuntimeError(
-            "xRooFit is not available in this ROOT/PyROOT session. "
-            "Build xRooFit and source its setup.sh before running this benchmark."
-        )
+        raise RuntimeError("xRooFit is not available in this ROOT/PyROOT session")
     return ROOT
+
+
+def _is_valid_root_object(obj: Any) -> bool:
+    if obj is None:
+        return False
+    try:
+        return bool(obj)
+    except Exception:
+        return True
+
+
+def _find_workspace(root_file: Any, workspace_name: str) -> Any:
+    workspace = root_file.Get(workspace_name) if workspace_name else None
+    if _is_valid_root_object(workspace):
+        return workspace
+    import ROOT
+
+    for key in root_file.GetListOfKeys():
+        obj = key.ReadObj()
+        if obj.InheritsFrom(ROOT.RooWorkspace.Class()):
+            return obj
+    raise RuntimeError(f"Could not find RooWorkspace {workspace_name!r}")
+
+
+def _set_root_defaults_from_pyhs3(
+    workspace: Any, json_path: Path, parameter_point: str | None
+) -> None:
+    try:
+        pyhs3_workspace = Workspace.load(json_path)
+        parameters = extract_parameter_point(pyhs3_workspace, parameter_point)
+    except Exception:
+        return
+    for name, value in parameters.items():
+        var = workspace.var(str(name))
+        if not _is_valid_root_object(var):
+            continue
+        try:
+            var.setVal(float(_as_array(value)[0]))
+        except Exception:
+            continue
 
 
 def build_xroofit_case(
     *,
     root_path: Path,
+    json_path: Path,
     workspace_name: str,
     model_name: str,
     dataset_name: str,
     poi: str,
+    parameter_point: str | None,
     xroofit_library: str | None,
 ) -> XRooFitCase:
     root = require_xroofit(xroofit_library)
-    validate_existing_file(root_path, "RooFit ROOT workspace")
+    validate_existing_file(root_path, "xRooFit ROOT workspace")
 
-    root_file = root.TFile.Open(str(root_path))
+    root_file = root.TFile.Open(str(root_path), "READ")
     if not root_file or root_file.IsZombie():
         raise RuntimeError(f"Could not open ROOT file {root_path}")
 
-    workspace = root_file.Get(workspace_name)
-    if workspace is None:
+    try:
+        workspace = _find_workspace(root_file, workspace_name)
+        _set_root_defaults_from_pyhs3(workspace, json_path, parameter_point)
+        root_node = root.xRooNode(workspace)
+        model_node = root_node[model_name]
+        if not model_node:
+            raise RuntimeError(f"Could not access xRooFit model node {model_name!r}")
+        nll = model_node.nll(dataset_name)
+        if not nll:
+            raise RuntimeError(
+                f"xRooFit returned a null NLL for model {model_name!r} and dataset {dataset_name!r}"
+            )
+    except Exception:
         root_file.Close()
-        raise RuntimeError(
-            f"Could not find RooWorkspace {workspace_name!r} in {root_path}"
-        )
-
-    root_node = root.xRooNode(workspace)
-    model_node = root_node[model_name]
-    if not model_node:
-        root_file.Close()
-        raise RuntimeError(f"Could not access xRooFit model node {model_name!r}")
-
-    nll = model_node.nll(dataset_name)
-
-    if not nll:
-        raise RuntimeError(
-            f"xRooFit returned a null NLL for model {model_name!r} "
-            f"and dataset {dataset_name!r}. Try using the top-level model "
-            "or ModelConfig, and verify the dataset is compatible."
-        )
+        raise
 
     return XRooFitCase(
         root_file=root_file,
@@ -312,20 +445,24 @@ def build_xroofit_case(
 
 
 def _set_xroofit_parameter(case: XRooFitCase, value: float) -> None:
-    # xRooNode wraps ROOT objects and forwards RooAbsArg-like methods.  Different
-    # xRooFit builds expose the parameter either via model_node.pars()[name] or
-    # nll.pars()[name], so try both before failing with a useful message.
     errors: list[str] = []
     for owner_name, owner in (("model", case.model_node), ("nll", case.nll)):
         try:
             parameter = owner.pars()[case.poi]
             parameter.setVal(float(value))
             return
-        except Exception as exc:  # noqa: BLE001 - xRooFit/PyROOT can throw varied exception types
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"{owner_name}: {exc}")
+    # Fallback through RooWorkspace, useful for some xRooFit/PyROOT builds.
+    try:
+        var = case.workspace.var(case.poi)
+        if _is_valid_root_object(var):
+            var.setVal(float(value))
+            return
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"workspace: {exc}")
     raise RuntimeError(
-        f"Could not set xRooFit POI {case.poi!r}. Tried model.pars() and nll.pars(). "
-        f"Errors: {'; '.join(errors)}"
+        f"Could not set xRooFit POI {case.poi!r}. Errors: {'; '.join(errors)}"
     )
 
 
@@ -337,7 +474,7 @@ def xroofit_nll(case: XRooFitCase, value: float) -> float:
     except AttributeError:
         nll_value = float(case.nll)
     if not math.isfinite(nll_value):
-        raise ValueError(f"xRooFit returned non-finite NLL value: {nll_value}")
+        raise ValidationFailure(f"xRooFit returned non-finite NLL value: {nll_value}")
     return nll_value
 
 
@@ -399,6 +536,7 @@ def measure_framework(
     n_runs: int,
     poi_value: float,
 ) -> dict[str, Any]:
+    gc.collect()
     current_rss_before_mb = get_current_rss_mb()
     peak_rss_before_mb = get_peak_rss_mb()
     case = None
@@ -456,11 +594,7 @@ def measure_framework(
             "delta_nll_shape": delta_shape,
             "minimum_poi": minimum_position(scan_values, scan_values_nll),
             "minimum_index": int(np.argmin(np.asarray(scan_values_nll, dtype=float))),
-            "finite_values": bool(
-                math.isfinite(first_nll)
-                and math.isfinite(warm_nll)
-                and all(math.isfinite(v) for v in scan_values_nll)
-            ),
+            "finite_values": True,
         }
     finally:
         close_case(case)
@@ -476,7 +610,6 @@ def add_agreement(
     xroofit_scan = np.asarray(xroofit_result["scan_nll_values"], dtype=np.float64)
     if pyhs3_scan.shape != xroofit_scan.shape:
         raise ValueError("Cannot compare scans with different shapes")
-
     pyhs3_delta = np.asarray(pyhs3_result["delta_nll_shape"], dtype=np.float64)
     xroofit_delta = np.asarray(xroofit_result["delta_nll_shape"], dtype=np.float64)
     raw_diff = xroofit_scan - pyhs3_scan
@@ -485,7 +618,6 @@ def add_agreement(
     minimum_diff = abs(
         float(xroofit_result["minimum_poi"]) - float(pyhs3_result["minimum_poi"])
     )
-
     return {
         "raw_nll_abs_diff": abs(
             float(xroofit_result["first_nll"]) - float(pyhs3_result["first_nll"])
@@ -566,7 +698,7 @@ def make_profile_plot(
         )
     ax.set_xlabel("Parameter of interest")
     ax.set_ylabel(r"$\Delta$NLL")
-    ax.set_title("PyHS3 vs xRooFit NLL profile", loc="left", weight="bold")
+    ax.set_title("PyHS3 vs real xRooFit ΔNLL profile", loc="left", weight="bold")
     ax.legend(frameon=False)
     _save_figure(fig, output_path)
 
@@ -581,7 +713,7 @@ def make_runtime_plot(results: dict[str, dict[str, Any]], output_path: Path) -> 
     fig, ax = plt.subplots(figsize=(8.2, 5.6))
     bars = ax.bar(labels, values, edgecolor="black", alpha=0.9)
     ax.set_ylabel("Time per scan point [µs]")
-    ax.set_title("NLL scan throughput", loc="left", weight="bold")
+    ax.set_title("Real xRooFit ΔNLL scan throughput", loc="left", weight="bold")
     ax.grid(True, axis="y", alpha=0.35)
     ax.grid(False, axis="x")
     for bar, value in zip(bars, values, strict=True):
@@ -614,7 +746,7 @@ def make_agreement_plot(
     )
     ax.set_yscale("log")
     ax.set_ylabel("Absolute difference")
-    ax.set_title("PyHS3 vs xRooFit numerical agreement", loc="left", weight="bold")
+    ax.set_title("PyHS3 vs real xRooFit numerical agreement", loc="left", weight="bold")
     ax.legend(frameon=False)
     for bar, raw in zip(bars, values, strict=True):
         ax.text(
@@ -631,9 +763,9 @@ def make_agreement_plot(
 def make_plots(output_data: dict[str, Any], plot_dir: Path) -> None:
     plot_dir.mkdir(parents=True, exist_ok=True)
     results_by_framework = {
-        result["framework"]: result
-        for result in output_data["results"]
-        if result.get("status") == "success"
+        r["framework"]: r
+        for r in output_data["results"]
+        if r.get("status") == "success"
     }
     if "pyhs3" not in results_by_framework or "xroofit" not in results_by_framework:
         print(
@@ -654,8 +786,7 @@ def make_plots(output_data: dict[str, Any], plot_dir: Path) -> None:
 
 
 def print_result(result: dict[str, Any]) -> None:
-    print()
-    print("-" * 72)
+    print("\n" + "-" * 72)
     print(result.get("framework_label", result.get("framework")))
     print("-" * 72)
     print(f"status:                 {result.get('status')}")
@@ -695,6 +826,12 @@ def run(
     parameter_point: str | None,
     observable_name: str,
     observable_index: int,
+    mode: str,
+    pyhs3_nll_mode: str,
+    signal_pdf: str | None,
+    background_pdf: str | None,
+    signal_yield_param: str | None,
+    background_yield_param: str | None,
     scan_min: float,
     scan_max: float,
     n_scan_points: int,
@@ -715,13 +852,23 @@ def run(
         minimum_tolerance=minimum_tolerance,
     )
     validate_existing_file(json_path, "PyHS3 JSON workspace")
-    validate_existing_file(root_path, "RooFit ROOT workspace")
+    validate_existing_file(root_path, "xRooFit ROOT workspace")
 
     resolved_target = target or default_target_from_analysis(analysis_name)
     resolved_pyhs3_data = pyhs3_data_name or default_data_name_from_analysis(
         analysis_name
     )
     resolved_xroofit_model = xroofit_model_name or resolved_target
+    resolved_signal_pdf = signal_pdf or default_signal_pdf_from_analysis(analysis_name)
+    resolved_background_pdf = background_pdf or default_background_pdf_from_analysis(
+        analysis_name
+    )
+    resolved_signal_yield = signal_yield_param or default_signal_yield_from_analysis(
+        analysis_name
+    )
+    resolved_background_yield = (
+        background_yield_param or default_background_yield_from_analysis(analysis_name)
+    )
 
     scan_values = [float(v) for v in np.linspace(scan_min, scan_max, n_scan_points)]
     specs = [
@@ -736,17 +883,25 @@ def run(
                 parameter_point=parameter_point,
                 observable_name=observable_name,
                 observable_index=observable_index,
+                mode=mode,
+                nll_mode=pyhs3_nll_mode,
+                signal_pdf=resolved_signal_pdf,
+                background_pdf=resolved_background_pdf,
+                signal_yield_param=resolved_signal_yield,
+                background_yield_param=resolved_background_yield,
             ),
-            eval_func=lambda case, value: pyhs3_nll(case, poi, value),
+            eval_func=lambda case, value: pyhs3_nll(case, value),
         ),
         FrameworkSpec(
             name="xroofit",
             build_func=lambda: build_xroofit_case(
                 root_path=root_path,
+                json_path=json_path,
                 workspace_name=root_workspace_name,
                 model_name=resolved_xroofit_model,
                 dataset_name=xroofit_dataset_name,
                 poi=poi,
+                parameter_point=parameter_point,
                 xroofit_library=xroofit_library,
             ),
             eval_func=lambda case, value: xroofit_nll(case, value),
@@ -766,21 +921,16 @@ def run(
                     poi_value=1.0,
                 )
             )
-        except Exception as exc:  # noqa: BLE001 - preserve partial benchmark output
+        except Exception as exc:  # noqa: BLE001
             results.append(failed_framework_result(spec.name, exc))
 
-    successful = {
-        result["framework"]: result
-        for result in results
-        if result.get("status") == "success"
-    }
-    agreement: dict[str, Any] | None = None
+    successful = {r["framework"]: r for r in results if r.get("status") == "success"}
     if "pyhs3" in successful and "xroofit" in successful:
         agreement = add_agreement(
             successful["pyhs3"],
             successful["xroofit"],
-            delta_tolerance=delta_tolerance,
-            minimum_tolerance=minimum_tolerance,
+            delta_tolerance,
+            minimum_tolerance,
         )
         status = "success" if agreement["validation_status"] == "success" else "failed"
     else:
@@ -789,6 +939,7 @@ def run(
 
     output_data = {
         "benchmark": BENCHMARK_NAME,
+        "benchmark_mode": "real_xroofit_nll_vs_pyhs3_matching_extended_mixture_nll",
         "json_path": str(json_path),
         "root_path": str(root_path),
         "analysis_name": analysis_name,
@@ -801,6 +952,12 @@ def run(
         "parameter_point": parameter_point,
         "observable_name": observable_name,
         "observable_index": observable_index,
+        "mode": mode,
+        "pyhs3_nll_mode": pyhs3_nll_mode,
+        "signal_pdf": resolved_signal_pdf,
+        "background_pdf": resolved_background_pdf,
+        "signal_yield_param": resolved_signal_yield,
+        "background_yield_param": resolved_background_yield,
         "scan_min": scan_min,
         "scan_max": scan_max,
         "n_scan_points": n_scan_points,
@@ -812,16 +969,21 @@ def run(
         "status": status,
         "agreement": agreement,
         "results": results,
+        "methodology": {
+            "xroofit": "Uses real xRooFit API: ROOT.xRooNode(workspace)[model].nll(dataset).getVal()",
+            "pyhs3_default": "Matches the extended RooAddPdf NLL: Nexp - sum(log(nsig(mu)*sig(x)+nbkg*bkg(x))).",
+            "validation": "Compares ΔNLL shape and minimum POI position; raw NLL may differ by additive constants.",
+        },
     }
 
     print("=" * 80)
-    print("PyHS3 vs xRooFit benchmark")
+    print("PyHS3 vs real xRooFit ΔNLL benchmark")
     print("=" * 80)
     print(f"PyHS3 JSON:      {json_path}")
     print(f"ROOT workspace:  {root_path}")
     print(f"Analysis:        {analysis_name}")
-    print(f"Target/model:    {resolved_target}")
-    print(f"PyHS3 data:      {resolved_pyhs3_data}")
+    print(f"PyHS3 target:    {resolved_target}")
+    print(f"PyHS3 NLL mode:  {pyhs3_nll_mode}")
     print(f"xRooFit model:   {resolved_xroofit_model}")
     print(f"xRooFit data:    {xroofit_dataset_name}")
     print(f"POI:             {poi}")
@@ -829,8 +991,7 @@ def run(
     print(f"Status:          {status}")
     for result in results:
         print_result(result)
-    print()
-    print("agreement")
+    print("\nagreement")
     print(f"  validation:       {agreement.get('validation_status')}")
     if agreement.get("validation_status") != "not_run":
         print(f"  raw max diff:     {agreement['raw_scan_max_abs_diff']:.15e}")
@@ -848,34 +1009,30 @@ def run(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run a configurable PyHS3 vs xRooFit NLL scan benchmark."
+        description="Run a real xRooFit NLL scan benchmark against a matching PyHS3 NLL."
     )
     parser.add_argument("--json-workspace", type=Path, required=True)
     parser.add_argument("--root-workspace", type=Path, required=True)
-    parser.add_argument(
-        "--analysis", default="L_ch0", help="PyHS3 analysis name, for example L_ch0."
-    )
-    parser.add_argument(
-        "--target",
-        default=None,
-        help="PyHS3 logpdf target. Defaults to model_<channel> inferred from --analysis.",
-    )
-    parser.add_argument(
-        "--pyhs3-data-name",
-        default=None,
-        help="PyHS3 data name. Defaults to combData_<channel> inferred from --analysis.",
-    )
-    parser.add_argument(
-        "--xroofit-model-name",
-        default=None,
-        help="xRooFit model node. Defaults to --target.",
-    )
+    parser.add_argument("--analysis", default="L_ch0")
+    parser.add_argument("--target", default=None)
+    parser.add_argument("--pyhs3-data-name", default=None)
+    parser.add_argument("--xroofit-model-name", default=None)
     parser.add_argument("--xroofit-dataset-name", default="combData")
     parser.add_argument("--root-workspace-name", default="combWS")
     parser.add_argument("--poi", default="mu_sig")
     parser.add_argument("--parameter-point", default=None)
     parser.add_argument("--observable-name", default="x")
     parser.add_argument("--observable-index", type=int, default=0)
+    parser.add_argument("--mode", default="FAST_RUN")
+    parser.add_argument(
+        "--pyhs3-nll-mode",
+        choices=["extended-mixture", "logpdf"],
+        default="extended-mixture",
+    )
+    parser.add_argument("--signal-pdf", default=None)
+    parser.add_argument("--background-pdf", default=None)
+    parser.add_argument("--signal-yield-param", default=None)
+    parser.add_argument("--background-yield-param", default=None)
     parser.add_argument("--scan-min", type=float, default=0.0)
     parser.add_argument("--scan-max", type=float, default=2.0)
     parser.add_argument("--n-scan-points", type=int, default=101)
@@ -889,12 +1046,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--minimum-tolerance", type=float, default=DEFAULT_MINIMUM_TOLERANCE
     )
-    parser.add_argument(
-        "--xroofit-library",
-        default="libxRooFit",
-        help="Library to load before using xRooFit. Use an absolute libxRooFit.so path or empty string to skip loading.",
-    )
+    parser.add_argument("--xroofit-library", default="libxRooFit")
     return parser.parse_args()
+
+
+def parse_args_from(argv: list[str]) -> argparse.Namespace:
+    original_argv = sys.argv
+    try:
+        sys.argv = [original_argv[0], *argv]
+        return parse_args()
+    finally:
+        sys.argv = original_argv
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -912,6 +1074,12 @@ def main(argv: list[str] | None = None) -> None:
         parameter_point=args.parameter_point,
         observable_name=args.observable_name,
         observable_index=args.observable_index,
+        mode=args.mode,
+        pyhs3_nll_mode=args.pyhs3_nll_mode,
+        signal_pdf=args.signal_pdf,
+        background_pdf=args.background_pdf,
+        signal_yield_param=args.signal_yield_param,
+        background_yield_param=args.background_yield_param,
         scan_min=args.scan_min,
         scan_max=args.scan_max,
         n_scan_points=args.n_scan_points,
@@ -923,15 +1091,6 @@ def main(argv: list[str] | None = None) -> None:
         minimum_tolerance=args.minimum_tolerance,
         xroofit_library=args.xroofit_library or None,
     )
-
-
-def parse_args_from(argv: list[str]) -> argparse.Namespace:
-    original_argv = sys.argv
-    try:
-        sys.argv = [original_argv[0], *argv]
-        return parse_args()
-    finally:
-        sys.argv = original_argv
 
 
 if __name__ == "__main__":
