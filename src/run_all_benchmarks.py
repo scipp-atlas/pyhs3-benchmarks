@@ -640,22 +640,41 @@ def command_for_run_once(
             cmd += ["--fail-fast"]
 
     elif spec.name == "cross_scalar_pdf_evaluation":
+        workspaces = [
+            args.workspace_dir
+            / "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
+            args.workspace_dir
+            / "10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x.json",
+            args.workspace_dir
+            / "30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json",
+        ]
+
         cmd += [
-            "--pyhs3-workspace-dir",
-            str(args.workspace_dir),
-            "--n-points",
-            str(args.n_points[0]),
+            "--workspaces",
+            *[str(w) for w in workspaces],
+            "--frameworks",
+            "pyhs3",
+            "root",
+            "--distribution",
+            args.distribution,
+            "--target",
+            args.targets[0],
+            "--mode",
+            args.modes[0],
+            "--n-evaluations",
+            *[str(v) for v in args.n_evaluations],
             "--output-dir",
             str(output_dir),
             "--output-name",
             output_name,
         ]
-        if args.scalar_frameworks:
-            cmd += ["--frameworks", *args.scalar_frameworks]
-        if args.scenarios:
-            cmd += ["--scenarios", *args.scenarios]
-        if args.fail_fast:
-            cmd += ["--fail-fast"]
+
+        if args.plot:
+            cmd += [
+                "--plot",
+                "--plot-dir",
+                str(plot_dir),
+            ]
 
     elif spec.name == "cross_vectorized_pdf_evaluation":
         cmd += [
