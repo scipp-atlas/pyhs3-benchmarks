@@ -77,7 +77,7 @@ Each timing benchmark rebuilds the graph from scratch to ensure independent meas
 
 ### Wall time
 
-![Graph canonicalization wall time](assets/plots/graph_canonicalization/graph_canonicalization_wall_time.png)
+![Graph canonicalization wall time](../assets/plots/graph_canonicalization/graph_canonicalization_wall_time.png)
 
 Canonicalization requires approximately **313–528 ms**, depending on the workspace.
 
@@ -97,7 +97,7 @@ Overall, canonicalization contributes only a few hundred milliseconds to the com
 
 ### Current RSS increase
 
-![Current RSS](assets/plots/graph_canonicalization/graph_canonicalization_current_rss_delta.png)
+![Current RSS](../assets/plots/graph_canonicalization/graph_canonicalization_current_rss_delta.png)
 
 Canonicalization allocates very little additional memory.
 
@@ -115,7 +115,7 @@ Across all benchmark configurations the additional resident memory remains close
 
 ### Peak RSS increase
 
-![Peak RSS](assets/plots/graph_canonicalization/graph_canonicalization_peak_rss_delta.png)
+![Peak RSS](../assets/plots/graph_canonicalization/graph_canonicalization_peak_rss_delta.png)
 
 Peak RSS follows nearly the same trend as current RSS.
 

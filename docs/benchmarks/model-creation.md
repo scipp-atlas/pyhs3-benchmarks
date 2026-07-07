@@ -169,7 +169,7 @@ The benchmark demonstrates that model creation is substantially more expensive t
 
 The growth is approximately proportional to workspace complexity, although larger workspaces require disproportionately more computation as the computational graph becomes increasingly complex.
 
-The 10-channel workspace exhibits noticeably larger timing variability than the other benchmark workspaces. Inspection of the timing samples shows several unusually slow executions that increase the measured standard deviation, while the median remains close to the typical execution time. The 30-channel workspace, despite requiring substantially longer execution time, shows relatively stable measurements across repeated runs. :contentReference[oaicite:0]{index=0}
+The 10-channel workspace exhibits noticeably larger timing variability than the other benchmark workspaces. Inspection of the timing samples shows several unusually slow executions that increase the measured standard deviation, while the median remains close to the typical execution time. The 30-channel workspace, despite requiring substantially longer execution time, shows relatively stable measurements across repeated runs.
 
 ---
 
@@ -226,7 +226,7 @@ Several implementation choices improve measurement reproducibility.
 - Successfully created models are validated before benchmark results are recorded.
 - Comparison plots are generated only when multiple successful benchmark results are available.
 
-These design choices minimize interference between repeated runs and produce stable benchmark results across different systems. :contentReference[oaicite:1]{index=1}
+These design choices minimize interference between repeated runs and produce stable benchmark results across different systems.
 
 ---
 

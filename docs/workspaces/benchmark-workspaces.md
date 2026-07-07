@@ -1,66 +1,135 @@
 # Benchmark Workspaces
 
-The benchmark workspace collection is the canonical dataset used throughout the PyHS3 Benchmarks repository.
+The benchmark workspace collection is the canonical dataset used throughout the **PyHS3 Benchmarks** repository.
 
-Unless stated otherwise, every workflow benchmark, scaling benchmark, and cross-framework benchmark operates on this collection. Using a common benchmark dataset ensures that benchmark results are directly comparable and that performance differences reflect implementation changes rather than differences in benchmark inputs.
+Unless explicitly stated otherwise, every workflow benchmark, scaling benchmark, memory benchmark, and cross-framework benchmark operates on this collection. Using a common benchmark dataset ensures that benchmark results remain directly comparable and that observed performance differences originate from implementation changes rather than differences in statistical models.
 
----
+The benchmark workspaces are **not created manually**. They are generated using the **workspace-scripts** repository:
 
-# Overview
+https://github.com/scipp-atlas/workspace-scripts
 
-The benchmark workspace collection contains statistical models spanning a broad range of configurations and complexities.
-
-The workspaces vary in
-
-- number of analysis channels;
-- background parameterization;
-- signal model;
-- signal shape configuration;
-- nuisance parameter configuration;
-- constraint model;
-- signal yield.
-
-Together, these configurations provide representative benchmark inputs covering a wide spectrum of statistical models.
+The generation process is fully reproducible and produces statistically equivalent **HS3** and **ROOT** workspaces that serve as the common benchmark inputs across the repository.
 
 ---
 
-# Workspace Naming Convention
+# Benchmark Dataset Philosophy
 
-Each workspace filename completely describes the statistical model it contains.
+The benchmark dataset is built around a simple design principle.
 
-The naming convention follows the grammar
+Every workspace originates from a common baseline statistical model, with each workspace variant modifying **exactly one characteristic** of that baseline whenever possible.
 
-```text
-<channels>_<background>_<signal>_<shape>_<nuisance>_<constraints>_<yield>
-```
+Rather than comparing unrelated statistical models, this approach isolates the performance impact of individual modeling choices while keeping the remainder of the statistical model unchanged.
 
-For example,
+This makes benchmark results significantly easier to interpret and provides a reliable foundation for both scalability studies and cross-framework comparisons.
 
-```text
-10ch_bkgGenExp_sigGeneric_shapeFloat_npOn_constrGauss_yield1x
-```
+---
 
-is interpreted as
+# Baseline Workspace
 
-| Component | Description |
-|-----------|-------------|
-| `10ch` | Ten analysis channels |
-| `bkgGenExp` | Generated exponential background model |
-| `sigGeneric` | Generic signal model |
-| `shapeFloat` | Floating signal-shape parameters |
-| `npOn` | Nuisance parameters enabled |
-| `constrGauss` | Gaussian constraints |
+The baseline model represents a simple simultaneous likelihood suitable for benchmarking the complete statistical workflow.
+
+The baseline configuration consists of
+
+- three analysis channels;
+- a RooExponential background model;
+- a RooGaussian signal model;
+- a shared signal width nuisance parameter;
+- a Gaussian constraint;
+- approximately thirty events per channel.
+
+Every benchmark workspace is derived from this baseline by modifying one aspect of the statistical model.
+
+---
+
+# Workspace Variants
+
+Different workspace variants isolate different modeling choices.
+
+## Background Models
+
+Background variants evaluate the effect of different background parameterizations.
+
+Typical variants include
+
+| Variant | Description |
+|---------|-------------|
+| `bkgRooExp` | Native RooExponential background model |
+| `bkgGeneric` | Exponential background implemented as a RooGenericPdf / HS3 generic distribution |
+| `bkgGenericPoly` | Polynomial background parameterization |
+| `bkgGenericFixShape` | Background shape fixed during inference |
+| `bkgGenericNoNP` | Generic background without the width nuisance parameter |
+
+---
+
+## Signal Models
+
+Signal variants modify only the signal parameterization.
+
+Typical variants include
+
+| Variant | Description |
+|---------|-------------|
+| `sigGauss` | Native RooGaussian signal model |
+| `sigGeneric` | Signal implemented as a RooGenericPdf / HS3 generic distribution |
+
+---
+
+## Shape Configuration
+
+Signal shape parameters can either participate in the fit or remain fixed.
+
+| Variant | Description |
+|---------|-------------|
+| `shapeFloat` | Signal shape parameters float during optimization |
+| `shapeFixed` | Signal shape parameters remain fixed |
+
+---
+
+## Nuisance Parameters
+
+Different nuisance-parameter configurations allow benchmarking the cost of systematic uncertainties.
+
+| Variant | Description |
+|---------|-------------|
+| `npOn` | Width nuisance parameter enabled |
+| `npOff` | Width nuisance parameter removed |
+
+---
+
+## Constraint Models
+
+Different auxiliary constraint terms can be applied to nuisance parameters.
+
+| Variant | Description |
+|---------|-------------|
+| `constrGauss` | Gaussian constraint |
+| `constrPoisson` | Poisson constraint |
+| `constrNone` | No auxiliary constraint |
+
+---
+
+## Signal Yield
+
+The benchmark dataset also varies the expected signal statistics.
+
+Typical configurations include
+
+| Variant | Description |
+|---------|-------------|
+| `yield0p1x` | One tenth of the nominal signal yield |
 | `yield1x` | Nominal signal yield |
+| `yield10x` | Ten times the nominal signal yield |
+| `yield100x` | One hundred times the nominal signal yield |
 
-This naming convention allows the statistical model configuration to be understood directly from the filename without opening the workspace.
+Changing the event yield makes it possible to study how numerical performance changes as the statistical power of the dataset increases.
 
 ---
 
-# Workspace Complexity
+## Channel Count
 
-The benchmark collection contains models of increasing complexity.
+Workspace complexity is primarily controlled through the number of simultaneous analysis channels.
 
-Typical channel counts include
+Typical benchmark configurations include
 
 - 1 channel;
 - 3 channels;
@@ -71,17 +140,49 @@ Typical channel counts include
 - 25 channels;
 - 30 channels.
 
-Increasing the number of channels generally increases the size of the statistical model and is therefore particularly useful for scalability studies and performance regression testing.
+Increasing the number of channels increases the size and complexity of the statistical model, making these workspaces particularly useful for scalability studies.
+
+---
+
+# Workspace Naming Convention
+
+Every benchmark workspace filename completely describes the statistical model it contains.
+
+The naming convention follows the pattern
+
+```text
+<channels>_<background>_<signal>_<shape>_<nuisance>_<constraint>_<yield>
+```
+
+For example,
+
+```text
+10ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield1x
+```
+
+can be interpreted as
+
+| Component | Meaning |
+|-----------|---------|
+| `10ch` | Ten simultaneous analysis channels |
+| `bkgRooExp` | RooExponential background model |
+| `sigGeneric` | Generic signal implementation |
+| `shapeFloat` | Floating signal shape parameters |
+| `npOn` | Nuisance parameter enabled |
+| `constrGauss` | Gaussian auxiliary constraint |
+| `yield1x` | Nominal signal yield |
+
+Because every component of the filename describes one property of the statistical model, workspace configurations can be understood directly from their filenames without opening the workspace.
 
 ---
 
 # ROOT Counterparts
 
-Each HS3 benchmark workspace has a corresponding ROOT workspace representing the same statistical model.
+Each HS3 benchmark workspace has a corresponding ROOT workspace generated from the same statistical model.
 
-These ROOT workspaces are primarily used by the cross-framework benchmarks comparing PyHS3 with xRooFit.
+These ROOT workspaces are primarily used by the cross-framework benchmark suite to compare PyHS3 with ROOT-based statistical frameworks such as xRooFit.
 
-Using equivalent statistical models across frameworks ensures that observed performance differences originate from implementation rather than model definition.
+Using equivalent statistical models across frameworks ensures that cross-framework benchmarks remain **apples-to-apples**, with observed differences reflecting implementation characteristics rather than differences in model construction.
 
 ---
 
@@ -91,17 +192,19 @@ The benchmark workspace collection is used throughout the repository.
 
 | Benchmark Category | Uses Benchmark Workspaces |
 |--------------------|:-------------------------:|
-| Workflow Benchmarks | ✅ |
-| Scaling Benchmarks | ✅ |
-| Memory Benchmarks | ✅ |
-| Cross-Framework Benchmarks | ✅ |
-| PyHS3 vs xRooFit | ✅ |
+| Workflow Benchmarks | ✓ |
+| Scaling Benchmarks | ✓ |
+| Memory Benchmarks | ✓ |
+| Cross-Framework Benchmarks | ✓ |
+| PyHS3 vs xRooFit | ✓ |
+
+Unless a benchmark explicitly documents otherwise, it is expected to operate on this benchmark dataset.
 
 ---
 
-# Running Benchmarks
+# Using Benchmark Workspaces
 
-The benchmark runner accepts one or more workspaces.
+One or more workspaces can be supplied to the benchmark runner.
 
 For example,
 
@@ -110,45 +213,34 @@ pixi run python -m src.run_all_benchmarks \
     --workspaces \
         inputs/1ch_bkgRooExp_sigGauss_shapeFloat_npOn_constrGauss_yield1x.json \
         inputs/5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json \
-        inputs/30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
+        inputs/30ch_bkgGenericPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
     --benchmarks workspace_loading
 ```
 
-To execute the complete benchmark suite,
-
-```bash
-pixi run python -m src.run_all_benchmarks \
-    --workspaces \
-        inputs/1ch_bkgRooExp_sigGauss_shapeFloat_npOn_constrGauss_yield1x.json \
-        inputs/5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json \
-        inputs/30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
-    --benchmarks all
-```
-
-Additional workspaces can be included simply by extending the `--workspaces` argument.
+Additional benchmark workspaces can be included simply by extending the `--workspaces` argument.
 
 ---
 
-# Design Philosophy
+# Design Principles
 
-The benchmark workspace collection serves as the canonical benchmark dataset for the repository.
+The benchmark workspace collection has been designed to
 
-Using a single, well-defined collection
+- provide reproducible benchmark inputs;
+- isolate the impact of individual modeling choices;
+- support scalability studies;
+- enable apples-to-apples cross-framework comparisons;
+- serve as a common benchmark dataset across the repository.
 
-- simplifies benchmarking;
-- enables reproducible performance evaluation;
-- allows direct comparison between benchmark suites;
-- provides consistent inputs for cross-framework validation.
-
-Whenever possible, new benchmark suites should operate on this collection to preserve consistency across the repository.
+Using a single, well-defined benchmark dataset greatly simplifies benchmark interpretation while ensuring that benchmark results remain comparable across different workflow stages and software frameworks.
 
 ---
 
 # Related Documentation
 
-For additional information, see
+See also
 
-- **Workspace Collection**
-- **Benchmark Suite**
+- **Workspace Lifecycle**
 - **Benchmark Methodology**
+- **Benchmark Workflow**
 - **Cross-Framework Benchmarks**
+- **Benchmark Suite**

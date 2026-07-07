@@ -1,22 +1,22 @@
 # Getting Started
 
-This guide introduces the basic workflow for working with the PyHS3 Benchmarks repository.
+This guide introduces the basic workflow for using the **PyHS3 Benchmarks** repository.
 
-By the end of this guide you will be able to
+By the end of this guide, you will be able to
 
-- run your first benchmark;
-- execute multiple benchmark suites;
+- install and configure the benchmarking environment;
+- execute your first benchmark;
+- run multiple benchmark suites;
 - understand the generated outputs;
-- generate benchmark plots;
-- navigate the repository documentation.
+- navigate the project documentation.
 
-If you have not yet installed the project, see the **Installation** guide before continuing.
+If you have not yet installed the project, begin with the **Installation** guide before continuing.
 
 ---
 
-# Benchmark Workflow
+# Typical Benchmark Workflow
 
-A typical benchmarking session consists of four steps.
+A typical benchmarking session consists of four stages.
 
 ```text
 Install Dependencies
@@ -28,16 +28,18 @@ Run Benchmarks
 Inspect Results
         │
         ▼
-Analyze Plots
+Analyze Performance
 ```
 
-The repository automates this workflow through the benchmark runner and the built-in plotting utilities.
+Most benchmark workflows in this repository follow this sequence. The benchmark runner automates benchmark execution, report generation, and plot creation, allowing individual benchmarks to be executed consistently across different workspaces.
 
 ---
 
 # Running Your First Benchmark
 
-The simplest way to become familiar with the repository is to execute a single benchmark.
+The recommended first benchmark is **Workspace Loading**, which measures the cost of loading HS3 workspaces before any statistical models are constructed.
+
+Run
 
 ```bash
 pixi run python -m src.run_workspace_loading \
@@ -52,17 +54,19 @@ pixi run python -m src.run_workspace_loading \
 This command
 
 - benchmarks workspace loading performance;
-- measures execution time and memory usage;
-- generates a JSON report;
-- produces comparison plots for the selected workspaces.
+- measures execution time and memory consumption;
+- generates a structured JSON report;
+- creates comparison plots for the selected workspaces.
 
-For a complete description of this benchmark, see **Workspace Loading**.
+For a detailed description of this benchmark, see **Workspace Loading**.
 
 ---
 
 # Running Multiple Benchmarks
 
-The recommended way to execute several benchmark suites is to use the benchmark runner.
+Once you are familiar with individual benchmarks, the recommended workflow is to use the benchmark runner.
+
+For example,
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -78,13 +82,13 @@ pixi run python -m src.run_all_benchmarks \
     --plot
 ```
 
-The benchmark runner executes each selected benchmark, stores the generated JSON reports, and produces the corresponding comparison plots.
+The benchmark runner executes each requested benchmark using the same workspace collection, stores the generated reports, and optionally produces comparison plots.
 
 ---
 
 # Running the Complete Benchmark Suite
 
-To execute every available workflow benchmark on the selected workspaces, run
+To execute every available workflow benchmark for the selected workspaces, run
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -97,13 +101,13 @@ pixi run python -m src.run_all_benchmarks \
     --plot
 ```
 
-This is the recommended approach for comprehensive benchmarking campaigns and performance regression testing.
+This approach is recommended for complete benchmark campaigns and performance regression studies.
 
 ---
 
-# Benchmark Outputs
+# Understanding the Generated Outputs
 
-Benchmark execution produces structured JSON reports together with optional plots.
+Every benchmark produces machine-readable outputs that can be inspected directly or used to generate visualizations.
 
 Typical outputs include
 
@@ -125,21 +129,21 @@ docs/
             └── workspace_loading_peak_rss_delta.png
 ```
 
-The exact outputs depend on the selected benchmark.
+The exact files depend on the benchmark being executed.
 
-For a complete description of the generated artifacts, see **Benchmark Results**.
+A detailed description of benchmark outputs is provided in **Benchmark Results**.
 
 ---
 
 # Typical Development Workflow
 
-The recommended workflow during benchmark development is
+During benchmark development, the recommended workflow is
 
 ```text
 Modify Benchmark
         │
         ▼
-Run Benchmark
+Execute Benchmark
         │
         ▼
 Inspect JSON Results
@@ -148,19 +152,20 @@ Inspect JSON Results
 Review Generated Plots
         │
         ▼
-Verify Performance
+Evaluate Performance
 ```
 
-Using the same workflow throughout the repository ensures that benchmark results remain reproducible and directly comparable.
+Following the same workflow throughout the repository helps ensure that benchmark results remain reproducible and directly comparable across different revisions.
 
 ---
 
 # Where to Go Next
 
-Once you have successfully executed your first benchmark, the following pages provide more detailed information:
+After successfully running your first benchmark, the following pages provide a natural next step:
 
-- **Benchmark Suite** — overview of all available benchmarks.
-- **Benchmark Methodology** — benchmarking principles and measurement methodology.
+- **Installation** — managing and updating the project environment.
+- **Repository Structure** — understanding the organization of the repository.
+- **Benchmark Methodology** — benchmarking principles and measurement strategy.
+- **Benchmark Suite** — overview of all available workflow benchmarks.
+- **Benchmark Results** — generated reports and visualization outputs.
 - **Workspace Loading** — detailed documentation for the first workflow benchmark.
-- **Benchmark Results** — generated JSON reports and plots.
-- **Repository Structure** — project organization and directory layout.

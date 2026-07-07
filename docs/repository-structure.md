@@ -1,16 +1,20 @@
 # Repository Structure
 
-This document describes the overall organization of the **PyHS3 Benchmarks** repository and explains the purpose of each major component.
+The **PyHS3 Benchmarks** repository is organized around a reproducible benchmarking workflow.
 
-The repository is organized around a simple workflow:
+Rather than separating code by implementation details, the repository groups components according to their role in the benchmarking process—from benchmark inputs, through execution, to result generation and documentation.
 
-- **inputs** provide benchmark data;
-- **src** implements the benchmark suite;
-- **results** store benchmark outputs;
-- **docs** contains documentation and generated figures;
-- **tests** validate benchmark correctness.
+The most important directories are
 
-This separation keeps the project modular, reproducible, and easy to extend.
+```text
+docs/        Documentation
+inputs/      Benchmark workspaces
+src/         Benchmark implementations
+results/     Generated benchmark results
+tests/       Automated tests
+```
+
+Additional directories provide generated reports, published documentation, and external dependencies.
 
 ---
 
@@ -20,17 +24,16 @@ This separation keeps the project modular, reproducible, and easy to extend.
 pyhs3-benchmarks/
 │
 ├── docs/
+├── external/
 ├── inputs/
 ├── results/
 ├── src/
 ├── tests/
 │
-├── pyproject.toml
 ├── pixi.toml
+├── pyproject.toml
 └── README.md
 ```
-
-Each directory is described below.
 
 ---
 
@@ -42,16 +45,29 @@ src/
 
 The `src` directory contains the implementation of the benchmarking framework.
 
-It includes
+Rather than a traditional Python package with many submodules, each benchmark is implemented as a dedicated executable module.
 
-- workflow benchmarks;
-- cross-framework benchmarks;
-- benchmark runner;
+The directory includes
+
+- workflow benchmark implementations;
+- cross-framework benchmark implementations;
+- the shared benchmark runner;
+- benchmark stage definitions;
 - plotting utilities;
-- workspace generators;
-- shared benchmarking utilities.
+- shared helper functions.
 
-Most users interact with these modules through their command-line interfaces rather than importing them directly.
+Typical benchmark entry points include
+
+```text
+run_workspace_loading.py
+run_model_creation.py
+run_pdf_evaluation.py
+run_compiled_evaluation.py
+run_cross_nll_scan.py
+run_all_benchmarks.py
+```
+
+Each benchmark can be executed independently from the command line while sharing common infrastructure for reporting, plotting, and configuration.
 
 ---
 
@@ -61,16 +77,16 @@ Most users interact with these modules through their command-line interfaces rat
 inputs/
 ```
 
-The `inputs/` directory contains all benchmark datasets used throughout the repository.
+The repository includes a collection of benchmark workspaces covering multiple statistical models and complexity levels.
 
-These include
+Benchmark inputs include
 
-- benchmark HS3 workspaces;
-- synthetic scalar PDF workspaces;
-- synthetic binned likelihood models;
-- ROOT workspaces used for xRooFit comparisons.
+- HS3 workspaces;
+- corresponding ROOT workspaces used for cross-framework validation;
+- benchmark models with varying numbers of channels;
+- multiple model configurations for scaling studies.
 
-Most workflow benchmarks operate on the benchmark workspace collection described in the **Benchmark Workspaces** documentation.
+Most benchmark suites operate directly on these workspaces, making benchmark results reproducible across different environments.
 
 ---
 
@@ -80,27 +96,16 @@ Most workflow benchmarks operate on the benchmark workspace collection described
 results/
 ```
 
-Benchmark execution produces structured JSON reports.
+Benchmark execution produces structured outputs organized by benchmark name.
 
-A typical directory structure is
+Typical outputs include
 
-```text
-results/
+- benchmark result JSON files;
+- benchmark matrix summaries;
+- benchmark logs;
+- execution metadata.
 
-    workspace_loading/
-
-        workspace_loading_result.json
-
-    model_creation/
-
-        model_creation_result.json
-
-    ...
-
-    matrix_summary.json
-```
-
-The JSON reports are the primary machine-readable outputs of the benchmarking framework and serve as the basis for visualization and automated analysis.
+These machine-readable outputs form the basis for visualization, regression tracking, and cross-framework comparison.
 
 ---
 
@@ -112,20 +117,20 @@ docs/
 
 The documentation contains
 
-- installation guides;
-- benchmarking methodology;
-- workflow benchmark documentation;
-- cross-framework benchmark documentation;
+- installation and usage guides;
+- benchmark methodology;
+- benchmark reference pages;
+- cross-framework validation documentation;
 - workspace documentation;
 - generated benchmark figures.
 
-Generated plots used by the documentation are stored in
+Documentation figures are stored under
 
 ```text
 docs/assets/plots/
 ```
 
-Keeping figures alongside the documentation simplifies publishing and maintenance.
+allowing figures and documentation to remain synchronized.
 
 ---
 
@@ -135,29 +140,56 @@ Keeping figures alongside the documentation simplifies publishing and maintenanc
 tests/
 ```
 
-The `tests/` directory contains unit and integration tests covering
+The repository includes automated tests covering
 
-- benchmark implementations;
-- workspace generation;
-- shared utilities;
-- validation logic.
+- benchmark execution;
+- benchmark runners;
+- plotting utilities;
+- shared infrastructure;
+- numerical validation.
 
-Where possible, benchmark results are compared against reference implementations to ensure numerical correctness.
+Where appropriate, benchmark outputs are compared against reference values to ensure correctness and reproducibility.
 
 ---
 
-# Typical Benchmark Workflow
+# External Dependencies
 
-A typical benchmark session follows the workflow below.
+```text
+external/
+```
+
+The repository contains external software required for selected benchmark suites.
+
+Currently this directory contains an xRooFit checkout used for cross-framework benchmarking against ROOT-based statistical workflows.
+
+Keeping external dependencies separate from the main source tree simplifies maintenance while preserving reproducibility.
+
+---
+
+# Generated Documentation
+
+```text
+site/
+```
+
+The `site` directory contains the generated static documentation.
+
+It is produced automatically from the Markdown documentation and associated assets and is intended for deployment rather than manual editing.
+
+---
+
+# Typical Repository Workflow
+
+The repository is organized around the following workflow.
 
 ```text
 Benchmark Workspace
         │
         ▼
-Benchmark
+Benchmark Execution
         │
         ▼
-JSON Report
+JSON Results
         │
         ▼
 Plot Generation
@@ -166,42 +198,32 @@ Plot Generation
 Documentation
 ```
 
-This workflow is identical whether benchmarks are executed individually or through the benchmark runner.
-
----
-
-# Benchmark Runner
-
-The repository provides a unified benchmark runner capable of executing one or more benchmark suites across multiple workspaces.
-
-Typical responsibilities include
-
-- executing benchmark suites;
-- coordinating repeated measurements;
-- collecting benchmark reports;
-- generating matrix summaries;
-- producing comparison plots.
-
-Using a common runner ensures that all benchmark suites follow the same execution model and reporting conventions.
+Each stage produces inputs for the next, resulting in a fully reproducible benchmarking pipeline.
 
 ---
 
 # Design Philosophy
 
-The repository follows a modular design.
+The repository emphasizes
 
-Each benchmark focuses on measuring a single stage of the statistical workflow, while common functionality—such as reporting, plotting, workspace handling, and command-line interfaces—is shared across the project.
+- reproducibility;
+- modular benchmark implementations;
+- reusable benchmarking infrastructure;
+- consistent reporting;
+- automated visualization.
 
-This architecture simplifies maintenance, encourages code reuse, and makes it straightforward to introduce new benchmark suites without modifying the existing infrastructure.
+Each benchmark focuses on measuring a single stage of the statistical workflow, while shared functionality—including reporting, plotting, workspace handling, and command-line interfaces—is reused across the project.
+
+This architecture simplifies maintenance and makes it straightforward to extend the benchmark suite without changing the underlying infrastructure.
 
 ---
 
 # Related Documentation
 
-See also
+Continue with
 
 - **Getting Started**
-- **Benchmark Suite**
 - **Benchmark Methodology**
+- **Benchmark Suite**
 - **Benchmark Results**
 - **Benchmark Workspaces**

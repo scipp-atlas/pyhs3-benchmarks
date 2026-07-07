@@ -13,19 +13,19 @@ pixi run python -m src.plot_benchmark_overview \
 
 ## Benchmark performance summary
 
-![Benchmark performance summary](docs/assets/plots/benchmark_overview/benchmark_overview_performance_summary.png)
+![Benchmark performance summary](../assets/plots/benchmark_overview/benchmark_overview_performance_summary.png)
 
 ## Stage timing breakdown
 
-![Stage timing breakdown](docs/assets/plots/benchmark_overview/benchmark_overview_stage_timing.png)
+![Stage timing breakdown](../assets/plots/benchmark_overview/benchmark_overview_stage_timing.png)
 
 ## Stage memory breakdown
 
-![Stage memory breakdown](docs/assets/plots/benchmark_overview/benchmark_overview_stage_memory.png)
+![Stage memory breakdown](../assets/plots/benchmark_overview/benchmark_overview_stage_memory.png)
 
 ## Cross-framework runtime comparison
 
-![Cross-framework runtime comparison](docs/assets/plots/benchmark_overview/benchmark_overview_cross_framework_summary.png)
+![Cross-framework runtime comparison](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_summary.png)
 
 ## Interpretation
 

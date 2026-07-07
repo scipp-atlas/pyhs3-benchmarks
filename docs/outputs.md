@@ -1,29 +1,59 @@
 # Benchmark Results
 
-Every benchmark execution produces structured outputs that can be used for analysis, visualization, validation, and long-term performance tracking.
+Every benchmark execution produces a collection of structured artifacts that document the outcome of the benchmark.
 
-All benchmark outputs are deterministic and organized using a consistent directory structure, making it straightforward to compare benchmark campaigns across different repository revisions.
+These artifacts support several purposes throughout the repository:
+
+- performance analysis;
+- numerical validation;
+- visualization;
+- regression tracking;
+- automated reporting.
+
+Because all benchmark suites follow the same reporting conventions, benchmark results remain consistent and comparable across the repository.
 
 ---
 
-# Output Directories
+# Generated Artifacts
 
-Benchmark outputs are organized into two primary locations.
+A benchmark execution typically produces two categories of outputs:
+
+- **structured benchmark reports** containing machine-readable measurements;
+- **publication-quality figures** generated from those reports.
+
+These outputs are stored separately.
 
 ```text
-results/
-docs/assets/plots/
+results/            Machine-readable benchmark reports
+
+docs/assets/plots/  Generated benchmark figures
 ```
 
-The `results/` directory stores structured benchmark reports, while `docs/assets/plots/` contains generated figures used throughout the documentation.
+Separating numerical results from visualizations makes it possible to regenerate figures without rerunning potentially expensive benchmark computations.
 
-Keeping numerical results separate from visualizations allows plots to be regenerated without rerunning benchmarks.
+---
+
+# Benchmark Reports
+
+The primary output of every benchmark is a structured JSON report.
+
+Although individual benchmark suites report different quantities, benchmark reports typically contain
+
+- benchmark metadata;
+- benchmark configuration;
+- execution status;
+- timing measurements;
+- memory measurements;
+- validation results (where applicable);
+- benchmark-specific metrics.
+
+Because every benchmark follows the same reporting conventions, JSON reports provide a stable interface for automated analysis and custom tooling.
 
 ---
 
 # Results Directory
 
-Individual benchmark executions produce benchmark-specific JSON reports.
+Benchmark reports are organized by benchmark suite.
 
 For example,
 
@@ -47,62 +77,42 @@ results/
     matrix_summary.json
 ```
 
-Each benchmark stores its own machine-readable report containing the measurements collected during execution.
-
-When benchmarks are executed through the benchmark runner, a `matrix_summary.json` file is also generated, summarizing the complete benchmark campaign.
-
----
-
-# Benchmark Reports
-
-Each benchmark generates a structured JSON report.
-
-Although the exact contents depend on the benchmark, reports typically include
-
-- benchmark metadata;
-- benchmark configuration;
-- execution status;
-- timing statistics;
-- memory statistics (when applicable);
-- validation information (when applicable);
-- benchmark-specific measurements.
-
-These JSON reports are the primary machine-readable outputs of the repository and can be used for automated analysis or custom visualization.
+Each benchmark stores its own results independently, allowing benchmark suites to be executed separately while preserving a consistent repository structure.
 
 ---
 
 # Matrix Summary
 
-Executing benchmarks through
+Executing multiple benchmark suites using
 
 ```bash
 pixi run python -m src.run_all_benchmarks
 ```
 
-produces
+also generates
 
 ```text
 results/
 └── matrix_summary.json
 ```
 
-The summary contains information such as
+The matrix summary provides a high-level overview of the benchmark campaign, including
 
 - executed benchmark suites;
-- processed workspaces;
+- processed benchmark workspaces;
 - execution status;
 - failed benchmark runs;
-- locations of generated benchmark reports.
+- locations of generated reports.
 
-This file provides a convenient entry point for automated reporting and regression tracking.
+This file serves as the primary entry point for automated reporting and large benchmark campaigns.
 
 ---
 
 # Generated Figures
 
-Many benchmarks can generate publication-quality figures during execution.
+Most benchmark suites can generate publication-quality figures directly from their JSON reports.
 
-Generated plots are written to
+Generated figures are stored under
 
 ```text
 docs/
@@ -110,7 +120,7 @@ docs/
     └── plots/
 ```
 
-Each benchmark stores its figures in its own directory.
+Each benchmark maintains its own figure directory.
 
 For example,
 
@@ -124,99 +134,106 @@ docs/
             └── workspace_loading_peak_rss_delta.png
 ```
 
-Typical figures include
+Typical visualizations include
 
 - execution time comparisons;
-- memory usage comparisons;
-- scalability plots;
+- memory profiles;
+- throughput measurements;
+- scalability studies;
 - framework comparisons;
 - likelihood scan visualizations.
 
-Since plots are generated directly from benchmark results, they can always be recreated without rerunning expensive benchmark computations.
-
----
-
-# Repeated Measurements
-
-Most timing benchmarks execute multiple repeated measurements.
-
-Rather than reporting a single execution time, benchmark reports typically include
-
-- mean execution time;
-- median execution time;
-- standard deviation.
-
-These aggregated statistics reduce measurement noise and provide a more reliable estimate of benchmark performance.
+Because figures are generated from structured benchmark reports, they can always be reproduced without repeating benchmark execution.
 
 ---
 
 # Benchmark Status
 
-Every benchmark execution records its completion status.
+Every benchmark records its execution status as part of the generated report.
 
 Typical values include
 
 - `success`
 - `failed`
 
-Failed benchmark runs remain part of the JSON report, making it possible to diagnose execution problems while excluding unsuccessful runs from comparison plots.
+Recording unsuccessful benchmark executions simplifies debugging while allowing automated tooling to ignore failed runs during performance analysis.
+
+---
+
+# Interpreting Benchmark Results
+
+Most benchmark suites execute multiple repeated measurements rather than reporting a single execution.
+
+Depending on the benchmark, reported statistics may include
+
+- mean execution time;
+- median execution time;
+- standard deviation;
+- throughput;
+- peak memory usage;
+- current memory usage.
+
+Using aggregated statistics reduces measurement noise and provides more reliable performance estimates.
+
+The exact metrics reported by each benchmark are documented on the corresponding benchmark page.
 
 ---
 
 # Reproducibility
 
-Benchmark outputs are designed to be reproducible.
+Benchmark results are designed to be reproducible.
 
-Running the same benchmark with the same inputs and configuration should produce equivalent numerical results, while execution times may vary slightly depending on hardware and system load.
+Executing the same benchmark with identical inputs and configuration should produce equivalent numerical outputs, while measured execution times may vary slightly depending on hardware and system load.
 
-For this reason, benchmark reports always include both the benchmark configuration and the measured statistics.
+For this reason, every benchmark report records both the benchmark configuration and the measured statistics.
 
 ---
 
-# Typical Workflow
+# Typical Result Lifecycle
 
-A typical benchmarking workflow is
+Benchmark outputs follow a consistent lifecycle.
 
 ```text
-Run Benchmark
-      │
-      ▼
-JSON Report
-      │
-      ▼
-Generate Plots
-      │
-      ▼
-Analyze Results
-      │
-      ▼
-Documentation
+Execute Benchmark
+        │
+        ▼
+Generate JSON Report
+        │
+        ▼
+Generate Figures
+        │
+        ▼
+Analyze Performance
+        │
+        ▼
+Compare Benchmark Campaigns
 ```
 
-Separating benchmark execution from visualization makes it possible to regenerate plots at any time without repeating benchmark execution.
+This separation between benchmark execution, report generation, and visualization simplifies automated analysis and long-term performance tracking.
 
 ---
 
-# Using Benchmark Results
+# Common Use Cases
 
-Benchmark reports support several common use cases, including
+Benchmark outputs support a wide range of development and analysis tasks, including
 
-- performance regression detection;
-- optimization studies;
-- scalability analysis;
-- cross-framework comparisons;
-- publication-quality figures;
-- automated reporting.
+- detecting performance regressions;
+- evaluating optimization strategies;
+- validating numerical agreement;
+- studying scalability;
+- generating publication-quality figures;
+- producing automated benchmark summaries.
 
-Because every benchmark follows the same reporting conventions, analysis tools can process benchmark results consistently across the entire repository.
+The common reporting format allows these analyses to be performed consistently across every benchmark suite.
 
 ---
 
 # Related Documentation
 
-See also
+For additional information, see
 
 - **Benchmark Methodology**
+- **Benchmark Runner**
+- **Benchmark Workflow**
 - **Benchmark Suite**
-- **Workspace Loading**
 - **Repository Structure**

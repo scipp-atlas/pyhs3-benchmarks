@@ -1,62 +1,60 @@
-# Benchmark Workspaces
+# Workspaces
 
 Benchmark workspaces define the statistical models used throughout the PyHS3 Benchmarks repository.
 
-The repository is built around a single benchmark workspace collection that serves as the primary input for nearly every benchmark suite. Using a unified dataset ensures that performance measurements remain reproducible, directly comparable, and representative across the entire benchmarking framework.
+The repository is built around a single canonical benchmark workspace collection that serves as the common input for nearly every benchmark suite. Using one shared dataset ensures that performance measurements remain reproducible, directly comparable, and representative across the entire benchmarking framework.
 
-Rather than maintaining separate benchmark datasets for different workflow stages, the repository uses the same workspace collection whenever possible. This allows benchmark results from different suites to be interpreted consistently and enables meaningful comparisons between workflow stages and statistical frameworks.
+All benchmark workspaces are generated automatically using the **workspace-scripts** repository:
 
----
+https://github.com/scipp-atlas/workspace-scripts
 
-# Workspace Collections
-
-The repository currently contains two workspace collections.
-
-## Benchmark Workspaces
-
-The primary benchmark dataset.
-
-These workspaces are used by virtually every workflow benchmark, scalability benchmark, and cross-framework benchmark implemented in the repository.
-
-The collection spans a wide range of statistical models with varying complexity, including different numbers of channels, signal parameterizations, background models, nuisance parameter configurations, and constraint models.
-
-See **Benchmark Workspaces** for a detailed description.
+The generation process produces statistically equivalent **HS3** and **ROOT** workspaces from the same underlying statistical models. These paired workspaces form the benchmark dataset used throughout the repository.
 
 ---
 
-## PyHF Workspaces
+# Benchmark Workspace Collection
 
-The repository also contains benchmark inputs targeting the PyHF ecosystem.
+The benchmark workspace collection spans a range of statistical models with varying complexity.
 
-These workspaces are documented separately because their structure and intended use differ from the primary benchmark workspace collection.
+The collection includes variations in
 
-See **PyHF Workspaces** for additional details.
+- analysis channel count;
+- background parameterization;
+- signal parameterization;
+- nuisance parameter configuration;
+- auxiliary constraint model;
+- expected signal yield.
+
+Every workspace follows the same naming convention and is generated from a common baseline statistical model.
+
+See **Benchmark Workspaces** for a complete description of the dataset design and naming convention.
 
 ---
 
-# Why a Single Benchmark Dataset?
+# Why a Common Benchmark Dataset?
 
-Using one benchmark workspace collection throughout the repository provides several advantages.
+Using a single benchmark workspace collection provides several advantages.
 
-- consistent benchmark inputs across workflow stages;
-- reproducible performance measurements;
+- reproducible benchmark inputs;
+- consistent benchmark configuration;
 - directly comparable benchmark results;
 - simplified benchmark maintenance;
-- identical statistical models for cross-framework validation.
+- statistically equivalent HS3 and ROOT models for cross-framework validation.
 
-As a result, benchmark differences reflect implementation differences rather than differences in benchmark inputs.
+As a result, observed benchmark differences reflect implementation characteristics rather than differences in benchmark inputs.
 
 ---
 
-# Matrix Benchmarking
+# Relationship to Cross-Framework Benchmarks
 
-The matrix runner automatically discovers compatible benchmark workspaces and executes benchmark suites across the complete collection.
+Cross-framework benchmarks operate on matching HS3 and ROOT workspaces generated from the same statistical models.
 
-This enables large-scale benchmark campaigns with a single command while preserving a consistent directory structure for benchmark outputs.
+Using paired workspaces allows PyHS3 and ROOT-based frameworks to evaluate equivalent likelihoods while maintaining an apples-to-apples comparison methodology.
 
 ---
 
 # Related Documentation
 
 - Benchmark Workspaces
-- PyHF Workspaces
+- Benchmark Methodology
+- Cross-Framework Benchmarks

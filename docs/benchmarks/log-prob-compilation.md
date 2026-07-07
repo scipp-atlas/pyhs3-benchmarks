@@ -25,7 +25,7 @@ The following steps are **not** included in the measured time:
 - creating the statistical model,
 - constructing `model.log_prob`.
 
-Each timing iteration rebuilds the model and `log_prob` before starting the timer, ensuring that only compilation is measured. The implementation also validates that the compiled graph executes successfully and returns a finite value after compilation. :contentReference[oaicite:0]{index=0}
+Each timing iteration rebuilds the model and `log_prob` before starting the timer, ensuring that only compilation is measured. The implementation also validates that the compiled graph executes successfully and returns a finite value after compilation.
 
 ---
 

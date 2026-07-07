@@ -1,5 +1,3 @@
-# zensical.toml
-
 [project]
 site_name = "PyHS3 Benchmarks"
 site_description = "Benchmarking, validation, and profiling suite for PyHS3."
@@ -10,53 +8,52 @@ nav = [
   { "Home" = "index.md" },
 
   { "Getting Started" = [
-    "installation.md",
-    "getting-started.md",
-    "repository-structure.md"
+    { "Installation" = "installation.md" },
+    { "Getting Started" = "getting-started.md" },
+    { "Repository Structure" = "repository-structure.md" }
   ] },
 
   { "Concepts" = [
-    "benchmark-methodology.md",
-    "outputs.md"
+    { "Benchmark Methodology" = "benchmark-methodology.md" },
+    { "Benchmark Workflow" = "concepts/benchmark-workflow.md" },
+    { "Workspace Lifecycle" = "concepts/workspace-lifecycle.md" },
+    { "Benchmark Runner" = "concepts/benchmark-runner.md" },
+    { "Benchmark Results" = "concepts/benchmark-results.md" }
   ] },
 
+  { "Outputs" = "outputs.md" },
+
   { "Workspaces" = [
-    "workspaces/index.md",
-    "workspaces/benchmark-workspaces.md",
-    "workspaces/pyhf-workspaces.md"
+    { "Overview" = "workspaces/index.md" },
+    { "Benchmark Workspaces" = "workspaces/benchmark-workspaces.md" }
   ] },
 
   { "Benchmarks" = [
-    "benchmarks/index.md",
-    "benchmarks/workspace-loading.md",
-    "benchmarks/model-creation.md",
-    "benchmarks/log-prob-construction.md",
-    "benchmarks/graph-canonicalization.md",
-    "benchmarks/graph-optimization.md",
-    "benchmarks/log-prob-compilation.md",
-    "benchmarks/compiled-evaluation.md",
-    "benchmarks/pdf-evaluation.md",
-    "benchmarks/nll-scan.md",
-    "benchmarks/memory-scaling.md",
-    "benchmarks/model-complexity-scaling.md"
+    { "Benchmark Suite" = "benchmarks/index.md" },
+    { "Benchmark Overview" = "benchmarks/overview.md" },
+    { "Workspace Loading" = "benchmarks/workspace-loading.md" },
+    { "Model Creation" = "benchmarks/model-creation.md" },
+    { "Log-Probability Construction" = "benchmarks/log-prob-construction.md" },
+    { "Graph Canonicalization" = "benchmarks/graph-canonicalization.md" },
+    { "Graph Optimization" = "benchmarks/graph-optimization.md" },
+    { "Log-Probability Compilation" = "benchmarks/log-prob-compilation.md" },
+    { "Compiled Evaluation" = "benchmarks/compiled-evaluation.md" },
+    { "PDF Evaluation" = "benchmarks/pdf-evaluation.md" },
+    { "NLL Scan" = "benchmarks/nll-scan.md" },
+    { "Memory Scaling" = "benchmarks/memory-scaling.md" },
+    { "Model Complexity Scaling" = "benchmarks/model-complexity-scaling.md" }
   ] },
 
   { "Cross-Framework" = [
-    "cross-framework/index.md",
-    "cross-framework/scalar-pdf.md",
-    "cross-framework/vectorized-pdf.md",
-    "cross-framework/binned-likelihood.md",
-    "cross-framework/nll-scan.md",
-    "cross-framework/model-complexity.md",
-    "cross-framework/xroofit.md"
+    { "Overview" = "cross-framework/index.md" },
+    { "Scalar PDF Evaluation" = "cross-framework/scalar-pdf.md" },
+    { "ΔNLL Scan" = "cross-framework/nll-scan.md" },
+    { "xRooFit" = "cross-framework/xroofit.md" }
   ] },
 
-  { "Development" = [
-    "development/index.md",
-    "development/adding-benchmarks.md",
-    "development/matrix-runner.md",
-    "development/benchmark-overview.md"
-  ] }
+  { "Development" = "development.md" },
+
+  { "API" = "api.md" }
 ]
 
 [project.theme]
