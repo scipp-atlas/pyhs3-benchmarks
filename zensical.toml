@@ -53,7 +53,11 @@ nav = [
 
   { "Development" = "development.md" },
 
-  { "API" = "api.md" }
+  { "API" = "api.md" },
+
+  { "Benchmark Matrix Runner" = "benchmark-matrix-runner.md" },
+
+  { "Profiling with Scalene" = "scalene-profiling.md" }
 ]
 
 [project.theme]
