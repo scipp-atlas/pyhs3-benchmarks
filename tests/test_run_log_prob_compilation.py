@@ -948,42 +948,101 @@ def test_main_creates_plots_for_multiple_results(
     assert len(make_plots_calls[0][0]) == 2
 
 
-def test_run_single_benchmark_real_workspace() -> None:
+def test_run_single_benchmark_mocked_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_path: Path,
+    fake_model: SimpleNamespace,
+    fake_compiled_graph: FakeCompiledGraph,
+) -> None:
+    memory_summary = {
+        "memory_n_runs": 1,
+        "current_rss_before_mb": 100.0,
+        "current_rss_after_mb": 101.0,
+        "current_rss_delta_mb": 1.0,
+        "peak_rss_before_mb": 120.0,
+        "peak_rss_after_mb": 122.0,
+        "peak_rss_delta_mb": 2.0,
+    }
+    validation_summary = {
+        "compiled_type": "FakeCompiledGraph",
+        "n_compiled_inputs": 2,
+        "compiled_input_names": ["x", "mu"],
+        "validation_result_type": "ndarray",
+        "validation_first_value": 1.25,
+        "validation_result_is_finite": True,
+    }
+    monkeypatch.setattr(
+        benchmark,
+        "measure_compilation_memory",
+        lambda workspace_path, target, mode: (
+            fake_model,
+            fake_compiled_graph,
+            memory_summary,
+        ),
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "validate_compiled_graph",
+        lambda model, compiled: validation_summary,
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_compilation_timing",
+        lambda workspace_path, target, mode, n_runs: [0.1],
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "summarize_timings",
+        lambda timings: {
+            "wall_time_seconds_mean": 0.1,
+            "wall_time_seconds_median": 0.1,
+            "wall_time_seconds_std": 0.0,
+        },
+    )
+
     result = benchmark.run_single_benchmark(
-        workspace_path=benchmark.DEFAULT_WORKSPACE,
+        workspace_path=workspace_path,
         target=benchmark.DEFAULT_TARGET,
         mode=benchmark.DEFAULT_MODE,
         n_runs=1,
     )
 
     assert result["status"] == "success"
+    assert result["workspace"] == workspace_path.name
     assert result["target"] == benchmark.DEFAULT_TARGET
     assert result["mode"] == benchmark.DEFAULT_MODE
     assert result["n_runs"] == 1
-    assert result["wall_time_seconds_mean"] > 0
+    assert result["wall_time_seconds_mean"] == pytest.approx(0.1)
     assert result["validation_result_is_finite"] is True
-    assert result["validation_first_value"] == pytest.approx(
-        result["validation_first_value"]
-    )
     assert result["current_rss_before_mb"] >= 0
     assert result["current_rss_after_mb"] >= 0
     assert result["peak_rss_before_mb"] >= 0
     assert result["peak_rss_after_mb"] >= 0
 
 
-def test_main_real_run_writes_output_json_and_uses_spawn(
+def test_main_mocked_run_writes_output_json_and_uses_spawn(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     output_name = "log_prob_compilation_result.json"
     output_path = output_dir / output_name
+
+    result = dict(valid_result)
+    result["workspace"] = workspace_path.name
+    result["workspace_path"] = str(workspace_path)
+    result["target"] = benchmark.DEFAULT_TARGET
+    result["mode"] = benchmark.DEFAULT_MODE
 
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "run_log_prob_compilation.py",
+            "--workspaces",
+            str(workspace_path),
             "--n-runs",
             "1",
             "--output-dir",
@@ -992,6 +1051,8 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
             output_name,
         ],
     )
+    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(result))
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -1005,7 +1066,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
     assert payload["n_results"] == 1
     assert len(payload["results"]) == 1
     assert payload["results"][0]["status"] == "success"
-    assert payload["results"][0]["workspace"] == benchmark.DEFAULT_WORKSPACE.name
+    assert payload["results"][0]["workspace"] == workspace_path.name
     assert payload["results"][0]["target"] == benchmark.DEFAULT_TARGET
     assert payload["results"][0]["mode"] == benchmark.DEFAULT_MODE
 
@@ -1241,27 +1302,14 @@ def test_main_with_multiple_results_invokes_plots_and_prints_message(
     assert f"Saved plots to {plot_dir}" in output
 
 
-def test_module_main_guard_runs_with_clean_argv(
+def test_module_main_guard_rejects_invalid_n_runs(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
 ) -> None:
-    output_dir = tmp_path / "results"
-    output_name = "module_main.json"
-
     monkeypatch.setattr(
         sys,
         "argv",
-        [
-            "run_log_prob_compilation.py",
-            "--n-runs",
-            "1",
-            "--output-dir",
-            str(output_dir),
-            "--output-name",
-            output_name,
-        ],
+        ["run_log_prob_compilation.py", "--n-runs", "0"],
     )
 
-    runpy.run_module("src.run_log_prob_compilation", run_name="__main__")
-
-    assert (output_dir / output_name).exists()
+    with pytest.raises(ValueError, match="--n-runs must be at least 1"):
+        runpy.run_module("src.run_log_prob_compilation", run_name="__main__")

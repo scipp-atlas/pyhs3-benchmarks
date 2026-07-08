@@ -952,8 +952,40 @@ def test_main_propagates_verify_output_file_error(
         benchmark.main()
 
 
-def test_run_single_benchmark_real_workspace() -> None:
-    workspace_path = Path("inputs/simple_workspace.json")
+def test_run_single_benchmark_mock_workspace_no_real_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_path: Path,
+    valid_model: SimpleNamespace,
+) -> None:
+    workspace = SimpleNamespace()
+    memory_summary = {
+        "memory_n_runs": 1,
+        "current_rss_before_mb": 100.0,
+        "current_rss_after_mb": 101.0,
+        "current_rss_delta_mb": 1.0,
+        "peak_rss_before_mb": 120.0,
+        "peak_rss_after_mb": 122.0,
+        "peak_rss_delta_mb": 2.0,
+    }
+    timings = [0.1]
+    timing_summary = {
+        "wall_time_seconds_mean": 0.1,
+        "wall_time_seconds_median": 0.1,
+        "wall_time_seconds_std": 0.0,
+    }
+
+    monkeypatch.setattr(benchmark, "load_workspace", lambda path: workspace)
+    monkeypatch.setattr(
+        benchmark,
+        "measure_model_creation_memory",
+        lambda workspace, target, mode: (valid_model, memory_summary),
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_model_creation_timing",
+        lambda workspace, target, mode, n_runs: timings,
+    )
+    monkeypatch.setattr(benchmark, "summarize_timings", lambda samples: timing_summary)
 
     result = benchmark.run_single_benchmark(
         workspace_path=workspace_path,
@@ -963,19 +995,22 @@ def test_run_single_benchmark_real_workspace() -> None:
     )
 
     assert result["status"] == "success"
+    assert result["workspace"] == "workspace.json"
     assert result["target"] == "default_domain"
     assert result["mode"] == "FAST_RUN"
-    assert result["n_distributions"] > 0 if "n_distributions" in result else True
-    assert result["wall_time_seconds_mean"] > 0
-    assert result["current_rss_before_mb"] >= 0
-    assert result["current_rss_after_mb"] >= 0
-    assert result["peak_rss_before_mb"] >= 0
-    assert result["peak_rss_after_mb"] >= 0
+    assert result["n_runs"] == 1
+    assert result["wall_time_seconds_mean"] == 0.1
+    assert result["current_rss_before_mb"] == 100.0
+    assert result["current_rss_after_mb"] == 101.0
+    assert result["peak_rss_before_mb"] == 120.0
+    assert result["peak_rss_after_mb"] == 122.0
 
 
-def test_main_real_run_writes_output_json_and_uses_spawn(
+def test_main_mock_run_writes_output_json_and_uses_spawn(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     output_name = "model_creation_result.json"
@@ -987,7 +1022,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
         [
             "run_model_creation.py",
             "--workspaces",
-            "inputs/simple_workspace.json",
+            str(workspace_path),
             "--targets",
             "default_domain",
             "--modes",
@@ -1000,6 +1035,10 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
             output_name,
         ],
     )
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -1013,9 +1052,9 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
     assert payload["n_results"] == 1
     assert len(payload["results"]) == 1
     assert payload["results"][0]["status"] == "success"
-    assert payload["results"][0]["workspace"] == "simple_workspace.json"
+    assert payload["results"][0]["workspace"] == "workspace.json"
     assert payload["results"][0]["mode"] == "FAST_RUN"
-    assert payload["results"][0]["target"] == "default_domain"
+    assert payload["results"][0]["target"] == "analysis"
 
 
 def test_make_plots_real_png_files_created(

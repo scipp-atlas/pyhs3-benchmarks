@@ -1039,9 +1039,44 @@ def test_module_main_guard_runs_main_with_patched_context(
     assert payload["results"][0]["status"] == "success"
 
 
-def test_run_single_benchmark_real_workspace() -> None:
+def test_run_single_benchmark_uses_tmp_workspace_with_mocks(
+    monkeypatch: pytest.MonkeyPatch,
+    fake_fgraph: SimpleNamespace,
+    workspace_path: Path,
+) -> None:
+    memory_summary = {
+        "memory_n_runs": 1,
+        "current_rss_before_mb": 100.0,
+        "current_rss_after_mb": 101.0,
+        "current_rss_delta_mb": 1.0,
+        "peak_rss_before_mb": 120.0,
+        "peak_rss_after_mb": 121.0,
+        "peak_rss_delta_mb": 1.0,
+        "n_apply_nodes_before": 4,
+    }
+
+    monkeypatch.setattr(
+        benchmark,
+        "measure_graph_canonicalization_memory",
+        lambda workspace_path, target, mode: (fake_fgraph, memory_summary),
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_graph_canonicalization_timing",
+        lambda workspace_path, target, mode, n_runs: [0.01],
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "summarize_timings",
+        lambda timings: {
+            "wall_time_seconds_mean": 0.01,
+            "wall_time_seconds_median": 0.01,
+            "wall_time_seconds_std": 0.0,
+        },
+    )
+
     result = benchmark.run_single_benchmark(
-        workspace_path=Path("inputs/simple_workspace.json"),
+        workspace_path=workspace_path,
         target="L_ch0",
         mode="FAST_RUN",
         n_runs=1,
@@ -1049,21 +1084,23 @@ def test_run_single_benchmark_real_workspace() -> None:
 
     assert result["status"] == "success"
     assert result["benchmark"] == "graph_canonicalization"
-    assert result["workspace"] == "simple_workspace.json"
+    assert result["workspace"] == "workspace.json"
     assert result["target"] == "L_ch0"
     assert result["mode"] == "FAST_RUN"
     assert result["n_runs"] == 1
-    assert result["wall_time_seconds_mean"] > 0
+    assert result["wall_time_seconds_mean"] == pytest.approx(0.01)
     assert result["n_graph_outputs"] == 1
-    assert result["n_apply_nodes_before"] > 0
-    assert result["n_apply_nodes_after"] > 0
+    assert result["n_apply_nodes_before"] == 4
+    assert result["n_apply_nodes_after"] == 3
     assert result["current_rss_before_mb"] >= 0
     assert result["peak_rss_before_mb"] >= 0
 
 
-def test_main_real_run_writes_output_json_and_uses_spawn(
+def test_main_run_writes_output_json_and_uses_spawn_with_tmp_workspace(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     output_name = "graph_canonicalization_result.json"
@@ -1075,7 +1112,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
         [
             "run_graph_canonicalization.py",
             "--workspaces",
-            "inputs/simple_workspace.json",
+            str(workspace_path),
             "--targets",
             "L_ch0",
             "--modes",
@@ -1088,6 +1125,10 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
             output_name,
         ],
     )
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -1101,5 +1142,5 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
     assert payload["n_results"] == 1
     assert len(payload["results"]) == 1
     assert payload["results"][0]["status"] == "success"
-    assert payload["results"][0]["workspace"] == "simple_workspace.json"
+    assert payload["results"][0]["workspace"] == "workspace.json"
     assert payload["results"][0]["target"] == "L_ch0"

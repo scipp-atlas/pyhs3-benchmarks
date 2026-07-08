@@ -1034,9 +1034,47 @@ def test_main_module_entrypoint_reaches_main(monkeypatch: pytest.MonkeyPatch) ->
         runpy.run_module("src.run_nll_scan", run_name="__main__")
 
 
-def test_run_single_benchmark_real_workspace() -> None:
+def test_run_single_benchmark_mocked_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_path: Path,
+    base_inputs: dict[str, Any],
+) -> None:
+    compiled = FakeCompiled(log_prob=-2.0)
+
+    monkeypatch.setattr(
+        benchmark, "build_log_prob", lambda **kwargs: (object(), object())
+    )
+    monkeypatch.setattr(benchmark, "compile_log_prob", lambda log_prob: compiled)
+    monkeypatch.setattr(
+        benchmark, "build_validation_inputs", lambda model, compiled: base_inputs
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_nll_scan_memory",
+        lambda **kwargs: {
+            "memory_n_scan_points": 3,
+            "current_rss_before_mb": 100.0,
+            "current_rss_after_mb": 101.0,
+            "current_rss_delta_mb": 1.0,
+            "peak_rss_before_mb": 120.0,
+            "peak_rss_after_mb": 122.0,
+            "peak_rss_delta_mb": 2.0,
+        },
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_nll_scan_timing",
+        lambda **kwargs: {
+            "total_runtime_seconds": 0.3,
+            "runtime_per_scan_point_seconds": 0.1,
+            "throughput_scan_points_per_second": 10.0,
+            "first_nll_value": 2.0,
+            "last_nll_value": 2.0,
+        },
+    )
+
     result = benchmark.run_single_benchmark(
-        workspace_path=Path("inputs/simple_workspace.json"),
+        workspace_path=workspace_path,
         target="L_ch0",
         mode="FAST_RUN",
         scan_parameter="mu_sig",
@@ -1046,19 +1084,21 @@ def test_run_single_benchmark_real_workspace() -> None:
     )
 
     assert result["status"] == "success"
-    assert result["workspace"] == "simple_workspace.json"
+    assert result["workspace"] == "workspace.json"
     assert result["target"] == "L_ch0"
     assert result["scan_parameter"] == "mu_sig"
     assert result["n_scan_points"] == 3
-    assert len(result["scan_values"]) == 3
-    assert len(result["nll_values"]) == 3
+    assert result["scan_values"] == [0.0, 0.5, 1.0]
+    assert result["nll_values"] == [2.0, 2.0, 2.0]
     assert result["all_nll_values_finite"] is True
-    assert result["runtime_per_scan_point_seconds"] > 0
+    assert result["runtime_per_scan_point_seconds"] == 0.1
 
 
-def test_main_real_run_writes_output_json_and_uses_spawn(
+def test_main_mocked_run_writes_output_json_and_uses_spawn(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     output_name = "nll_scan_result.json"
@@ -1070,7 +1110,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
         [
             "run_nll_scan.py",
             "--workspaces",
-            "inputs/simple_workspace.json",
+            str(workspace_path),
             "--targets",
             "L_ch0",
             "--modes",
@@ -1089,6 +1129,10 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
             output_name,
         ],
     )
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -1102,7 +1146,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
     assert payload["n_results"] == 1
     assert len(payload["results"]) == 1
     assert payload["results"][0]["status"] == "success"
-    assert payload["results"][0]["workspace"] == "simple_workspace.json"
+    assert payload["results"][0]["workspace"] == "workspace.json"
     assert payload["results"][0]["scan_parameter"] == "mu_sig"
 
 

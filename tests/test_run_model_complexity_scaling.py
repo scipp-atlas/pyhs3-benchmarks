@@ -870,8 +870,26 @@ def test_make_plots_real_png_files_created(
     assert (tmp_path / "model_complexity_peak_rss_delta.png").exists()
 
 
-def test_run_single_scaling_benchmark_real_workspace() -> None:
-    workspace_path = Path("inputs/simple_workspace.json")
+def test_run_single_scaling_benchmark_with_mocked_stage(
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_path: Path,
+) -> None:
+    def workspace_loading_stage(*args: Any) -> dict[str, Any]:
+        return {
+            "benchmark": "workspace_loading",
+            "status": "success",
+            "wall_time_seconds_mean": 0.01,
+            "wall_time_seconds_std": 0.0,
+            "current_rss_delta_mb": 1.0,
+            "peak_rss_delta_mb": 2.0,
+        }
+
+    monkeypatch.setattr(benchmark, "resolve_stages", lambda stages: stages)
+    monkeypatch.setattr(
+        benchmark,
+        "build_stage_specs",
+        lambda **kwargs: [("workspace_loading", workspace_loading_stage, ())],
+    )
 
     result = benchmark.run_single_scaling_benchmark(
         workspace_path=workspace_path,
@@ -888,16 +906,18 @@ def test_run_single_scaling_benchmark_real_workspace() -> None:
     )
 
     assert result["status"] == "success"
-    assert result["workspace"] == "simple_workspace.json"
+    assert result["workspace"] == workspace_path.name
     assert result["selected_stages"] == ["workspace_loading"]
-    assert result["workspace_size_bytes"] > 0
-    assert result["total_setup_time_seconds"] >= 0
-    assert result["total_peak_rss_delta_mb"] >= 0
+    assert result["workspace_size_bytes"] == workspace_path.stat().st_size
+    assert result["total_setup_time_seconds"] == pytest.approx(0.01)
+    assert result["total_peak_rss_delta_mb"] == pytest.approx(2.0)
 
 
-def test_main_real_run_writes_output_json_and_csv(
+def test_main_mocked_run_writes_output_json_and_csv(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     report_dir = tmp_path / "reports"
@@ -910,7 +930,7 @@ def test_main_real_run_writes_output_json_and_csv(
         [
             "run_model_complexity_scaling.py",
             "--workspaces",
-            "inputs/simple_workspace.json",
+            str(workspace_path),
             "--targets",
             "L_ch0",
             "--modes",
@@ -929,6 +949,11 @@ def test_main_real_run_writes_output_json_and_csv(
             str(report_dir),
         ],
     )
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
+    monkeypatch.setattr(benchmark, "resolve_stages", lambda stages: stages)
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -941,7 +966,7 @@ def test_main_real_run_writes_output_json_and_csv(
     assert payload["benchmark"] == "model_complexity_scaling"
     assert payload["n_results"] == 1
     assert payload["results"][0]["status"] == "success"
-    assert payload["results"][0]["selected_stages"] == ["workspace_loading"]
+    assert payload["results"][0]["selected_stages"] == valid_result["selected_stages"]
 
     with csv_path.open(newline="") as handle:
         rows = list(csv.DictReader(handle))

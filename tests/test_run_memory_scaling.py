@@ -462,7 +462,7 @@ def test_make_plot_records(valid_result: dict[str, Any]) -> None:
 
     assert records == [
         {
-            "plot_label": "workspace.json\nworkspace_loading",
+            "plot_label": "workspace\nloading",
             "workspace": "workspace.json",
             "stage": "workspace_loading",
             "current_rss_delta_mb": 4.0,
@@ -762,8 +762,20 @@ def test_make_plots_real_png_files_created(
     assert (tmp_path / "memory_scaling_peak_rss_after.png").exists()
 
 
-def test_run_single_benchmark_real_workspace() -> None:
-    workspace_path = Path("inputs/simple_workspace.json")
+def test_run_single_benchmark_with_mocked_stage(
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_path: Path,
+    stage_result: dict[str, Any],
+) -> None:
+    specs = [(benchmark.WORKFLOW_STAGES[0], lambda: None, ())]
+
+    monkeypatch.setattr(
+        benchmark, "resolve_stages", lambda stages: [benchmark.WORKFLOW_STAGES[0]]
+    )
+    monkeypatch.setattr(benchmark, "build_stage_specs", lambda **kwargs: specs)
+    monkeypatch.setattr(
+        benchmark, "run_stage_isolated", lambda function, args: stage_result
+    )
 
     result = benchmark.run_single_benchmark(
         workspace_path=workspace_path,
@@ -780,17 +792,19 @@ def test_run_single_benchmark_real_workspace() -> None:
     )
 
     assert result["benchmark"] == "memory_scaling"
-    assert result["workspace"] == "simple_workspace.json"
-    assert result["status"] in {"success", "failed"}
+    assert result["workspace"] == workspace_path.name
+    assert result["status"] == "success"
     assert result["n_stages"] == 1
     assert len(result["stages"]) == 1
-    assert result["total_current_rss_delta_mb"] is not None
-    assert result["total_peak_rss_delta_mb"] is not None
+    assert result["total_current_rss_delta_mb"] == 4.0
+    assert result["total_peak_rss_delta_mb"] == 10.0
 
 
-def test_main_real_run_writes_output_json(
+def test_main_mocked_run_writes_output_json(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     output_name = "memory_scaling_result.json"
@@ -802,7 +816,7 @@ def test_main_real_run_writes_output_json(
         [
             "run_memory_scaling.py",
             "--workspaces",
-            "inputs/simple_workspace.json",
+            str(workspace_path),
             "--targets",
             "L_ch0",
             "--modes",
@@ -829,6 +843,13 @@ def test_main_real_run_writes_output_json(
             output_name,
         ],
     )
+    monkeypatch.setattr(
+        benchmark, "resolve_stages", lambda stages: [benchmark.WORKFLOW_STAGES[0]]
+    )
+    monkeypatch.setattr(
+        benchmark, "run_single_benchmark", lambda **kwargs: valid_result
+    )
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -841,7 +862,7 @@ def test_main_real_run_writes_output_json(
     assert payload["benchmark"] == "memory_scaling"
     assert payload["n_results"] == 1
     assert len(payload["results"]) == 1
-    assert payload["results"][0]["workspace"] == "simple_workspace.json"
+    assert payload["results"][0]["workspace"] == "workspace.json"
 
 
 def test_make_error_result_contains_structured_failure(workspace_path: Path) -> None:

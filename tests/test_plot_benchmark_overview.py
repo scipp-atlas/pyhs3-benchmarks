@@ -143,7 +143,7 @@ def test_normalize_benchmark_name_known_and_unknown() -> None:
 
 def test_compact_workspace_name_known_unknown_and_none() -> None:
     assert benchmark.compact_workspace_name("simple_workspace.json") == "Simple"
-    assert benchmark.compact_workspace_name("my_workspace.json") == "My Workspace"
+    assert benchmark.compact_workspace_name("my_workspace.json") == "my\nworkspace"
     assert benchmark.compact_workspace_name(None) == "Unknown"
 
 
@@ -855,9 +855,9 @@ def test_collect_overview_records_strict_reraises_invalid_file(tmp_path: Path) -
 def test_collect_overview_records_uses_parent_directory_as_benchmark_when_missing(
     tmp_path: Path,
 ) -> None:
-    result_dir = tmp_path / "results" / "custom_benchmark"
+    result_dir = tmp_path / "results" / "model_creation"
     result_dir.mkdir(parents=True)
-    (result_dir / "custom_benchmark_result.json").write_text(
+    (result_dir / "model_creation_result.json").write_text(
         json.dumps(
             {
                 "results": [
@@ -876,8 +876,8 @@ def test_collect_overview_records_uses_parent_directory_as_benchmark_when_missin
 
     assert skipped_items == []
     assert len(records) == 1
-    assert records[0]["benchmark"] == "custom_benchmark"
-    assert records[0]["benchmark_label"] == "Custom Benchmark"
+    assert records[0]["benchmark"] == "model_creation"
+    assert records[0]["benchmark_label"] == "Model creation"
     assert records[0]["wall_time_ms"] == pytest.approx(100.0)
 
 
@@ -1324,3 +1324,205 @@ def test_module_main_guard_creates_diagnostics_plot(
     runpy.run_module("src.plot_benchmark_overview", run_name="__main__")
 
     assert (plot_dir / "benchmark_overview_diagnostics_status.png").exists()
+
+
+def test_extra_compact_workspace_generated_and_unknown_none() -> None:
+    assert benchmark.compact_workspace_name(None) == "Unknown"
+    label = benchmark.compact_workspace_name(
+        "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json"
+    )
+    assert label.splitlines() == [
+        "5ch",
+        "RooExp / Generic",
+        "npOn / constrGauss / yield10x",
+    ]
+
+
+def test_extra_workspace_from_result_path_case_and_none() -> None:
+    assert (
+        benchmark.workspace_from_result({}, {"workspace_path": "dir/a.json"})
+        == "a.json"
+    )
+    assert benchmark.workspace_from_result({"json_path": "dir/b.json"}, {}) == "b.json"
+    assert benchmark.workspace_from_result({}, {"case": "case-A"}) == "case-A"
+    assert benchmark.workspace_from_result({}, {}) is None
+
+
+def test_extra_framework_and_workspace_label_framework_only() -> None:
+    assert benchmark.framework_from_result({"framework": "pyhs3"}) == "pyhs3"
+    assert benchmark.framework_from_result({"framework_label": "PyHS3"}) == "PyHS3"
+    assert (
+        benchmark.get_workspace_label(
+            {
+                "workspace": "simple_workspace.json",
+                "target": "L_ch0",
+                "framework": "pyhs3",
+            }
+        )
+        == "Simple\nL_ch0\npyhs3"
+    )
+
+
+def test_extra_flatten_nested_result_and_extract_results() -> None:
+    payload = {"mode": "FAST_RUN"}
+    result = {
+        "workspace_path": "dir/workspace.json",
+        "target": "L_ch0",
+        "analysis_name": "analysis",
+        "case": "case1",
+        "pyhs3": {"status": "success", "metric": 1.0},
+        "root": {"metric": 2.0},
+    }
+    flattened = benchmark.flatten_nested_result(payload, result)
+    assert [row["framework"] for row in flattened] == ["pyhs3", "root"]
+    assert flattened[0]["workspace"] == "workspace.json"
+    assert flattened[0]["mode"] == "FAST_RUN"
+    assert flattened[0]["analysis"] == "analysis"
+    assert flattened[1]["status"] == "unknown"
+
+    extracted = benchmark.extract_results({"results": ["bad", result, {"plain": True}]})
+    assert len(extracted) == 3
+    assert extracted[-1] == {"plain": True}
+
+
+def test_extra_collect_overview_records_derives_warm_and_optional_timing_metrics(
+    tmp_path: Path,
+) -> None:
+    result_dir = tmp_path / "results" / "model_creation"
+    result_dir.mkdir(parents=True)
+    (result_dir / "model_creation_result.json").write_text(
+        json.dumps(
+            {
+                "results": [
+                    {
+                        "workspace": "simple_workspace.json",
+                        "target": "L_ch0",
+                        "status": "success",
+                        "n_evaluations": 5,
+                        "warm_total_seconds": 0.5,
+                        "cold_first_evaluation_time_seconds": 0.25,
+                        "warm_evaluation": {"mean_seconds": 0.125},
+                    }
+                ]
+            }
+        )
+    )
+
+    records, skipped_items = benchmark.collect_overview_records(tmp_path / "results")
+
+    assert skipped_items == []
+    assert len(records) == 1
+    record = records[0]
+    assert record["benchmark"] == "model_creation"
+    assert record["average_runtime_seconds_per_evaluation"] == pytest.approx(0.1)
+    assert record["average_runtime_ms_per_evaluation"] == pytest.approx(100.0)
+    assert record["cold_first_evaluation_ms"] == pytest.approx(250.0)
+    assert record["warm_evaluation_us"] == pytest.approx(125000.0)
+
+
+def test_extra_make_ranked_horizontal_plot_includes_framework_label(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "ranked_framework.png"
+    benchmark.make_ranked_horizontal_plot(
+        records=[
+            {
+                "benchmark": "cross_nll_scan",
+                "workspace": "simple_workspace.json",
+                "framework": "pyhs3",
+                "runtime_ms_per_scan_point": 1.0,
+            }
+        ],
+        output_path=output_path,
+        title="Ranked",
+        metric_key="runtime_ms_per_scan_point",
+        metric_label="ms",
+        unit="ms",
+        benchmark_filter={"cross_nll_scan"},
+    )
+    assert output_path.exists()
+
+
+def test_extra_make_performance_summary_plot_cross_framework_panel(
+    tmp_path: Path,
+) -> None:
+    records = [
+        {
+            "benchmark": "cross_nll_scan",
+            "workspace": "simple_workspace.json",
+            "framework": "roofit",
+            "status": "success",
+            "time_per_scan_point_us": 4.2,
+        }
+    ]
+    benchmark.make_performance_summary_plot(records, tmp_path)
+    assert (tmp_path / "benchmark_overview_performance_summary.png").exists()
+
+
+def test_extra_make_cross_framework_summary_plot_creates_png(tmp_path: Path) -> None:
+    records = [
+        {
+            "benchmark": "cross_scalar_pdf_evaluation",
+            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
+            "framework": "pyhs3",
+            "status": "success",
+            "time_per_evaluation_us": 2.0,
+        },
+        {
+            "benchmark": "cross_scalar_pdf_evaluation",
+            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
+            "framework": "pyhs3",
+            "status": "success",
+            "time_per_evaluation_us": 1.5,
+        },
+        {
+            "benchmark": "cross_scalar_pdf_evaluation",
+            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
+            "framework": "root",
+            "status": "success",
+            "time_per_evaluation_us": 0.8,
+        },
+        {
+            "benchmark": "cross_nll_scan",
+            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
+            "framework": "roofit",
+            "status": "success",
+            "time_per_scan_point_us": 3.0,
+        },
+        {
+            "benchmark": "pyhs3_xroofit_benchmark",
+            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
+            "framework": "xroofit",
+            "status": "success",
+            "time_per_scan_point_us": 5.0,
+        },
+        {
+            "benchmark": "cross_nll_scan",
+            "workspace": "bad.json",
+            "framework": "roofit",
+            "status": "success",
+            "time_per_scan_point_us": 0.0,
+        },
+    ]
+
+    benchmark.make_cross_framework_summary_plot(records, tmp_path)
+
+    assert (tmp_path / "benchmark_overview_cross_framework_summary.png").exists()
+
+
+def test_extra_make_cross_framework_summary_plot_no_usable_rows_returns(
+    tmp_path: Path,
+) -> None:
+    benchmark.make_cross_framework_summary_plot(
+        [
+            {
+                "benchmark": "cross_scalar_pdf_evaluation",
+                "workspace": "simple_workspace.json",
+                "framework": "pyhs3",
+                "status": "success",
+                "time_per_evaluation_us": 0.0,
+            }
+        ],
+        tmp_path,
+    )
+    assert not (tmp_path / "benchmark_overview_cross_framework_summary.png").exists()

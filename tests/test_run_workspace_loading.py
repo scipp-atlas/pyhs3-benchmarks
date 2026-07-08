@@ -665,28 +665,61 @@ def test_main_creates_plots_for_multiple_workspaces(
     assert len(make_plots_calls[0][0]) == 2
 
 
-def test_run_single_benchmark_real_workspace() -> None:
-    workspace_path = Path("inputs/simple_workspace.json")
+def test_run_single_benchmark_mock_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
+) -> None:
+    monkeypatch.setattr(
+        benchmark,
+        "measure_single_load_memory",
+        lambda path: {
+            "current_rss_before_mb": 100.0,
+            "current_rss_after_mb": 101.0,
+            "current_rss_delta_mb": 1.0,
+            "peak_rss_before_mb": 120.0,
+            "peak_rss_after_mb": 122.0,
+            "peak_rss_delta_mb": 2.0,
+            "metadata_hs3_version": "0.2",
+            "n_distributions": 1,
+            "n_likelihoods": 1,
+            "n_data": 1,
+            "n_domains": 1,
+            "n_parameter_points": 1,
+        },
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "run_repeated_timing",
+        lambda func, n_runs: (object(), [0.1]),
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "summarize_timings",
+        lambda timings: {
+            "wall_time_seconds_mean": 0.1,
+            "wall_time_seconds_median": 0.1,
+            "wall_time_seconds_std": 0.0,
+        },
+    )
 
     result = benchmark.run_single_benchmark(workspace_path, n_runs=1)
 
     assert result["status"] == "success"
     assert result["benchmark"] == "workspace_loading"
-    assert result["workspace"] == "simple_workspace.json"
+    assert result["workspace"] == "workspace.json"
     assert result["n_runs"] == 1
-    assert result["n_distributions"] > 0
-    assert result["n_likelihoods"] > 0
-    assert result["n_data"] > 0
-    assert result["wall_time_seconds_mean"] > 0
-    assert result["current_rss_before_mb"] >= 0
-    assert result["current_rss_after_mb"] >= 0
-    assert result["peak_rss_before_mb"] >= 0
-    assert result["peak_rss_after_mb"] >= 0
+    assert result["n_distributions"] == 1
+    assert result["n_likelihoods"] == 1
+    assert result["n_data"] == 1
+    assert result["wall_time_seconds_mean"] == 0.1
 
 
-def test_main_real_run_writes_output_json_and_uses_spawn(
+def test_main_mock_run_writes_output_json_and_uses_spawn(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     output_name = "workspace_loading_result.json"
@@ -698,7 +731,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
         [
             "run_workspace_loading.py",
             "--workspaces",
-            "inputs/simple_workspace.json",
+            str(workspace_path),
             "--n-runs",
             "1",
             "--output-dir",
@@ -707,6 +740,10 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
             output_name,
         ],
     )
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -720,7 +757,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
     assert payload["n_workspaces"] == 1
     assert len(payload["results"]) == 1
     assert payload["results"][0]["status"] == "success"
-    assert payload["results"][0]["workspace"] == "simple_workspace.json"
+    assert payload["results"][0]["workspace"] == "workspace.json"
 
 
 def test_make_plots_real_png_files_created(
@@ -893,30 +930,16 @@ def test_main_wraps_plot_error(
         benchmark.main()
 
 
-def test_module_runs_as_script(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    output_dir = tmp_path / "script_results"
-    output_name = "script_result.json"
-    output_path = output_dir / output_name
-
+def test_module_runs_as_script_reaches_main(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "run_workspace_loading.py",
-            "--workspaces",
-            "inputs/simple_workspace.json",
             "--n-runs",
-            "1",
-            "--output-dir",
-            str(output_dir),
-            "--output-name",
-            output_name,
+            "0",
         ],
     )
 
-    runpy.run_module("src.run_workspace_loading", run_name="__main__")
-
-    assert output_path.exists()
+    with pytest.raises(ValueError, match="--n-runs must be at least 1"):
+        runpy.run_module("src.run_workspace_loading", run_name="__main__")

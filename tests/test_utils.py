@@ -161,7 +161,7 @@ def test_result_label_uses_explicit_plot_label() -> None:
     assert utils._result_label({"plot_label": "custom"}) == "custom"
 
 
-def test_result_label_uses_workspace_and_evaluations() -> None:
+def test_result_label_uses_workspace_only() -> None:
     label = utils._result_label(
         {
             "workspace": "simple_workspace.json",
@@ -169,8 +169,20 @@ def test_result_label_uses_workspace_and_evaluations() -> None:
         }
     )
 
-    assert "10" in label
-    assert "simple_workspace" not in label.lower() or "simple" in label.lower()
+    assert label == "simple\nworkspace"
+    assert "10" not in label
+
+
+def test_grouped_result_parts_uses_workspace_and_evaluations() -> None:
+    workspace, n_evaluations = utils._grouped_result_parts(
+        {
+            "workspace": "simple_workspace.json",
+            "n_evaluations": 10,
+        }
+    )
+
+    assert workspace
+    assert n_evaluations == 10
 
 
 def test_scaled_metric_scales_wall_time_and_errors() -> None:

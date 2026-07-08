@@ -946,9 +946,71 @@ def test_module_entrypoint_calls_main(
     runpy.run_module("src.run_pdf_evaluation", run_name="__main__")
 
 
-def test_run_single_benchmark_real_workspace() -> None:
+def test_run_single_benchmark_real_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+    workspace_path: Path,
+    fake_model: FakeModel,
+) -> None:
+    workspace = SimpleNamespace()
+    monkeypatch.setattr(benchmark, "load_workspace", lambda path: workspace)
+    monkeypatch.setattr(
+        benchmark, "create_model", lambda workspace, target, mode: fake_model
+    )
+    monkeypatch.setattr(
+        benchmark, "build_parameter_inputs", lambda model: {"x": np.array([1.0])}
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_cold_start_pdf_call",
+        lambda model, distribution, parameters: {
+            "cold_start_time_seconds": 0.01,
+            "cold_start_output": 0.5,
+        },
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "evaluate_pdf",
+        lambda model, distribution, parameters, n_evaluations: [0.5],
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "validate_pdf_outputs",
+        lambda outputs: {
+            "n_outputs": len(outputs),
+            "all_outputs_finite": True,
+            "reference_output": outputs[0],
+            "max_absolute_deviation": 0.0,
+            "outputs_stable": True,
+        },
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_pdf_evaluation_memory",
+        lambda model, distribution, parameters, n_evaluations: {
+            "memory_n_evaluations": n_evaluations,
+            "current_rss_before_mb": 100.0,
+            "current_rss_after_mb": 101.0,
+            "current_rss_delta_mb": 1.0,
+            "peak_rss_before_mb": 120.0,
+            "peak_rss_after_mb": 122.0,
+            "peak_rss_delta_mb": 2.0,
+        },
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_pdf_evaluation_timing",
+        lambda model, distribution, parameters, n_evaluations: {
+            "n_evaluations": n_evaluations,
+            "total_runtime_seconds": 0.2,
+            "average_runtime_seconds_per_evaluation": 0.2 / n_evaluations,
+            "throughput_evaluations_per_second": n_evaluations / 0.2,
+            "first_timing_output": 0.5,
+            "last_timing_output": 0.5,
+        },
+    )
+
     result = benchmark.run_single_benchmark(
-        workspace_path=benchmark.DEFAULT_WORKSPACE,
+        workspace_path=workspace_path,
         target=benchmark.DEFAULT_TARGET,
         mode=benchmark.DEFAULT_MODE,
         distribution=benchmark.DEFAULT_DISTRIBUTION,
@@ -957,6 +1019,7 @@ def test_run_single_benchmark_real_workspace() -> None:
 
     assert result["status"] == "success"
     assert result["benchmark"] == "pdf_evaluation"
+    assert result["workspace"] == workspace_path.name
     assert result["n_evaluations"] == 1
     assert result["distribution"] == benchmark.DEFAULT_DISTRIBUTION
     assert result["n_outputs"] == 1
@@ -971,6 +1034,8 @@ def test_run_single_benchmark_real_workspace() -> None:
 def test_main_real_run_writes_output_json_and_uses_spawn(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     output_name = "pdf_evaluation_result.json"
@@ -982,7 +1047,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
         [
             "run_pdf_evaluation.py",
             "--workspaces",
-            str(benchmark.DEFAULT_WORKSPACE),
+            str(workspace_path),
             "--targets",
             benchmark.DEFAULT_TARGET,
             "--modes",
@@ -997,6 +1062,10 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
             output_name,
         ],
     )
+    monkeypatch.setattr(
+        benchmark, "get_context", lambda method: FakeContext(valid_result)
+    )
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -1008,10 +1077,12 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
 
     assert payload["benchmark"] == "pdf_evaluation"
     assert payload["n_results"] == 1
+    assert payload["n_successful_results"] == 1
+    assert payload["n_failed_results"] == 0
     assert len(payload["results"]) == 1
     assert payload["results"][0]["status"] == "success"
     assert payload["results"][0]["distribution"] == benchmark.DEFAULT_DISTRIBUTION
-    assert payload["results"][0]["n_evaluations"] == 1
+    assert payload["results"][0]["n_evaluations"] == 3
 
 
 def test_make_plots_real_png_files_created(

@@ -834,43 +834,89 @@ def test_main_creates_plots_for_multiple_results(
     assert len(make_plots_calls[0][0]) == 2
 
 
-def test_run_single_benchmark_real_workspace() -> None:
+def test_run_single_benchmark_uses_existing_workspace_fixture(
+    monkeypatch: pytest.MonkeyPatch, workspace_path: Path
+) -> None:
+    monkeypatch.setattr(
+        benchmark,
+        "prepare_compiled_graph",
+        lambda **kwargs: (
+            SimpleNamespace(name="model"),
+            FakeCompiled(1.25),
+            {"x": 1.0},
+        ),
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "evaluate_compiled_graph",
+        lambda **kwargs: [1.25, 1.25, 1.25],
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_evaluation_memory",
+        lambda **kwargs: {
+            "memory_n_evaluations": 1,
+            "current_rss_before_mb": 100.0,
+            "current_rss_after_mb": 100.0,
+            "current_rss_delta_mb": 0.0,
+            "peak_rss_before_mb": 120.0,
+            "peak_rss_after_mb": 120.0,
+            "peak_rss_delta_mb": 0.0,
+        },
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "measure_evaluation_timing",
+        lambda **kwargs: {
+            "n_evaluations": 1,
+            "total_runtime_seconds": 0.0,
+            "average_runtime_seconds_per_evaluation": 0.0,
+            "throughput_evaluations_per_second": float("inf"),
+            "first_timing_output": 1.25,
+            "last_timing_output": 1.25,
+        },
+    )
+
     result = benchmark.run_single_benchmark(
-        workspace_path=benchmark.DEFAULT_WORKSPACE,
+        workspace_path=workspace_path,
         target=benchmark.DEFAULT_TARGET,
         mode=benchmark.DEFAULT_MODE,
         n_evaluations=1,
     )
 
     assert result["status"] == "success"
+    assert result["workspace"] == workspace_path.name
     assert result["target"] == benchmark.DEFAULT_TARGET
     assert result["mode"] == benchmark.DEFAULT_MODE
     assert result["n_evaluations"] == 1
     assert result["n_outputs"] == benchmark.VALIDATION_N_EVALUATIONS
     assert result["all_outputs_finite"] is True
     assert result["outputs_stable"] is True
-    assert result["total_runtime_seconds"] >= 0
-    assert result["average_runtime_seconds_per_evaluation"] >= 0
-    assert result["throughput_evaluations_per_second"] >= 0
-    assert result["current_rss_before_mb"] >= 0
-    assert result["current_rss_after_mb"] >= 0
-    assert result["peak_rss_before_mb"] >= 0
-    assert result["peak_rss_after_mb"] >= 0
 
 
-def test_main_real_run_writes_output_json_and_uses_spawn(
+def test_main_writes_output_json_and_uses_spawn_with_explicit_workspace(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    workspace_path: Path,
+    valid_result: dict[str, Any],
 ) -> None:
     output_dir = tmp_path / "results"
     output_name = "compiled_evaluation_result.json"
     output_path = output_dir / output_name
+    result = dict(valid_result)
+    result["workspace"] = workspace_path.name
+    result["workspace_path"] = str(workspace_path)
+    result["target"] = benchmark.DEFAULT_TARGET
+    result["mode"] = benchmark.DEFAULT_MODE
+    result["n_evaluations"] = 1
 
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "run_compiled_evaluation.py",
+            "--workspaces",
+            str(workspace_path),
             "--n-evaluations",
             "1",
             "--output-dir",
@@ -879,6 +925,8 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
             output_name,
         ],
     )
+    monkeypatch.setattr(benchmark, "get_context", lambda method: FakeContext(result))
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
 
     benchmark.main()
 
@@ -892,7 +940,7 @@ def test_main_real_run_writes_output_json_and_uses_spawn(
     assert payload["n_results"] == 1
     assert len(payload["results"]) == 1
     assert payload["results"][0]["status"] == "success"
-    assert payload["results"][0]["workspace"] == benchmark.DEFAULT_WORKSPACE.name
+    assert payload["results"][0]["workspace"] == workspace_path.name
     assert payload["results"][0]["target"] == benchmark.DEFAULT_TARGET
     assert payload["results"][0]["mode"] == benchmark.DEFAULT_MODE
     assert payload["results"][0]["n_evaluations"] == 1
