@@ -779,7 +779,7 @@ def test_save_figure_wraps_oserror(
 @pytest.mark.parametrize(
     "plot_func,filename,args",
     [
-        (benchmark.make_nll_profile_plot, "profile.png", ([0.0, 0.5, 1.0],)),
+        (benchmark.make_profile_plot, "profile.png", ([0.0, 0.5, 1.0],)),
         (benchmark.make_timing_profile_plot, "timing.png", ()),
         (benchmark.make_relative_runtime_plot, "relative.png", ()),
         (benchmark.make_memory_profile_plot, "memory.png", ()),
@@ -796,7 +796,7 @@ def test_individual_plot_functions_create_png(
 ) -> None:
     output_path = tmp_path / filename
 
-    if plot_func is benchmark.make_nll_profile_plot:
+    if plot_func is benchmark.make_profile_plot:
         plot_func(successful_results, args[0], output_path)
     elif plot_func is benchmark.make_numerical_agreement_plot:
         plot_func(successful_results, args[0], output_path)
@@ -814,7 +814,7 @@ def test_make_plots_calls_all_plot_builders(
     calls: list[str] = []
 
     monkeypatch.setattr(
-        benchmark, "make_nll_profile_plot", lambda **kwargs: calls.append("profile")
+        benchmark, "make_profile_plot", lambda **kwargs: calls.append("profile")
     )
     monkeypatch.setattr(
         benchmark, "make_timing_profile_plot", lambda **kwargs: calls.append("timing")

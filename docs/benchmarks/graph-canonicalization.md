@@ -56,6 +56,34 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
+---
+
+## Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
+| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the statistical model. |
+| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
+| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated graph canonicalization timing measurements for each workspace/target/mode combination. |
+| `--output-dir` | `Path` | `results/graph_canonicalization/` | Directory where the benchmark JSON results will be written. |
+| `--output-name` | `str` | `graph_canonicalization_result.json` | Name of the JSON file containing the benchmark results. |
+| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
+| `--plot-dir` | `Path` | `docs/assets/plots/graph_canonicalization/` | Directory where generated benchmark plots will be stored. |
+
+## Notes
+
+- At least one workspace, target, and compilation mode must be provided.
+- A separate benchmark is executed for every combination of workspace, target, and compilation mode.
+- `--n-runs` must be greater than or equal to **1**.
+- Workspace loading, model creation, symbolic log-probability construction, and `FunctionGraph` creation are treated as setup steps and are excluded from the reported timing measurements.
+- Each timing iteration constructs a fresh `FunctionGraph` before applying the PyTensor `canonicalize` rewrite database, ensuring that only graph canonicalization is measured.
+- The benchmark validates the canonicalized graph by reporting the number of graph inputs, graph outputs, and ApplyNodes before and after canonicalization.
+
+---
+
 ## Implementation
 
 The benchmark performs the following steps:

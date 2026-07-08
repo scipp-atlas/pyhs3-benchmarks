@@ -45,6 +45,34 @@ pixi run python -m src.run_pdf_evaluation \
 
 ---
 
+---
+
+## Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is loaded once before PDF evaluation begins. |
+| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the PyHS3 model. |
+| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
+| `--distributions` | `str ...` | `sig_ch0` | One or more probability distributions to evaluate using `model.pdf(...)`. Each distribution is benchmarked separately. |
+| `--n-evaluations` | `int ...` | `1 10 100 1000 10000` | Numbers of repeated warm PDF evaluations to perform. A separate benchmark result is generated for each evaluation count. |
+| `--output-dir` | `Path` | `results/pdf_evaluation/` | Directory where the benchmark JSON results will be written. |
+| `--output-name` | `str` | `pdf_evaluation_result.json` | Name of the JSON file containing the benchmark results. |
+| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
+| `--plot-dir` | `Path` | `docs/assets/plots/pdf_evaluation/` | Directory where generated benchmark plots will be saved. |
+
+## Notes
+
+- At least one workspace, target, mode, distribution, and evaluation count must be provided.
+- A separate benchmark is executed for every combination of workspace, target, mode, distribution, and number of evaluations.
+- The benchmark measures the first `model.pdf(...)` call separately from repeated warm evaluations in order to distinguish initialization overhead from steady-state performance.
+- Workspace loading and model creation are treated as setup steps and are excluded from the reported timing measurements.
+- Memory plots are generated only when at least one benchmark reports a non-zero RSS increase.
+
+---
+
 ## Results
 
 The benchmark writes

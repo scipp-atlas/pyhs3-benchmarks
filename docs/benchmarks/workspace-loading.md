@@ -103,6 +103,31 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
+---
+
+# Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Multiple workspaces are benchmarked independently and compared in the generated summary and plots. |
+| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated timing measurements performed for each workspace. Larger values improve the stability of timing statistics at the cost of longer benchmark execution. |
+| `--output-dir` | `Path` | `results/workspace_loading/` | Directory where the benchmark JSON results will be written. The directory is created automatically if it does not already exist. |
+| `--output-name` | `str` | `workspace_loading_result.json` | Name of the JSON file containing the benchmark results. |
+| `--plot` | flag | disabled | Generate comparison plots after the benchmark finishes. Plots are created only when at least two workspaces complete successfully. |
+| `--plot-dir` | `Path` | `docs/assets/plots/workspace_loading/` | Directory where generated plots will be saved. |
+| `--plot-name` | `str` | `workspace_loading_wall_time.png` | Filename of the wall-time comparison plot. Additional memory plots are generated automatically using standard filenames. |
+
+## Notes
+
+- At least one workspace must be provided.
+- `--n-runs` must be greater than or equal to **1**.
+- The `--plot` flag has no effect when fewer than two workspaces are benchmarked successfully.
+- Each workspace is benchmarked in a separate Python process to improve measurement reproducibility.
+
+---
+
 # Generated Outputs
 
 The benchmark generates

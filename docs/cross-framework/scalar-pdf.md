@@ -35,6 +35,41 @@ Consequently, both implementations evaluate the same normalized scalar probabili
 
 ---
 
+---
+
+## Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--frameworks` | `str ...` | `pyhs3 root` | Frameworks to compare. Supported values are `pyhs3` (eager scalar PDF evaluation) and `root` (RooFit normalized scalar PDF evaluation). |
+| `--workspaces` | `Path ...` | Benchmark workspace set | One or more HS3 workspace JSON files to benchmark. |
+| `--root-workspaces` | `Path ...` | inferred automatically | Optional ROOT workspace files corresponding to `--workspaces`. If omitted, each ROOT file is inferred by replacing the `.json` extension with `.root`. |
+| `--target` | `str` | `DEFAULT_TARGET` | Model target (for example, an analysis or likelihood name) used when constructing the statistical model. |
+| `--mode` | `str` | `DEFAULT_MODE` | PyTensor compilation mode passed to `Workspace.model(...)`. |
+| `--distribution` | `str` | `sig_ch0` | Name of the probability distribution evaluated by both frameworks. |
+| `--n-evaluations` | `int ...` | `1 10 100 1000 10000` | Numbers of repeated warm scalar PDF evaluations to benchmark. A separate benchmark is executed for each value. |
+| `--rtol` | `float` | `1e-7` | Relative tolerance used for numerical agreement validation. |
+| `--atol` | `float` | `1e-10` | Absolute tolerance used for numerical agreement validation. |
+| `--timeout-seconds` | `float` | `120.0` | Maximum execution time allowed for a single benchmark run before it is terminated. |
+| `--output-dir` | `Path` | `results/cross_scalar_pdf_evaluation/` | Directory where the benchmark JSON results will be written. |
+| `--output-name` | `str` | `cross_scalar_pdf_evaluation_result.json` | Name of the JSON file containing the benchmark results. |
+| `--plot` | flag | disabled | Generate comparison plots summarizing benchmark performance and numerical agreement. |
+| `--plot-dir` | `Path` | `docs/assets/plots/cross_scalar_pdf_evaluation/` | Directory where generated benchmark plots will be stored. |
+
+## Notes
+
+- At least one framework and one workspace must be provided.
+- When the `root` framework is selected, matching ROOT workspaces must be available. If `--root-workspaces` is omitted, the benchmark automatically infers each ROOT file by replacing the `.json` extension with `.root`.
+- A separate benchmark is executed for every combination of framework, workspace, and number of repeated evaluations.
+- Every benchmark run first computes a PyHS3 reference value. RooFit results are compared against this reference using the specified `--rtol` and `--atol` tolerances.
+- `--n-evaluations` values must be greater than or equal to **1**.
+- `--timeout-seconds` must be positive.
+- The benchmark intentionally compares only **normalized scalar PDF evaluation** (`model.pdf(...)` versus `pdf.getVal(norm_set)`). Compiled graph evaluation is measured separately by the compiled evaluation benchmark and is not included in this comparison.
+
+---
+
 ## Cold-start and warm evaluation latency
 
 Cold-start latency measures the one-time initialization required before the first scalar PDF evaluation. Warm latency measures the average runtime of repeated PDF evaluations after initialization has completed.

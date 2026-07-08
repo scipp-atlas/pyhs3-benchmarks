@@ -54,6 +54,37 @@ pixi run python -m src.run_all_benchmarks \
     --plot-dir docs/assets
 ```
 
+---
+
+---
+
+## Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
+| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the statistical model. |
+| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
+| `--n-evaluations` | `int ...` | `1 10 100 1000 10000` | Numbers of repeated compiled graph evaluations to benchmark. A separate benchmark is executed for each evaluation count. |
+| `--output-dir` | `Path` | `results/compiled_evaluation/` | Directory where the benchmark JSON results will be written. |
+| `--output-name` | `str` | `compiled_evaluation_result.json` | Name of the JSON file containing the benchmark results. |
+| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
+| `--plot-dir` | `Path` | `docs/assets/plots/compiled_evaluation/` | Directory where generated benchmark plots will be stored. |
+
+## Notes
+
+- At least one workspace, target, compilation mode, and evaluation count must be provided.
+- A separate benchmark is executed for every combination of workspace, target, compilation mode, and number of evaluations.
+- Every value supplied to `--n-evaluations` must be greater than or equal to **1**.
+- Workspace loading, model creation, symbolic log-probability construction, and graph compilation are treated as setup steps and are excluded from the reported timing measurements.
+- Before timing begins, the benchmark performs several validation evaluations to verify that repeated executions produce finite and numerically stable outputs.
+- Memory usage is measured separately using a single compiled graph evaluation so that RSS measurements are not affected by repeated timing iterations.
+- Each benchmark configuration is executed in a fresh Python subprocess to improve measurement reproducibility and eliminate interference from previous runs.
+
+---
+
 ## Example results
 
 ### Average evaluation time

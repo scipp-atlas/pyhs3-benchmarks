@@ -106,6 +106,35 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
+---
+
+# Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is loaded once before model creation is measured. |
+| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more workspace targets (for example, analysis or likelihood names) passed to `Workspace.model(...)`. A separate benchmark is executed for each target. |
+| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
+| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated model creation timing measurements for each workspace/target/mode combination. Larger values improve the stability of timing statistics. |
+| `--output-dir` | `Path` | `results/model_creation/` | Directory where the benchmark JSON results will be written. |
+| `--output-name` | `str` | `model_creation_result.json` | Name of the JSON file containing the benchmark results. |
+| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. Plots are created only when at least two successful benchmark results are available. |
+| `--plot-dir` | `Path` | `docs/assets/plots/model_creation/` | Directory where generated comparison plots will be stored. |
+| `--plot-name` | `str` | `model_creation_wall_time.png` | Filename of the wall-time comparison plot. Memory plots are generated automatically using standard filenames. |
+
+## Notes
+
+- At least one workspace must be provided.
+- `--targets` accepts one or more model targets. A separate benchmark is executed for every workspace–target combination.
+- `--modes` accepts one or more PyTensor compilation modes. Every workspace, target, and mode combination is benchmarked independently.
+- `--n-runs` must be greater than or equal to **1**.
+- The benchmark loads each workspace once and excludes workspace loading from all reported timing measurements.
+- The `--plot` flag has no effect when fewer than two successful benchmark results are available.
+
+---
+
 # Generated Outputs
 
 The benchmark produces

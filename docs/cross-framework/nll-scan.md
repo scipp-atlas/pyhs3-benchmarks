@@ -133,6 +133,55 @@ pixi run python -m src.run_cross_nll_scan \
 
 ---
 
+---
+
+## Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--frameworks` | `str ...` | `pyhs3 roofit` | Frameworks to compare. Supported values are `pyhs3` and `roofit`. |
+| `--workspaces` | `Path ...` | Benchmark workspace set | One or more HS3 workspace JSON files used for the ΔNLL comparison. |
+| `--root-workspaces` | `Path ...` | inferred automatically | Optional ROOT workspace files corresponding to `--workspaces`. If omitted, each `.root` file is inferred automatically from the JSON workspace path. |
+| `--analysis` | `str` | `L_ch0` | Analysis (likelihood) name used to construct the statistical model. |
+| `--target` | `str` | inferred from `--analysis` | Target PDF evaluated by PyHS3 and RooFit. By default this is derived automatically from the analysis name (for example `model_ch0`). |
+| `--pyhs3-data-name` | `str` | inferred from `--analysis` | Name of the observed dataset inside the HS3 workspace. |
+| `--root-pdf-name` | `str` | inferred from `--target` | Name of the RooFit PDF inside the ROOT workspace. |
+| `--root-data-name` | `str` | inferred from `--pyhs3-data-name` | Name of the RooFit dataset. |
+| `--parameter-point` | `str` | first available | Optional parameter point used to initialize the model before scanning the POI. |
+| `--observable-name` | `str` | `x` | Observable used during normalized PDF evaluation. |
+| `--observable-index` | `int` | `0` | Observable index within multidimensional HS3 datasets. |
+| `--poi` | `str` | `mu_sig` | Parameter of interest scanned during the ΔNLL evaluation. |
+| `--mode` | `str` | `FAST_RUN` | PyTensor compilation mode used when constructing the PyHS3 model. |
+| `--mu-min` | `float` | `0.0` | Lower bound of the POI scan. |
+| `--mu-max` | `float` | `2.0` | Upper bound of the POI scan. |
+| `--n-points` | `int` | `101` | Number of uniformly spaced scan points between `mu-min` and `mu-max`. |
+| `--shape-tolerance` | `float` | `1e-7` | Maximum allowed point-by-point ΔNLL difference relative to the PyHS3 reference. |
+| `--minimum-tolerance` | `float` | `1e-12` | Maximum allowed difference between the positions of the ΔNLL minima. |
+| `--output-dir` | `Path` | `results/cross_nll_scan/` | Directory where the benchmark JSON results are written. |
+| `--output-name` | `str` | `cross_nll_scan_result.json` | Name of the JSON output file. |
+| `--plot` | flag | disabled | Generate comparison plots summarizing runtime, memory usage, ΔNLL agreement, and numerical validation. |
+| `--plot-dir` | `Path` | `docs/assets/plots/cross_nll_scan/` | Directory where generated plots are stored. |
+| `--fail-fast` | flag | disabled | Stop the benchmark immediately after the first failed benchmark or validation error. |
+
+## Notes
+
+- At least one framework and one workspace must be provided.
+- If the `roofit` framework is selected, matching ROOT workspaces must be available. When `--root-workspaces` is omitted, the corresponding `.root` files are inferred automatically from the JSON workspace paths.
+- The benchmark first computes a complete PyHS3 ΔNLL scan for every workspace. These scans serve as the numerical reference for all subsequent RooFit comparisons.
+- A separate benchmark is executed for every combination of workspace and framework.
+- The POI scan is constructed using a uniformly spaced grid between `--mu-min` and `--mu-max` containing `--n-points` values.
+- The benchmark evaluates normalized PDFs directly for every observed event and computes
+  \[
+  \mathrm{NLL} = -\sum_i \log p(x_i|\mu),
+  \]
+  avoiding framework-specific likelihood builders such as `createNLL()` to ensure an apples-to-apples comparison.
+- Numerical validation requires both the ΔNLL profile shape and the position of the minimum to satisfy the specified tolerances.
+- `--n-points` must be at least **2**, `--mu-min` must be smaller than `--mu-max`, and both validation tolerances must be positive.
+
+---
+
 ## Generated plots
 
 ### Cross-framework ΔNLL agreement

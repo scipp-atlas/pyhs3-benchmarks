@@ -24,6 +24,44 @@ Each benchmark executes the complete workflow:
 
 ---
 
+---
+
+## Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files used to evaluate scaling with model complexity. |
+| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names). A separate scaling benchmark is executed for each target. |
+| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes used when constructing benchmark models. |
+| `--stages` | `str ...` | `all` | Workflow stages to execute. Supported values are `all`, `workspace_loading`, `model_creation`, `log_prob_construction`, `log_prob_compilation`, `compiled_evaluation`, `pdf_evaluation`, and `nll_scan`. |
+| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated timing measurements for workflow stages that perform repeated timing. |
+| `--n-evaluations` | `int` | `DEFAULT_N_EVALUATIONS` | Number of repeated evaluations used by the compiled evaluation and PDF evaluation benchmarks. |
+| `--distribution` | `str` | `sig_ch0` | Probability distribution used for the PDF evaluation stage. |
+| `--scan-parameter` | `str` | `mu_sig` | Model parameter scanned during the NLL scan stage. |
+| `--scan-min` | `float` | `0.0` | Lower bound of the NLL scan range. |
+| `--scan-max` | `float` | `5.0` | Upper bound of the NLL scan range. Must be greater than `--scan-min`. |
+| `--n-scan-points` | `int` | `101` | Number of uniformly spaced points used for each NLL scan. |
+| `--output-dir` | `Path` | `results/model_complexity_scaling/` | Directory where the benchmark JSON results will be written. |
+| `--output-name` | `str` | `model_complexity_scaling_result.json` | Name of the JSON file containing the benchmark results. |
+| `--report-dir` | `Path` | `reports/model_complexity_scaling/` | Directory where the CSV summary report will be written. |
+| `--csv-name` | `str` | `model_complexity_scaling_summary.csv` | Name of the generated CSV summary file. |
+| `--plot` | flag | disabled | Generate comparison plots summarizing how benchmark metrics scale with workspace complexity. |
+| `--plot-dir` | `Path` | `docs/assets/plots/model_complexity_scaling/` | Directory where generated plots will be stored. |
+
+## Notes
+
+- At least one workspace must be provided.
+- A separate scaling benchmark is executed for every combination of workspace, target, and compilation mode.
+- By default, all workflow stages are executed. Use `--stages` to benchmark only selected stages.
+- `--scan-min` must be smaller than `--scan-max`.
+- `--n-runs` and `--n-evaluations` must be at least **1**.
+- `--n-scan-points` must be at least **2**.
+- In addition to the JSON benchmark results, the benchmark generates a CSV summary containing the most important metrics for every benchmark configuration.
+
+---
+
 ### Total setup time
 
 The total setup time is the sum of:

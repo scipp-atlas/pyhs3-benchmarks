@@ -69,6 +69,34 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
+---
+
+## Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
+| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the statistical model. |
+| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
+| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated log-probability construction timing measurements for each workspace/target/mode combination. |
+| `--output-dir` | `Path` | `results/log_prob_construction/` | Directory where the benchmark JSON results will be written. |
+| `--output-name` | `str` | `log_prob_construction_result.json` | Name of the JSON file containing the benchmark results. |
+| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
+| `--plot-dir` | `Path` | `docs/assets/plots/log_prob_construction/` | Directory where generated benchmark plots will be stored. |
+
+## Notes
+
+- At least one workspace, target, and compilation mode must be provided.
+- A separate benchmark is executed for every combination of workspace, target, and compilation mode.
+- `--n-runs` must be greater than or equal to **1**.
+- Workspace loading and model creation are treated as setup steps and are excluded from the reported timing measurements.
+- Each timing measurement constructs the symbolic log-probability graph from a freshly created model to ensure consistent and reproducible measurements.
+- The benchmark measures only symbolic graph construction (`model.log_prob`) and does not include graph compilation or numerical evaluation.
+
+---
+
 # Benchmark outputs
 
 The benchmark produces

@@ -71,6 +71,42 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
+---
+
+## Command-line Arguments
+
+The benchmark supports the following command-line arguments.
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files used for memory profiling. Each workspace is benchmarked independently. |
+| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names). A separate benchmark is executed for each target. |
+| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes used throughout the workflow. |
+| `--stages` | `str ...` | `all` | Workflow stages to profile. Supported values are `all`, `workspace_loading`, `model_creation`, `log_prob_construction`, `log_prob_compilation`, `compiled_evaluation`, `pdf_evaluation`, and `nll_scan`. |
+| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated timing measurements for workflow stages that perform repeated timing. |
+| `--n-evaluations` | `int` | `DEFAULT_N_EVALUATIONS` | Number of repeated evaluations used by the compiled evaluation and PDF evaluation stages. |
+| `--distribution` | `str` | `sig_ch0` | Probability distribution evaluated during the PDF evaluation stage. |
+| `--scan-parameter` | `str` | `mu_sig` | Model parameter varied during the NLL scan stage. |
+| `--scan-min` | `float` | `0.0` | Lower bound of the NLL scan range. |
+| `--scan-max` | `float` | `5.0` | Upper bound of the NLL scan range. Must be greater than `--scan-min`. |
+| `--n-scan-points` | `int` | `101` | Number of uniformly spaced scan points used during the NLL scan stage. |
+| `--output-dir` | `Path` | `results/memory_scaling/` | Directory where the benchmark JSON results will be written. |
+| `--output-name` | `str` | `memory_scaling_result.json` | Name of the JSON file containing the benchmark results. |
+| `--plot` | flag | disabled | Generate memory comparison plots for the selected workflow stages. |
+| `--plot-dir` | `Path` | `docs/assets/plots/memory_scaling/` | Directory where generated benchmark plots will be stored. |
+
+## Notes
+
+- At least one workspace, target, and compilation mode must be provided.
+- By default, all workflow stages are profiled. Use `--stages` to measure only selected stages.
+- Each workflow stage is executed in an isolated Python process so that memory measurements are not affected by allocations from previous stages.
+- `--n-runs` and `--n-evaluations` must be at least **1**.
+- `--scan-min` must be smaller than `--scan-max`.
+- `--n-scan-points` must be at least **2**.
+- The benchmark records current RSS and peak RSS before and after every workflow stage, allowing memory usage to be attributed to individual stages independently.
+
+---
+
 # Benchmark outputs
 
 The benchmark produces
