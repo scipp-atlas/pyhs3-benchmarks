@@ -152,31 +152,6 @@ Where appropriate, benchmark outputs are compared against reference values to en
 
 ---
 
-# External Dependencies
-
-```text
-external/
-```
-
-The repository contains external software required for selected benchmark suites.
-
-Currently this directory contains an xRooFit checkout used for cross-framework benchmarking against ROOT-based statistical workflows.
-
-Keeping external dependencies separate from the main source tree simplifies maintenance while preserving reproducibility.
-
----
-
-# Generated Documentation
-
-```text
-site/
-```
-
-The `site` directory contains the generated static documentation.
-
-It is produced automatically from the Markdown documentation and associated assets and is intended for deployment rather than manual editing.
-
----
 
 # Typical Repository Workflow
 

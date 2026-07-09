@@ -120,13 +120,11 @@ results/
 and
 
 ```text
-docs/
-└── assets/
-    └── plots/
-        └── workspace_loading/
-            ├── workspace_loading_wall_time.png
-            ├── workspace_loading_current_rss_delta.png
-            └── workspace_loading_peak_rss_delta.png
+plots/
+└── workspace_loading/
+    ├── workspace_loading_wall_time.png
+    ├── workspace_loading_current_rss_delta.png
+    └── workspace_loading_peak_rss_delta.png
 ```
 
 The exact files depend on the benchmark being executed.

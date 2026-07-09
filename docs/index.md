@@ -70,10 +70,9 @@ Cross-framework benchmarks compare PyHS3 with other statistical inference framew
 
 Current comparisons include
 
-- PyHS3 vs RooFit;
-- PyHS3 vs xRooFit;
-- scalar PDF evaluation;
-- ΔNLL scans.
+- PyHS3 vs RooFit:
+      - scalar PDF evaluation;
+      - ΔNLL scans
 
 ---
 
