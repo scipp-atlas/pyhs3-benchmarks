@@ -10,8 +10,6 @@ preview = ["pixi-build"]
 # Development and validation
 test = "pytest"
 smoke = "python -m compileall src tests"
-generate-inputs = "python -m src.generate_scalar_pdf_workspaces && python -m src.generate_binned_likelihood_models"
-validate = "python -m src.generate_scalar_pdf_workspaces --validate && python -m src.generate_binned_likelihood_models --validate"
 
 # Individual benchmarks
 workspace-loading = "python -m src.run_workspace_loading"

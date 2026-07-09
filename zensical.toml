@@ -57,7 +57,9 @@ nav = [
 
   { "Benchmark Matrix Runner" = "benchmark-matrix-runner.md" },
 
-  { "Profiling with Scalene" = "scalene-profiling.md" }
+  { "Profiling with Scalene" = "scalene-profiling.md" },
+
+  { "Testing" = "tests.md" }
 ]
 
 [project.theme]
