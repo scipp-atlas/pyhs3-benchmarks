@@ -15,7 +15,6 @@ nav = [
 
   { "Concepts" = [
     { "Benchmark Methodology" = "benchmark-methodology.md" },
-    { "Benchmark Workflow" = "concepts/benchmark-workflow.md" },
     { "Workspace Lifecycle" = "concepts/workspace-lifecycle.md" },
     { "Benchmark Runner" = "concepts/benchmark-runner.md" },
     { "Benchmark Results" = "concepts/benchmark-results.md" }
