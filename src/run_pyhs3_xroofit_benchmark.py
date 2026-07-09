@@ -41,7 +41,7 @@ else:
 
 try:
     import ROOT
-except ImportError:  # pragma: no cover
+except ImportError:
     ROOT = None
 
 
@@ -451,15 +451,14 @@ def _set_xroofit_parameter(case: XRooFitCase, value: float) -> None:
             parameter = owner.pars()[case.poi]
             parameter.setVal(float(value))
             return
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(f"{owner_name}: {exc}")
-    # Fallback through RooWorkspace, useful for some xRooFit/PyROOT builds.
     try:
         var = case.workspace.var(case.poi)
         if _is_valid_root_object(var):
             var.setVal(float(value))
             return
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         errors.append(f"workspace: {exc}")
     raise RuntimeError(
         f"Could not set xRooFit POI {case.poi!r}. Errors: {'; '.join(errors)}"
@@ -921,7 +920,7 @@ def run(
                     poi_value=1.0,
                 )
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             results.append(failed_framework_result(spec.name, exc))
 
     successful = {r["framework"]: r for r in results if r.get("status") == "success"}

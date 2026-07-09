@@ -26,7 +26,7 @@ from pyhs3.workspace import Workspace
 
 try:
     import ROOT
-except ImportError:  # pragma: no cover - environment dependent
+except ImportError:
     ROOT = None
 
 
@@ -545,11 +545,6 @@ def prepare_roofit_case(
             root_workspace,
             config.observable_name,
         )
-
-        # Use the exact same unbinned observable values as PyHS3.  This is more
-        # robust than relying on RooWorkspace.data(...), whose object names differ
-        # between exported ROOT files and whose createNLL convention may include
-        # extended terms that are not part of the PyHS3 target logpdf.
         pyhs3_workspace = Workspace.load(config.workspace_path)
         data_values = get_pyhs3_data_values(
             pyhs3_workspace,
@@ -1417,7 +1412,7 @@ def run(
             )
             try:
                 result = run_single_framework_scan(config)
-            except Exception as error:  # noqa: BLE001
+            except Exception as error:
                 result = error_result(config, error)
             results.append(result)
             print_result(result)

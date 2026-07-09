@@ -735,7 +735,7 @@ def test_run_worker_success_and_error(
         "run_single_framework_benchmark",
         lambda config: {"status": "success"},
     )
-    benchmark.run_worker(payload, q)  # type: ignore[arg-type]
+    benchmark.run_worker(payload, q)
     assert q.items == [{"status": "success"}]
 
     q = Queue()
@@ -744,7 +744,7 @@ def test_run_worker_success_and_error(
         "run_single_framework_benchmark",
         lambda config: (_ for _ in ()).throw(RuntimeError("boom")),
     )
-    benchmark.run_worker(payload, q)  # type: ignore[arg-type]
+    benchmark.run_worker(payload, q)
     assert q.items[0]["status"] == "error"
     assert q.items[0]["error_type"] == "RuntimeError"
 
@@ -1116,7 +1116,6 @@ def test_root_norm_set_falls_back_when_get_observables_fails(
 def test_set_root_defaults_best_effort_branches(
     monkeypatch: pytest.MonkeyPatch, workspace_path: Path
 ) -> None:
-    # Import/load failures are intentionally ignored.
     monkeypatch.setitem(sys.modules, "pyhs3.workspace", SimpleNamespace())
     benchmark._set_root_defaults_from_pyhs3(
         FakeRootWorkspace(), workspace_path, "L_ch0", "FAST_RUN"
@@ -1318,8 +1317,6 @@ def test_run_with_timeout_kills_stubborn_process(
 
 
 def test_make_summary_table_hits_repeated_workspace_white_row(tmp_path: Path) -> None:
-    # Three rows for the same workspace make the repeated empty workspace cell land
-    # on both alternating-row branches in the table styling loop.
     results = [
         make_result("pyhs3", workspace="same.json", n_evaluations=1),
         make_result("root", workspace="same.json", n_evaluations=10),

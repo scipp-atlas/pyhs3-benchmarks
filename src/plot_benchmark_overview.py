@@ -65,7 +65,6 @@ STAGE_LABELS = {
     "nll_scan": "NLL scan",
 }
 
-# Stable, presentation-oriented colors. Keep the same stage colors everywhere.
 STAGE_COLORS = {
     "workspace_loading": "#4E79A7",
     "model_creation": "#F28E2B",
@@ -692,7 +691,6 @@ def aggregate_best_metric_by_workspace(
             }
         )
 
-    # If several configurations exist for a workspace, report the median.
     grouped: dict[str, list[float]] = {}
     for row in rows:
         grouped.setdefault(row["workspace"], []).append(row["value"])
@@ -1125,7 +1123,6 @@ def make_cross_framework_summary_plot(
         workspace = compact_workspace_name(record.get("workspace"))
         key = (metric, workspace, framework)
 
-        # If repeated runs / evaluation counts exist, keep the fastest stable row.
         previous = grouped.get(key)
         if previous is None or value < previous["value"]:
             grouped[key] = {

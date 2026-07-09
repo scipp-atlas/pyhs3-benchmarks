@@ -353,7 +353,6 @@ def _root_norm_set_for_pdf(root_workspace: Any, pdf: Any) -> Any:
             if _is_root_observable_name(name)
         )
 
-    # Preserve order while removing duplicates.
     candidates = list(dict.fromkeys(candidates))
     norm_set = _make_root_argset(root_workspace, candidates)
 
@@ -735,7 +734,7 @@ def run_worker(payload: dict[str, Any], output_queue: mp.Queue) -> None:
     config = _config_from_payload(payload)
     try:
         output_queue.put(run_single_framework_benchmark(config))
-    except Exception as error:  # noqa: BLE001 - worker must serialize all errors
+    except Exception as error:
         output_queue.put(
             _error_result(
                 config,
