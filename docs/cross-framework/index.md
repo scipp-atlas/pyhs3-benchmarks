@@ -11,7 +11,7 @@ The primary goals of these benchmarks are to
 - identify implementation-specific performance characteristics;
 - ensure that optimization does not compromise statistical correctness.
 
-All comparisons follow an **apples-to-apples** methodology using matching benchmark workspaces, identical parameter values, and equivalent statistical models.
+All comparisons follow an **apples-to-apples** methodology using matching benchmark workspaces, identical parameter values, identical scan configurations, and equivalent statistical models.
 
 ---
 
@@ -80,11 +80,27 @@ The benchmark reports both numerical agreement and performance characteristics.
 
 ## xRooFit Benchmark
 
-The repository also includes benchmarks comparing PyHS3 with xRooFit.
+Compares complete likelihood evaluation workflows between **PyHS3** and **xRooFit** using matching HS3 and ROOT workspaces.
 
-These benchmarks operate on matching HS3 and ROOT workspaces while evaluating equivalent statistical models.
+The benchmark evaluates
 
-Because xRooFit builds upon RooFit while providing higher-level statistical interfaces, these benchmarks provide an additional point of comparison for realistic analysis workflows.
+- PyHS3 non-compiled execution;
+- PyHS3 compiled execution;
+- xRooFit NLL evaluation.
+
+All engines execute an equivalent ΔNLL scan over the same parameter of interest using identical datasets, scan ranges, and benchmark configurations.
+
+Besides numerical validation, the benchmark separately reports
+
+- workspace loading;
+- model construction;
+- NLL construction;
+- first (cold) evaluation;
+- steady-state evaluation;
+- complete scan performance;
+- memory usage.
+
+This benchmark therefore provides both an engine-to-engine performance comparison and a numerical validation of equivalent statistical workflows.
 
 ---
 
@@ -97,7 +113,8 @@ Whenever possible, all compared frameworks use
 - identical statistical models;
 - identical observed datasets;
 - identical parameter values;
-- equivalent benchmark configurations;
+- identical scan grids;
+- identical benchmark configurations;
 - equivalent mathematical definitions.
 
 This methodology minimizes systematic differences unrelated to implementation and allows benchmark results to be interpreted with confidence.
