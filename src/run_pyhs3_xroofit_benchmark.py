@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import gc
 import math
+import re
 import sys
 import time
 import traceback
@@ -73,6 +74,12 @@ class PyHS3Case:
     background_pdf: str
     signal_yield_param: str
     background_yield_param: str
+
+
+@dataclass(frozen=True)
+class CombinedPyHS3Case:
+    channels: tuple[PyHS3Case, ...]
+    poi: str
 
 
 @dataclass(frozen=True)
@@ -289,6 +296,77 @@ def build_pyhs3_case(
     )
 
 
+def infer_combined_channels(json_path: Path, prefix: str = "combData_ch") -> list[str]:
+    """Infer generated channel names from PyHS3 datasets such as combData_ch0."""
+
+    workspace = Workspace.load(json_path)
+    try:
+        data_entries = workspace.data.root
+    except AttributeError as exc:
+        raise ValueError("PyHS3 workspace does not contain data.root") from exc
+
+    channels: list[tuple[int, str]] = []
+    pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$")
+    for data in data_entries:
+        name = getattr(data, "name", "")
+        match = pattern.match(name)
+        if match:
+            channels.append((int(match.group(1)), f"ch{match.group(1)}"))
+
+    if not channels:
+        available = [getattr(data, "name", "<unnamed>") for data in data_entries]
+        raise ValueError(
+            "Could not infer combined PyHS3 channels from data names. "
+            f"Expected names like {prefix}0. Available data: {available}"
+        )
+
+    return [channel for _, channel in sorted(channels)]
+
+
+def build_combined_pyhs3_case(
+    *,
+    json_path: Path,
+    channels: list[str],
+    poi: str,
+    parameter_point: str | None,
+    observable_name: str,
+    observable_index: int,
+    mode: str,
+    nll_mode: str,
+) -> CombinedPyHS3Case:
+    """Build a PyHS3 case matching the full RooSimultaneous sim_pdf/combData NLL.
+
+    The generated workspaces have one analysis/model/data triplet per channel:
+    L_chN, model_chN, combData_chN, sig_chN, bkg_chN, nsig_chN, nbkg_chN.
+    Summing the per-channel extended unbinned NLLs matches evaluating the
+    simultaneous PDF on the combined RooDataSet, up to framework constants.
+    """
+
+    cases = []
+    for channel in channels:
+        analysis_name = f"L_{channel}"
+        cases.append(
+            build_pyhs3_case(
+                json_path=json_path,
+                analysis_name=analysis_name,
+                target=f"model_{channel}",
+                data_name=f"combData_{channel}",
+                poi=poi,
+                parameter_point=parameter_point,
+                observable_name=observable_name,
+                observable_index=observable_index,
+                mode=mode,
+                nll_mode=nll_mode,
+                signal_pdf=f"sig_{channel}",
+                background_pdf=f"bkg_{channel}",
+                signal_yield_param=f"nsig_{channel}",
+                background_yield_param=f"nbkg_{channel}",
+            )
+        )
+
+    return CombinedPyHS3Case(channels=tuple(cases), poi=poi)
+
+
 def pyhs3_logpdf_nll(case: PyHS3Case, value: float) -> float:
     eval_params = dict(case.params)
     eval_params[case.poi] = np.asarray(value, dtype=np.float64)
@@ -337,7 +415,11 @@ def pyhs3_extended_mixture_nll(case: PyHS3Case, value: float) -> float:
     return float(expected_events - np.sum(np.log(event_density)))
 
 
-def pyhs3_nll(case: PyHS3Case, value: float) -> float:
+def pyhs3_nll(case: PyHS3Case | CombinedPyHS3Case, value: float) -> float:
+    if isinstance(case, CombinedPyHS3Case):
+        return float(
+            sum(pyhs3_nll(channel_case, value) for channel_case in case.channels)
+        )
     if case.nll_mode == "logpdf":
         return pyhs3_logpdf_nll(case, value)
     if case.nll_mode == "extended-mixture":
@@ -382,6 +464,77 @@ def _find_workspace(root_file: Any, workspace_name: str) -> Any:
     raise RuntimeError(f"Could not find RooWorkspace {workspace_name!r}")
 
 
+def _candidate_xroofit_model_paths(model_name: str) -> list[str]:
+    """Return xRooFit paths to try for a user-supplied model name.
+
+    xRooFit exposes workspace objects via typed folders such as ``pdfs/`` and
+    ``models/``.  A bare RooFit object name like ``sim_pdf`` may work in some
+    contexts, but Will Buttinger confirmed that the robust documented form is
+    ``pdfs/sim_pdf`` for the simultaneous PDF or ``models/ModelConfig`` for a
+    ModelConfig.  Keep explicit paths first, and only fall back to inferred
+    paths for backwards-compatible command lines.
+    """
+
+    if not model_name:
+        raise ValueError("xRooFit model name must not be empty")
+    if "/" in model_name:
+        return [model_name]
+
+    candidates = [model_name]
+    if model_name == "ModelConfig" or model_name.startswith("L_"):
+        candidates.insert(0, f"models/{model_name}")
+    else:
+        candidates.insert(0, f"pdfs/{model_name}")
+    return list(dict.fromkeys(candidates))
+
+
+def _get_xroofit_node(root_node: Any, model_name: str) -> tuple[Any, str]:
+    errors: list[str] = []
+    for candidate in _candidate_xroofit_model_paths(model_name):
+        try:
+            node = root_node[candidate]
+        except Exception as exc:
+            errors.append(f"{candidate}: {type(exc).__name__}: {exc}")
+            continue
+        if _is_valid_root_object(node):
+            return node, candidate
+        errors.append(f"{candidate}: null/invalid xRooNode")
+    raise RuntimeError(
+        f"Could not access xRooFit model node {model_name!r}. "
+        f"Tried: {', '.join(_candidate_xroofit_model_paths(model_name))}. "
+        f"Details: {'; '.join(errors)}"
+    )
+
+
+def _construct_xroofit_nll(model_node: Any, dataset_name: str) -> Any:
+    """Construct an xRooFit NLL and force lazy initialization.
+
+    xRooFit may return an xRooNLLVar that looks like a null shared_ptr before
+    the first evaluation.  Do not check ``bool(nll)`` here.  Calling
+    ``getVal()`` triggers the deferred construction, as confirmed by xRooFit
+    author Will Buttinger.
+    """
+
+    try:
+        nll = model_node.nll(dataset_name)
+    except TypeError as exc:
+        raise RuntimeError(
+            f"xRooFit could not construct an NLL from dataset {dataset_name!r}. "
+            "Use a PDF node such as 'pdfs/sim_pdf' for this workspace; JSON "
+            "ModelConfig nodes may not carry the data/configuration needed by nll()."
+        ) from exc
+
+    try:
+        _ = float(nll.getVal())
+    except Exception as exc:
+        raise RuntimeError(
+            f"xRooFit NLL could not be evaluated for dataset {dataset_name!r}. "
+            "The NLL object is lazily constructed, so getVal() is the validity check."
+        ) from exc
+
+    return nll
+
+
 def _set_root_defaults_from_pyhs3(
     workspace: Any, json_path: Path, parameter_point: str | None
 ) -> None:
@@ -422,14 +575,8 @@ def build_xroofit_case(
         workspace = _find_workspace(root_file, workspace_name)
         _set_root_defaults_from_pyhs3(workspace, json_path, parameter_point)
         root_node = root.xRooNode(workspace)
-        model_node = root_node[model_name]
-        if not model_node:
-            raise RuntimeError(f"Could not access xRooFit model node {model_name!r}")
-        nll = model_node.nll(dataset_name)
-        if not nll:
-            raise RuntimeError(
-                f"xRooFit returned a null NLL for model {model_name!r} and dataset {dataset_name!r}"
-            )
+        model_node, resolved_model_name = _get_xroofit_node(root_node, model_name)
+        nll = _construct_xroofit_nll(model_node, dataset_name)
     except Exception:
         root_file.Close()
         raise
@@ -818,6 +965,8 @@ def run(
     analysis_name: str,
     target: str | None,
     pyhs3_data_name: str | None,
+    pyhs3_combined: bool,
+    pyhs3_channels: str | None,
     xroofit_model_name: str | None,
     xroofit_dataset_name: str,
     root_workspace_name: str,
@@ -857,7 +1006,23 @@ def run(
     resolved_pyhs3_data = pyhs3_data_name or default_data_name_from_analysis(
         analysis_name
     )
-    resolved_xroofit_model = xroofit_model_name or resolved_target
+    # xRooFit should evaluate the same full simultaneous RooSimultaneous PDF
+    # used in the ROOT workspace.  The channel-specific PyHS3 side computes the
+    # matching extended-mixture likelihood for L_ch0.  Do not default to
+    # ``model_ch0`` here: that is the per-channel component and is not the
+    # documented xRooFit object path for the combined dataset.
+    resolved_xroofit_model = xroofit_model_name or "pdfs/sim_pdf"
+    resolved_pyhs3_combined = pyhs3_combined or (
+        resolved_xroofit_model in {"pdfs/sim_pdf", "sim_pdf"}
+        and xroofit_dataset_name == "combData"
+    )
+    resolved_pyhs3_channels = (
+        [channel.strip() for channel in pyhs3_channels.split(",") if channel.strip()]
+        if pyhs3_channels
+        else infer_combined_channels(json_path)
+        if resolved_pyhs3_combined
+        else []
+    )
     resolved_signal_pdf = signal_pdf or default_signal_pdf_from_analysis(analysis_name)
     resolved_background_pdf = background_pdf or default_background_pdf_from_analysis(
         analysis_name
@@ -873,21 +1038,34 @@ def run(
     specs = [
         FrameworkSpec(
             name="pyhs3",
-            build_func=lambda: build_pyhs3_case(
-                json_path=json_path,
-                analysis_name=analysis_name,
-                target=resolved_target,
-                data_name=resolved_pyhs3_data,
-                poi=poi,
-                parameter_point=parameter_point,
-                observable_name=observable_name,
-                observable_index=observable_index,
-                mode=mode,
-                nll_mode=pyhs3_nll_mode,
-                signal_pdf=resolved_signal_pdf,
-                background_pdf=resolved_background_pdf,
-                signal_yield_param=resolved_signal_yield,
-                background_yield_param=resolved_background_yield,
+            build_func=lambda: (
+                build_combined_pyhs3_case(
+                    json_path=json_path,
+                    channels=resolved_pyhs3_channels,
+                    poi=poi,
+                    parameter_point=parameter_point,
+                    observable_name=observable_name,
+                    observable_index=observable_index,
+                    mode=mode,
+                    nll_mode=pyhs3_nll_mode,
+                )
+                if resolved_pyhs3_combined
+                else build_pyhs3_case(
+                    json_path=json_path,
+                    analysis_name=analysis_name,
+                    target=resolved_target,
+                    data_name=resolved_pyhs3_data,
+                    poi=poi,
+                    parameter_point=parameter_point,
+                    observable_name=observable_name,
+                    observable_index=observable_index,
+                    mode=mode,
+                    nll_mode=pyhs3_nll_mode,
+                    signal_pdf=resolved_signal_pdf,
+                    background_pdf=resolved_background_pdf,
+                    signal_yield_param=resolved_signal_yield,
+                    background_yield_param=resolved_background_yield,
+                )
             ),
             eval_func=lambda case, value: pyhs3_nll(case, value),
         ),
@@ -944,7 +1122,10 @@ def run(
         "analysis_name": analysis_name,
         "target": resolved_target,
         "pyhs3_data_name": resolved_pyhs3_data,
+        "pyhs3_combined": resolved_pyhs3_combined,
+        "pyhs3_channels": resolved_pyhs3_channels,
         "xroofit_model_name": resolved_xroofit_model,
+        "xroofit_model_path_note": "Use xRooFit typed object paths, preferably pdfs/sim_pdf for these generated workspaces.",
         "xroofit_dataset_name": xroofit_dataset_name,
         "root_workspace_name": root_workspace_name,
         "poi": poi,
@@ -970,7 +1151,7 @@ def run(
         "results": results,
         "methodology": {
             "xroofit": "Uses real xRooFit API: ROOT.xRooNode(workspace)[model].nll(dataset).getVal()",
-            "pyhs3_default": "Matches the extended RooAddPdf NLL: Nexp - sum(log(nsig(mu)*sig(x)+nbkg*bkg(x))).",
+            "pyhs3_default": "For full sim_pdf/combData, sums the per-channel extended RooAddPdf NLLs over all generated channels; for a single channel, uses Nexp - sum(log(nsig(mu)*sig(x)+nbkg*bkg(x))).",
             "validation": "Compares ΔNLL shape and minimum POI position; raw NLL may differ by additive constants.",
         },
     }
@@ -982,6 +1163,9 @@ def run(
     print(f"ROOT workspace:  {root_path}")
     print(f"Analysis:        {analysis_name}")
     print(f"PyHS3 target:    {resolved_target}")
+    print(f"PyHS3 combined:  {resolved_pyhs3_combined}")
+    if resolved_pyhs3_combined:
+        print(f"PyHS3 channels:  {','.join(resolved_pyhs3_channels)}")
     print(f"PyHS3 NLL mode:  {pyhs3_nll_mode}")
     print(f"xRooFit model:   {resolved_xroofit_model}")
     print(f"xRooFit data:    {xroofit_dataset_name}")
@@ -1015,6 +1199,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--analysis", default="L_ch0")
     parser.add_argument("--target", default=None)
     parser.add_argument("--pyhs3-data-name", default=None)
+    parser.add_argument(
+        "--pyhs3-combined",
+        action="store_true",
+        help="Sum PyHS3 channel likelihoods to match xRooFit pdfs/sim_pdf on combData.",
+    )
+    parser.add_argument(
+        "--pyhs3-channels",
+        default=None,
+        help="Comma-separated generated channel names, e.g. ch0,ch1,ch2. Defaults to inferred combData_chN datasets when combined mode is active.",
+    )
     parser.add_argument("--xroofit-model-name", default=None)
     parser.add_argument("--xroofit-dataset-name", default="combData")
     parser.add_argument("--root-workspace-name", default="combWS")
@@ -1066,6 +1260,8 @@ def main(argv: list[str] | None = None) -> None:
         analysis_name=args.analysis,
         target=args.target,
         pyhs3_data_name=args.pyhs3_data_name,
+        pyhs3_combined=args.pyhs3_combined,
+        pyhs3_channels=args.pyhs3_channels,
         xroofit_model_name=args.xroofit_model_name,
         xroofit_dataset_name=args.xroofit_dataset_name,
         root_workspace_name=args.root_workspace_name,

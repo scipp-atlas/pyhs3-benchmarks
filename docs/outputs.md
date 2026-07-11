@@ -26,7 +26,7 @@ These outputs are stored separately.
 ```text
 results/            Machine-readable benchmark reports
 
-docs/assets/plots/  Generated benchmark figures
+plots/  Generated benchmark figures
 ```
 
 Separating numerical results from visualizations makes it possible to regenerate figures without rerunning potentially expensive benchmark computations.
@@ -115,9 +115,7 @@ Most benchmark suites can generate publication-quality figures directly from the
 Generated figures are stored under
 
 ```text
-docs/
-└── assets/
-    └── plots/
+plots/
 ```
 
 Each benchmark maintains its own figure directory.
@@ -125,13 +123,11 @@ Each benchmark maintains its own figure directory.
 For example,
 
 ```text
-docs/
-└── assets/
-    └── plots/
-        └── workspace_loading/
-            ├── workspace_loading_wall_time.png
-            ├── workspace_loading_current_rss_delta.png
-            └── workspace_loading_peak_rss_delta.png
+plots/
+└── workspace_loading/
+    ├── workspace_loading_wall_time.png
+    ├── workspace_loading_current_rss_delta.png
+    └── workspace_loading_peak_rss_delta.png
 ```
 
 Typical visualizations include
@@ -189,29 +185,6 @@ For this reason, every benchmark report records both the benchmark configuration
 
 ---
 
-# Typical Result Lifecycle
-
-Benchmark outputs follow a consistent lifecycle.
-
-```text
-Execute Benchmark
-        │
-        ▼
-Generate JSON Report
-        │
-        ▼
-Generate Figures
-        │
-        ▼
-Analyze Performance
-        │
-        ▼
-Compare Benchmark Campaigns
-```
-
-This separation between benchmark execution, report generation, and visualization simplifies automated analysis and long-term performance tracking.
-
----
 
 # Common Use Cases
 

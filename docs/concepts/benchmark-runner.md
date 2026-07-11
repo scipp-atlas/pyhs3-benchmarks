@@ -57,32 +57,6 @@ Each benchmark executes independently while the runner manages the overall bench
 
 ---
 
-# Benchmark Discovery
-
-Each workflow benchmark is implemented as an independent executable module under `src/`.
-
-Typical benchmark entry points include
-
-```text
-run_workspace_loading.py
-run_model_creation.py
-run_log_prob_construction.py
-run_graph_canonicalization.py
-run_graph_optimization.py
-run_log_prob_compilation.py
-run_compiled_evaluation.py
-run_pdf_evaluation.py
-run_nll_scan.py
-run_memory_scaling.py
-run_model_complexity_scaling.py
-```
-
-Because benchmark implementations remain independent, they can be executed either directly or through the benchmark runner.
-
-This separation keeps individual benchmark implementations focused on measurement while allowing the runner to coordinate complete benchmark campaigns.
-
----
-
 # Benchmark Campaigns
 
 A benchmark campaign consists of

@@ -1,17 +1,3 @@
-# Benchmark Workspaces
-
-The benchmark workspace collection is the canonical dataset used throughout the **PyHS3 Benchmarks** repository.
-
-Unless explicitly stated otherwise, every workflow benchmark, scaling benchmark, memory benchmark, and cross-framework benchmark operates on this collection. Using a common benchmark dataset ensures that benchmark results remain directly comparable and that observed performance differences originate from implementation changes rather than differences in statistical models.
-
-The benchmark workspaces are **not created manually**. They are generated using the **workspace-scripts** repository:
-
-https://github.com/scipp-atlas/workspace-scripts
-
-The generation process is fully reproducible and produces statistically equivalent **HS3** and **ROOT** workspaces that serve as the common benchmark inputs across the repository.
-
----
-
 # Benchmark Dataset Philosophy
 
 The benchmark dataset is built around a simple design principle.
@@ -186,21 +172,6 @@ Using equivalent statistical models across frameworks ensures that cross-framewo
 
 ---
 
-# Benchmark Coverage
-
-The benchmark workspace collection is used throughout the repository.
-
-| Benchmark Category | Uses Benchmark Workspaces |
-|--------------------|:-------------------------:|
-| Workflow Benchmarks | ✓ |
-| Scaling Benchmarks | ✓ |
-| Memory Benchmarks | ✓ |
-| Cross-Framework Benchmarks | ✓ |
-| PyHS3 vs xRooFit | ✓ |
-
-Unless a benchmark explicitly documents otherwise, it is expected to operate on this benchmark dataset.
-
----
 
 # Using Benchmark Workspaces
 
@@ -221,19 +192,6 @@ Additional benchmark workspaces can be included simply by extending the `--works
 
 ---
 
-# Design Principles
-
-The benchmark workspace collection has been designed to
-
-- provide reproducible benchmark inputs;
-- isolate the impact of individual modeling choices;
-- support scalability studies;
-- enable apples-to-apples cross-framework comparisons;
-- serve as a common benchmark dataset across the repository.
-
-Using a single, well-defined benchmark dataset greatly simplifies benchmark interpretation while ensuring that benchmark results remain comparable across different workflow stages and software frameworks.
-
----
 
 # Related Documentation
 
