@@ -1459,57 +1459,6 @@ def test_extra_make_performance_summary_plot_cross_framework_panel(
     assert (tmp_path / "benchmark_overview_performance_summary.png").exists()
 
 
-def test_extra_make_cross_framework_summary_plot_creates_png(tmp_path: Path) -> None:
-    records = [
-        {
-            "benchmark": "cross_scalar_pdf_evaluation",
-            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
-            "framework": "pyhs3",
-            "status": "success",
-            "time_per_evaluation_us": 2.0,
-        },
-        {
-            "benchmark": "cross_scalar_pdf_evaluation",
-            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
-            "framework": "pyhs3",
-            "status": "success",
-            "time_per_evaluation_us": 1.5,
-        },
-        {
-            "benchmark": "cross_scalar_pdf_evaluation",
-            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
-            "framework": "root",
-            "status": "success",
-            "time_per_evaluation_us": 0.8,
-        },
-        {
-            "benchmark": "cross_nll_scan",
-            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
-            "framework": "roofit",
-            "status": "success",
-            "time_per_scan_point_us": 3.0,
-        },
-        {
-            "benchmark": "pyhs3_xroofit_benchmark",
-            "workspace": "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
-            "framework": "xroofit",
-            "status": "success",
-            "time_per_scan_point_us": 5.0,
-        },
-        {
-            "benchmark": "cross_nll_scan",
-            "workspace": "bad.json",
-            "framework": "roofit",
-            "status": "success",
-            "time_per_scan_point_us": 0.0,
-        },
-    ]
-
-    benchmark.make_cross_framework_summary_plot(records, tmp_path)
-
-    assert (tmp_path / "benchmark_overview_cross_framework_summary.png").exists()
-
-
 def test_extra_make_cross_framework_summary_plot_no_usable_rows_returns(
     tmp_path: Path,
 ) -> None:

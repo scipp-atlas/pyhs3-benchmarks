@@ -1,149 +1,304 @@
 # Cross-framework Scalar PDF Evaluation
 
-The `cross_scalar_pdf_evaluation` benchmark compares repeated scalar probability density function (PDF) evaluation between **PyHS3 (eager execution)** and **ROOT RooFit** using matching HS3 and RooFit workspaces.
+The **Scalar PDF Evaluation** benchmark provides an apples-to-apples comparison of the cost of evaluating a **single normalized probability density function (PDF)** across multiple statistical inference engines.
 
-Unlike the compiled evaluation benchmark, this benchmark measures **only normalized scalar PDF evaluation**. Compiled PyHS3 graph evaluation is intentionally excluded because it represents a different execution path and therefore would not constitute an apples-to-apples comparison.
+Unlike the likelihood benchmarks, which measure complete statistical workflows, this benchmark isolates **scalar PDF evaluation only**, allowing the execution overhead of each framework to be studied independently of model fitting, minimization, or likelihood construction.
 
-### Workspaces
+The benchmark compares
 
-The benchmark was executed on three representative workspace pairs:
+- **pyHS3 non-compiled (PyTensor)**
+- **pyHS3 compiled (JAX)**
+- **ROOT RooFit**
 
-- `5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x`
-- `10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x`
-- `30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x`
-
-Each benchmark measures:
-
-1. Cold-start latency
-2. Warm (repeated) scalar PDF evaluation latency
-3. Throughput
-4. RSS memory usage
-5. Numerical agreement
+using statistically equivalent HS3 and ROOT workspaces generated from the same underlying statistical models.
 
 ---
 
-## Apples-to-apples comparison
+# Benchmark goals
 
-To ensure that both frameworks perform the same computation, the benchmark uses the following methodology:
+This benchmark has four primary objectives.
 
-- PyHS3 evaluates the scalar PDF using `model.pdf(...)`;
-- RooFit evaluates the corresponding normalized PDF using `pdf.getVal(norm_set)`;
-- the RooFit normalization set contains only the observable (`x`) and excludes floating model parameters;
-- both frameworks evaluate matching workspaces initialized with identical parameter values.
+- Verify numerical agreement between all execution engines.
+- Measure the cost of a single scalar PDF evaluation.
+- Separate one-time initialization costs from repeated execution.
+- Compare compiled and non-compiled pyHS3 under identical statistical conditions.
 
-Consequently, both implementations evaluate the same normalized scalar probability density function, making this benchmark an apples-to-apples comparison of scalar PDF evaluation performance.
-
----
+The benchmark intentionally avoids model fitting or likelihood minimization in order to isolate the execution characteristics of scalar PDF evaluation.
 
 ---
 
-## Command-line Arguments
+# Benchmark methodology
 
-The benchmark supports the following command-line arguments.
+Every execution engine evaluates exactly the same statistical quantity.
 
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--frameworks` | `str ...` | `pyhs3 root` | Frameworks to compare. Supported values are `pyhs3` (eager scalar PDF evaluation) and `root` (RooFit normalized scalar PDF evaluation). |
-| `--workspaces` | `Path ...` | Benchmark workspace set | One or more HS3 workspace JSON files to benchmark. |
-| `--root-workspaces` | `Path ...` | inferred automatically | Optional ROOT workspace files corresponding to `--workspaces`. If omitted, each ROOT file is inferred by replacing the `.json` extension with `.root`. |
-| `--target` | `str` | `DEFAULT_TARGET` | Model target (for example, an analysis or likelihood name) used when constructing the statistical model. |
-| `--mode` | `str` | `DEFAULT_MODE` | PyTensor compilation mode passed to `Workspace.model(...)`. |
-| `--distribution` | `str` | `sig_ch0` | Name of the probability distribution evaluated by both frameworks. |
-| `--n-evaluations` | `int ...` | `1 10 100 1000 10000` | Numbers of repeated warm scalar PDF evaluations to benchmark. A separate benchmark is executed for each value. |
-| `--rtol` | `float` | `1e-7` | Relative tolerance used for numerical agreement validation. |
-| `--atol` | `float` | `1e-10` | Absolute tolerance used for numerical agreement validation. |
-| `--timeout-seconds` | `float` | `120.0` | Maximum execution time allowed for a single benchmark run before it is terminated. |
-| `--output-dir` | `Path` | `results/cross_scalar_pdf_evaluation/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `cross_scalar_pdf_evaluation_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots summarizing benchmark performance and numerical agreement. |
-| `--plot-dir` | `Path` | `docs/assets/plots/cross_scalar_pdf_evaluation/` | Directory where generated benchmark plots will be stored. |
+For every benchmark workspace the benchmark
 
-## Notes
+1. loads the statistical workspace;
+2. constructs the statistical model;
+3. synchronizes model parameters across frameworks;
+4. evaluates the same normalized scalar PDF;
+5. validates numerical agreement;
+6. measures startup latency;
+7. measures steady-state evaluation performance;
+8. measures memory consumption.
 
-- At least one framework and one workspace must be provided.
-- When the `root` framework is selected, matching ROOT workspaces must be available. If `--root-workspaces` is omitted, the benchmark automatically infers each ROOT file by replacing the `.json` extension with `.root`.
-- A separate benchmark is executed for every combination of framework, workspace, and number of repeated evaluations.
-- Every benchmark run first computes a PyHS3 reference value. RooFit results are compared against this reference using the specified `--rtol` and `--atol` tolerances.
-- `--n-evaluations` values must be greater than or equal to **1**.
-- `--timeout-seconds` must be positive.
-- The benchmark intentionally compares only **normalized scalar PDF evaluation** (`model.pdf(...)` versus `pdf.getVal(norm_set)`). Compiled graph evaluation is measured separately by the compiled evaluation benchmark and is not included in this comparison.
+The benchmark therefore compares framework implementations rather than different statistical workflows.
 
 ---
 
-## Cold-start and warm evaluation latency
+# Execution engines
 
-Cold-start latency measures the one-time initialization required before the first scalar PDF evaluation. Warm latency measures the average runtime of repeated PDF evaluations after initialization has completed.
+The benchmark evaluates three execution engines.
 
-![Cold-start and warm latency](../assets/plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_latency.png)
+| Engine | Description |
+|---------|-------------|
+| **pyHS3 non-compiled (PyTensor)** | Standard eager execution without graph compilation. |
+| **pyHS3 compiled (JAX)** | JAX-compiled execution after graph compilation. Startup and steady-state execution are reported separately. |
+| **ROOT RooFit** | Scalar normalized PDF evaluation using statistically equivalent ROOT workspaces. |
 
-Across all tested workspaces, RooFit exhibits a substantially larger cold-start latency than PyHS3 because additional initialization is required before repeated evaluations can begin.
+Every engine evaluates
 
-After initialization, both frameworks perform scalar PDF evaluation very efficiently. RooFit consistently achieves lower warm evaluation latency, while PyHS3 maintains stable execution times of only a few microseconds per evaluation.
+- the same statistical model;
+- the same parameter point;
+- the same observable;
+- the same normalization;
+- the same probability density function.
 
----
-
-## Throughput scaling
-
-This benchmark measures how throughput changes as the number of repeated scalar PDF evaluations increases.
-
-![Throughput scaling](../assets/plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_throughput_scaling.png)
-
-Throughput increases rapidly once initialization costs are amortized. RooFit reaches approximately one million scalar PDF evaluations per second for the tested workspaces, whereas PyHS3 consistently achieves several hundred thousand evaluations per second.
-
-Both implementations exhibit stable throughput once warm execution dominates the benchmark runtime.
+This ensures that any observed performance differences originate from the implementation rather than differences in the statistical model.
 
 ---
 
-## Evaluation cost
+# Benchmark lifecycle
 
-This metric reports the average execution time required for a single scalar PDF evaluation.
+Every benchmark is executed inside a **fresh spawned subprocess**.
 
-![Evaluation cost](../assets/plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_time_per_value.png)
+Each subprocess independently performs
 
-The average evaluation cost decreases rapidly as initialization overhead becomes negligible.
+1. workspace loading;
+2. model construction;
+3. graph preparation;
+4. JAX compilation (compiled engine only);
+5. first scalar PDF evaluation;
+6. steady-state evaluation;
+7. memory measurement.
 
-For large numbers of repeated evaluations, RooFit requires less than one microsecond per evaluation, while PyHS3 consistently evaluates scalar PDFs in only a few microseconds.
+Running each engine in an isolated process prevents measurements from being affected by
+
+- previous ROOT initialization,
+- JAX compilation cache,
+- PyTensor internal state,
+- allocator reuse,
+- memory allocated by another execution engine.
+
+Fresh-process isolation therefore provides reproducible startup, runtime and memory measurements across all compared frameworks.
 
 ---
 
-## Memory footprint
+# Input modes
 
-This benchmark records both the current RSS increase and the peak RSS increase observed during execution.
+The benchmark supports two observable input modes.
 
-![Memory footprint](../assets/plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_memory.png)
+## Varying observable (default)
 
-PyHS3 consistently requires considerably less resident memory than RooFit for all tested workspaces.
+The observable value changes before every scalar PDF evaluation.
 
-Memory usage remains nearly constant as the number of repeated evaluations increases, indicating that the majority of memory allocation occurs during initialization rather than during repeated scalar PDF evaluation.
+This represents the typical workload encountered during likelihood scans, minimization and repeated statistical inference.
+
+All primary performance comparisons use this mode.
+
+---
+
+## Fixed observable
+
+The observable remains unchanged throughout the benchmark.
+
+This mode is provided exclusively as a **cache diagnostic**.
+
+It allows framework-specific caching behaviour to be investigated, particularly for RooFit, but is **not** intended as the primary performance comparison.
+
+---
+
+# Numerical validation
+
+Performance measurements are interpreted only after numerical agreement has been verified.
+
+The benchmark first evaluates the **pyHS3 non-compiled** implementation and stores its output as the numerical reference.
+
+Compiled pyHS3 and RooFit are then evaluated on the identical observable grid.
+
+For every engine the benchmark computes
+
+- maximum absolute difference;
+- maximum relative difference.
+
+Validation uses configurable
+
+- absolute tolerance (`--atol`);
+- relative tolerance (`--rtol`).
+
+Only benchmark runs satisfying these tolerances should be interpreted as meaningful performance comparisons.
+
+---
+
+# Startup versus steady-state execution
+
+One of the primary goals of this benchmark is to distinguish **initialization cost** from **repeated execution performance**.
+
+The compiled implementation therefore reports two different execution metrics.
+
+## Cold-start end-to-end latency
+
+This metric includes every operation required before the first successful PDF evaluation.
+
+For the compiled engine this includes
+
+- workspace loading;
+- model construction;
+- graph preparation;
+- JAX compilation;
+- first evaluation.
+
+Cold-start latency is the relevant metric for one-off workflows where initialization cannot be amortized.
+
+---
+
+## Steady-state evaluation
+
+Steady-state timing measures only repeated scalar PDF evaluations performed **after graph compilation has completed**.
+
+Compilation is intentionally excluded from this measurement.
+
+This metric represents the execution cost encountered during
+
+- likelihood scans,
+- repeated evaluations,
+- iterative minimization,
+- inference workflows.
+
+Separating these two metrics prevents compilation time from artificially inflating repeated evaluation performance.
+
+---
+
+# Generated figures
+
+## Scalar PDF startup and steady-state latency
+
+![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_latency.png)
+
+This figure compares cold-start execution with steady-state scalar evaluation.
+
+The cold-start measurement includes all initialization required before the first evaluation, while the steady-state measurement reports only repeated execution after initialization has completed.
+
+---
+
+## Scalar PDF execution time
+
+![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_time_per_value.png)
+
+Shows the median runtime required for a single scalar PDF evaluation as the number of repeated evaluations increases.
+
+This figure characterizes the sustained execution cost of scalar PDF evaluation across the compared execution engines.
+
+---
+
+## Scalar PDF throughput
+
+![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_throughput.png)
+
+Shows the sustained evaluation throughput measured in evaluations per second.
+
+Increasing throughput corresponds to improved steady-state execution performance.
+
+---
+
+## Memory consumption
+
+![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_memory.png)
+
+Reports the memory increase observed during benchmark execution.
+
+Both
+
+- Current RSS increase
+- Peak RSS increase
+
+are measured inside isolated subprocesses, ensuring directly comparable memory measurements across all execution engines.
 
 ---
 
 ## Numerical agreement
 
-Numerical agreement is evaluated relative to the PyHS3 reference implementation.
+![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_numerical_agreement.png)
 
-![Numerical agreement](../assets/plots/cross_scalar_pdf_evaluation/cross_scalar_pdf_numerical_agreement.png)
+Shows the maximum numerical deviation relative to the pyHS3 non-compiled reference implementation.
 
-The observed numerical differences remain close to machine precision for all benchmark configurations.
+The horizontal tolerance line indicates the configured validation threshold.
 
-Maximum absolute differences are approximately:
-
-- **2.3 × 10⁻¹⁶** for the 5-channel workspace,
-- **9.6 × 10⁻¹⁴** for the 10-channel workspace,
-- **6.8 × 10⁻¹⁷** for the 30-channel workspace.
-
-All measured differences remain several orders of magnitude below the validation tolerance (`1 × 10⁻¹⁰`), confirming that both frameworks evaluate numerically equivalent normalized scalar PDF values.
+Successful validation confirms that performance comparisons are performed on statistically equivalent computations.
 
 ---
 
-## Summary
+## Compiled execution lifecycle
 
-The benchmark demonstrates several important characteristics of the current implementations:
+![](../assets/plots/cross_scalar_pdf/scalar_pdf_compiled_lifecycle.png)
 
-- PyHS3 and RooFit evaluate numerically equivalent normalized scalar PDFs;
-- RooFit incurs a larger one-time initialization cost;
-- RooFit achieves higher steady-state scalar PDF throughput;
-- PyHS3 consistently requires substantially less resident memory;
-- both implementations exhibit stable performance across representative workspace sizes.
+The compiled lifecycle separates the startup cost into
 
-Overall, this benchmark provides an apples-to-apples comparison of normalized scalar PDF evaluation between PyHS3 eager execution and RooFit while intentionally excluding compiled graph execution, which is benchmarked separately.
+- model construction;
+- graph preparation;
+- JAX compilation;
+- first evaluation.
+
+This visualization illustrates where initialization time is spent before compiled execution reaches steady-state performance.
+
+---
+
+# Cache diagnostic
+
+The benchmark additionally produces equivalent figures for the fixed observable mode.
+
+These measurements are intended only to investigate framework-specific caching behaviour.
+
+The corresponding figures include
+
+- fixed observable latency;
+- fixed observable throughput;
+- fixed observable memory usage;
+- fixed observable numerical agreement;
+- fixed observable execution time.
+
+These results should not be interpreted as representative likelihood evaluation performance.
+
+---
+
+# Benchmark outputs
+
+The benchmark produces
+
+- JSON benchmark results;
+- numerical validation summaries;
+- startup timing measurements;
+- steady-state timing measurements;
+- lifecycle measurements;
+- throughput measurements;
+- memory measurements;
+- publication-quality figures.
+
+These outputs provide a complete characterization of scalar PDF evaluation across all supported execution engines.
+
+---
+
+# Interpretation
+
+The scalar PDF benchmark should be interpreted as an engine-level comparison.
+
+It intentionally excludes
+
+- likelihood construction,
+- minimization,
+- parameter estimation,
+- fitting workflows.
+
+Consequently, it measures the execution characteristics of the PDF evaluation itself rather than complete statistical inference workflows.
+
+For workflow-level comparisons, see the ΔNLL benchmark documentation.

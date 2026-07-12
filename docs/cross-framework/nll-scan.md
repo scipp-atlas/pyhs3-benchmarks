@@ -1,268 +1,324 @@
-# Cross-framework ΔNLL Scan Benchmark
+# Cross-framework ΔNLL Benchmark
 
-This benchmark performs an **apples-to-apples numerical and performance comparison** between **PyHS3** and **RooFit** by evaluating the same ΔNLL scan on matching generated workspaces.
+The **Cross-framework ΔNLL Benchmark** compares complete likelihood evaluation across multiple statistical inference engines using statistically equivalent HS3 and ROOT workspaces.
 
-Unlike the generic performance benchmarks, this benchmark is designed to verify that both frameworks evaluate **the same statistical model**, using the **same parameter values**, **same observed events**, and **same scan grid** before comparing execution time.
+Unlike the scalar PDF benchmark, which isolates the cost of evaluating a single normalized probability density function, this benchmark measures the execution of a **complete negative log-likelihood (NLL) evaluation** and validates that every framework produces the same statistical result before comparing performance.
+
+The benchmark compares
+
+- **pyHS3 non-compiled (PyTensor)**
+- **pyHS3 compiled (JAX)**
+- **ROOT RooFit**
+
+using identical statistical models, observed datasets, parameter values, and scan grids.
 
 ---
 
-## What is compared?
+# Benchmark goals
 
-For each workspace, the benchmark
+The benchmark has five primary objectives.
 
-- loads the matching **PyHS3 JSON workspace**;
-- loads the corresponding **ROOT RooWorkspace**;
-- extracts the identical observed events from the HS3 workspace;
-- scans the same POI (`mu_sig`);
-- evaluates the normalized PDF at every observed event;
-- computes
+- Validate numerical agreement between pyHS3 and RooFit.
+- Compare complete NLL evaluation performance across execution engines.
+- Separate initialization costs from repeated execution performance.
+- Compare compiled and non-compiled pyHS3 under identical statistical conditions.
+- Demonstrate the performance benefits of batched vectorized execution.
+
+Unlike workflow benchmarks, this benchmark is designed as an **engine-to-engine comparison**, ensuring that every framework evaluates the same statistical quantity whenever a direct comparison is possible.
+
+---
+
+# Statistical quantity
+
+For every scan point
 
 \[
-\mathrm{NLL}(\mu)
-=
--\sum_i \log p(x_i \mid \mu)
+\mu_i
 \]
 
-- converts the result into
+the benchmark evaluates
+
+\[
+\mathrm{NLL}(\mu_i)
+=
+-\sum_k \log p(x_k|\mu_i)
+\]
+
+using the identical observed dataset.
+
+The reported scan is
 
 \[
 \Delta\mathrm{NLL}(\mu)
 =
 \mathrm{NLL}(\mu)
 -
-\min_\mu \mathrm{NLL}(\mu)
+\min_\mu \mathrm{NLL}(\mu).
 \]
 
-The PyHS3 ΔNLL curve is used as the numerical reference.
+Using ΔNLL rather than the absolute likelihood removes constant offsets and allows direct comparison of the statistical behaviour of every implementation.
 
 ---
 
-## Apples-to-apples methodology
+# Execution engines
 
-The benchmark intentionally evaluates **exactly the same mathematical quantity** in both frameworks.
+The benchmark evaluates three execution engines.
 
-For every scan point:
+| Engine | Description |
+|---------|-------------|
+| **pyHS3 non-compiled (PyTensor)** | Standard eager execution without graph compilation. |
+| **pyHS3 compiled (JAX)** | JAX-compiled execution after graph compilation. Startup and steady-state execution are reported separately. |
+| **ROOT RooFit** | Equivalent likelihood evaluation using statistically matched ROOT workspaces. |
 
-| PyHS3 | RooFit |
-|--------|---------|
-| evaluates `model.logpdf(...)` | evaluates `pdf.getVal(normSet)` |
-| uses the same observed events | uses the same observed events |
-| uses identical μ values | uses identical μ values |
-| computes `-Σ log(pdf)` | computes `-Σ log(pdf)` |
+Every execution engine uses
 
-No framework-specific likelihood builders (`createNLL()`) are used, since those may introduce additional extended or constraint terms depending on the workspace implementation.
+- the same statistical model;
+- the same observed dataset;
+- the same parameter values;
+- the same scan grid;
+- the same normalization convention.
 
-Instead, both frameworks evaluate the normalized PDF directly, producing an equivalent unbinned likelihood calculation.
+This allows differences in execution time to be attributed to implementation rather than differences in the statistical model.
 
 ---
 
-## Validation
+# Two benchmark categories
+
+The benchmark intentionally distinguishes between two different execution patterns.
+
+## Point-by-point NLL evaluation
+
+This benchmark represents the typical workload encountered during
+
+- likelihood scans,
+- profile likelihood evaluation,
+- minimization,
+- repeated objective-function evaluation.
+
+For every parameter value
+
+\[
+\mu
+\]
+
+each engine performs one complete NLL evaluation using the identical observed dataset.
+
+### RooFit
+
+RooFit evaluates the normalized PDF for every observed event and computes
+
+\[
+-\sum \log(\mathrm{PDF}).
+\]
+
+### pyHS3 non-compiled
+
+The non-compiled implementation performs the same calculation using eager PyTensor execution.
+
+### pyHS3 compiled
+
+The compiled implementation performs one complete compiled NLL evaluation for every parameter value.
+
+The scalar PDF is evaluated over the complete dataset inside a single compiled JAX executable using vectorized evaluation.
+
+Graph preparation and JAX compilation occur **before** any timed measurements and are never included in steady-state performance.
+
+This benchmark therefore compares equivalent statistical computations while avoiding repeated compilation or repeated JAX dispatch overhead.
+
+---
+
+## Batched full-dataset evaluation
+
+The batched benchmark measures a different execution strategy.
+
+Instead of evaluating scalar PDF values one event at a time, pyHS3 receives the complete observable array and evaluates the likelihood using its native vectorized execution model.
+
+This benchmark intentionally demonstrates one of the primary strengths of pyHS3.
+
+Because RooFit does not provide an equivalent array-oriented execution model, this benchmark is **not** a pure apples-to-apples microbenchmark.
+
+Instead, it should be interpreted as a **workflow benchmark** illustrating the benefits of vectorization and batched execution.
+
+---
+
+# Benchmark lifecycle
+
+Every benchmark run is executed inside a fresh spawned subprocess.
+
+Each subprocess independently performs
+
+1. workspace loading;
+2. model construction;
+3. graph preparation;
+4. JAX compilation (compiled engine only);
+5. first NLL evaluation;
+6. repeated steady-state evaluations;
+7. memory measurement.
+
+Running every engine in a separate process prevents measurements from being affected by
+
+- previously initialized ROOT state;
+- JAX compilation cache;
+- PyTensor internal state;
+- allocator reuse;
+- memory allocated by another execution engine.
+
+Fresh-process isolation ensures reproducible startup, runtime and memory measurements across all execution engines.
+
+---
+
+# Cold-start versus steady-state
+
+Compiled execution naturally contains one-time initialization costs that are irrelevant during repeated likelihood evaluation.
+
+To avoid mixing these costs with repeated execution performance, the benchmark reports two complementary metrics.
+
+## Cold-start end-to-end latency
+
+Cold-start latency includes every operation required before the first successful likelihood evaluation.
+
+For the compiled engine this includes
+
+- workspace loading;
+- model construction;
+- graph preparation;
+- JAX compilation;
+- first NLL evaluation.
+
+This metric is representative of one-off workflows where initialization cannot be amortized.
+
+---
+
+## Steady-state evaluation
+
+Steady-state timing measures only repeated likelihood evaluations after graph compilation has completed.
+
+Compilation is intentionally excluded.
+
+This metric represents the execution cost encountered during
+
+- likelihood scans;
+- repeated minimization;
+- profile likelihood evaluation;
+- statistical inference.
+
+Separating these measurements prevents compilation time from artificially inflating repeated execution performance.
+
+---
+
+# Numerical validation
+
+Performance comparisons are meaningful only if every framework produces statistically equivalent results.
+
+The benchmark therefore validates every execution engine before interpreting performance measurements.
 
 For every workspace the benchmark verifies
 
 - identical ΔNLL minimum;
-- identical ΔNLL shape;
-- maximum point-by-point residual;
-- numerical agreement within tolerance.
+- identical ΔNLL profile;
+- point-by-point numerical agreement;
+- agreement within configurable tolerances.
 
-The default tolerances are
-
-```
-maximum ΔNLL residual < 1e-7
-minimum position agreement < 1e-12
-```
+Only benchmark runs satisfying these validation criteria should be interpreted as valid performance comparisons.
 
 ---
 
-## Default benchmark inputs
+# Generated figures
 
-```
-inputs/
-├── 5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json
-├── 10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x.json
-└── 30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json
-```
+## Point-by-point ΔNLL agreement
 
-with the corresponding ROOT workspaces
+![](../assets/plots/cross_nll/cross_nll_scan_agreement.png)
 
-```
-inputs/
-├── 5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.root
-├── 10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x.root
-└── 30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.root
-```
+This figure compares the ΔNLL profiles produced by every execution engine.
+
+The curves should overlap within numerical tolerance, demonstrating that all frameworks evaluate statistically equivalent likelihoods.
 
 ---
 
-## Running the benchmark
+## Steady-state runtime
 
-Single workspace
+![](../assets/plots/cross_nll/cross_nll_steady_state_runtime.png)
 
-```bash
-pixi run python -m src.run_cross_nll_scan \
-    --workspaces inputs/5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json \
-    --frameworks pyhs3 roofit \
-    --analysis L_ch0 \
-    --poi mu_sig \
-    --mode FAST_RUN \
-    --mu-min 0.0 \
-    --mu-max 2.0 \
-    --n-points 101 \
-    --output-dir results/docs_examples/cross_nll_scan \
-    --plot-dir docs/assets/plots/cross_nll_scan
-```
+Shows the median execution time required for one complete NLL evaluation after initialization has completed.
 
-Multiple workspaces
+The figure separately reports
 
-```bash
-pixi run python -m src.run_cross_nll_scan \
-    --workspaces \
-        inputs/5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json \
-        inputs/10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x.json \
-        inputs/30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
-    --frameworks pyhs3 roofit \
-    --analysis L_ch0 \
-    --poi mu_sig \
-    --mode FAST_RUN \
-    --mu-min 0.0 \
-    --mu-max 2.0 \
-    --n-points 101 \
-    --output-dir results/docs_examples/cross_nll_scan \
-    --plot-dir docs/assets/plots/cross_nll_scan
-```
+- point-by-point evaluation;
+- batched full-dataset evaluation.
+
+These measurements characterize sustained likelihood evaluation performance.
 
 ---
 
----
+## Cold-start versus steady-state
 
-## Command-line Arguments
+![](../assets/plots/cross_nll/cross_nll_end_to_end_vs_steady.png)
 
-The benchmark supports the following command-line arguments.
+Separates initialization cost from repeated execution.
 
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--frameworks` | `str ...` | `pyhs3 roofit` | Frameworks to compare. Supported values are `pyhs3` and `roofit`. |
-| `--workspaces` | `Path ...` | Benchmark workspace set | One or more HS3 workspace JSON files used for the ΔNLL comparison. |
-| `--root-workspaces` | `Path ...` | inferred automatically | Optional ROOT workspace files corresponding to `--workspaces`. If omitted, each `.root` file is inferred automatically from the JSON workspace path. |
-| `--analysis` | `str` | `L_ch0` | Analysis (likelihood) name used to construct the statistical model. |
-| `--target` | `str` | inferred from `--analysis` | Target PDF evaluated by PyHS3 and RooFit. By default this is derived automatically from the analysis name (for example `model_ch0`). |
-| `--pyhs3-data-name` | `str` | inferred from `--analysis` | Name of the observed dataset inside the HS3 workspace. |
-| `--root-pdf-name` | `str` | inferred from `--target` | Name of the RooFit PDF inside the ROOT workspace. |
-| `--root-data-name` | `str` | inferred from `--pyhs3-data-name` | Name of the RooFit dataset. |
-| `--parameter-point` | `str` | first available | Optional parameter point used to initialize the model before scanning the POI. |
-| `--observable-name` | `str` | `x` | Observable used during normalized PDF evaluation. |
-| `--observable-index` | `int` | `0` | Observable index within multidimensional HS3 datasets. |
-| `--poi` | `str` | `mu_sig` | Parameter of interest scanned during the ΔNLL evaluation. |
-| `--mode` | `str` | `FAST_RUN` | PyTensor compilation mode used when constructing the PyHS3 model. |
-| `--mu-min` | `float` | `0.0` | Lower bound of the POI scan. |
-| `--mu-max` | `float` | `2.0` | Upper bound of the POI scan. |
-| `--n-points` | `int` | `101` | Number of uniformly spaced scan points between `mu-min` and `mu-max`. |
-| `--shape-tolerance` | `float` | `1e-7` | Maximum allowed point-by-point ΔNLL difference relative to the PyHS3 reference. |
-| `--minimum-tolerance` | `float` | `1e-12` | Maximum allowed difference between the positions of the ΔNLL minima. |
-| `--output-dir` | `Path` | `results/cross_nll_scan/` | Directory where the benchmark JSON results are written. |
-| `--output-name` | `str` | `cross_nll_scan_result.json` | Name of the JSON output file. |
-| `--plot` | flag | disabled | Generate comparison plots summarizing runtime, memory usage, ΔNLL agreement, and numerical validation. |
-| `--plot-dir` | `Path` | `docs/assets/plots/cross_nll_scan/` | Directory where generated plots are stored. |
-| `--fail-fast` | flag | disabled | Stop the benchmark immediately after the first failed benchmark or validation error. |
+Cold-start includes workspace loading, model construction, graph preparation, JAX compilation and the first successful likelihood evaluation.
 
-## Notes
-
-- At least one framework and one workspace must be provided.
-- If the `roofit` framework is selected, matching ROOT workspaces must be available. When `--root-workspaces` is omitted, the corresponding `.root` files are inferred automatically from the JSON workspace paths.
-- The benchmark first computes a complete PyHS3 ΔNLL scan for every workspace. These scans serve as the numerical reference for all subsequent RooFit comparisons.
-- A separate benchmark is executed for every combination of workspace and framework.
-- The POI scan is constructed using a uniformly spaced grid between `--mu-min` and `--mu-max` containing `--n-points` values.
-- The benchmark evaluates normalized PDFs directly for every observed event and computes
-  \[
-  \mathrm{NLL} = -\sum_i \log p(x_i|\mu),
-  \]
-  avoiding framework-specific likelihood builders such as `createNLL()` to ensure an apples-to-apples comparison.
-- Numerical validation requires both the ΔNLL profile shape and the position of the minimum to satisfy the specified tolerances.
-- `--n-points` must be at least **2**, `--mu-min` must be smaller than `--mu-max`, and both validation tolerances must be positive.
+Steady-state measures only repeated NLL evaluations performed after initialization has completed.
 
 ---
 
-## Generated plots
+## Compiled execution lifecycle
 
-### Cross-framework ΔNLL agreement
+![](../assets/plots/cross_nll/cross_nll_compiled_lifecycle.png)
 
-Shows the ΔNLL curves produced by both frameworks.
+Breaks the compiled execution lifecycle into
 
-![Cross-framework ΔNLL agreement](../assets/plots/cross_nll_scan/cross_nll_scan_profile.png)
+- model construction;
+- graph preparation;
+- JAX compilation;
+- first function call.
 
----
-
-### Runtime profile
-
-Separately reports
-
-- model construction time;
-- full ΔNLL scan time.
-
-![Runtime profile](../assets/plots/cross_nll_scan/cross_nll_timing_profile.png)
+The figure illustrates where startup time is spent before compiled execution reaches steady-state performance.
 
 ---
 
-### Relative throughput
+## Memory profile
 
-Ranks frameworks according to scan throughput (μs per scan point).
+![](../assets/plots/cross_nll/cross_nll_memory_profile.png)
 
-![Relative runtime](../assets/plots/cross_nll_scan/cross_nll_relative_runtime.png)
+Reports the increase in memory usage observed during benchmark execution.
 
----
+Both
 
-### Numerical agreement
+- Current RSS increase
+- Peak RSS increase
 
-Reports the maximum residual with respect to the PyHS3 reference.
-
-The dashed line indicates the validation tolerance.
-
-![Numerical agreement](../assets/plots/cross_nll_scan/cross_nll_numerical_agreement.png)
+are measured inside isolated subprocesses, ensuring directly comparable measurements across execution engines.
 
 ---
 
-### Memory footprint
+# Benchmark outputs
 
-Reports the current and peak RSS increase during the benchmark.
+The benchmark produces
 
-![Memory footprint](../assets/plots/cross_nll_scan/cross_nll_memory_profile.png)
-
----
-
-## Output
-
-The benchmark stores
-
-```
-results/docs_examples/cross_nll_scan/
-└── cross_nll_scan_result.json
-```
-
-which contains
-
-- benchmark configuration;
-- scan grid;
-- timing measurements;
+- JSON benchmark results;
+- ΔNLL validation summaries;
+- cold-start timing measurements;
+- steady-state timing measurements;
+- compiled lifecycle measurements;
 - memory measurements;
-- ΔNLL curves;
-- numerical validation;
-- summary status.
+- publication-quality figures.
+
+Together these outputs provide a complete characterization of likelihood evaluation across all supported execution engines.
 
 ---
 
-## Interpretation
+# Interpretation
 
-A successful benchmark reports
+The benchmark intentionally reports two complementary likelihood evaluation strategies.
 
-```
-Status: success
-Validated: N / N
-```
+**Point-by-point NLL** represents the repeated objective-function evaluations encountered during likelihood scans and minimization and provides the primary apples-to-apples comparison across frameworks.
 
-meaning that
+**Batched full-dataset evaluation** demonstrates the native vectorized execution model of pyHS3. Because RooFit evaluates events individually, this benchmark should be interpreted as a workflow comparison rather than a strict engine-to-engine microbenchmark.
 
-- both frameworks produced identical ΔNLL minima;
-- ΔNLL curves agree within numerical precision;
-- both implementations evaluated the same statistical quantity.
+Consequently, the two benchmark categories answer different questions:
 
-Any validation failure indicates a genuine numerical disagreement rather than a performance difference.
+- **Point-by-point NLL** measures equivalent statistical computations across execution engines.
+- **Batched full-dataset evaluation** demonstrates the performance advantages achievable through vectorized execution.
+
+Together they provide both a fair cross-framework comparison and a realistic picture of pyHS3 performance in modern statistical inference workflows.

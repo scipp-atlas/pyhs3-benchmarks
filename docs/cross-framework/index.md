@@ -2,16 +2,16 @@
 
 The **Cross-Framework** benchmark suite evaluates equivalent statistical computations across multiple statistical inference frameworks.
 
-Unlike the workflow benchmarks, which measure the internal performance of PyHS3, the benchmarks in this section compare PyHS3 with external implementations while ensuring that every framework performs the **same statistical computation**.
+Unlike the workflow benchmarks, which characterize the internal performance of PyHS3, the benchmarks in this section compare PyHS3 with external implementations while ensuring that every execution engine performs the **same statistical computation**.
 
 The primary goals of these benchmarks are to
 
 - validate numerical agreement between implementations;
-- compare performance under equivalent conditions;
+- compare performance under equivalent statistical conditions;
 - identify implementation-specific performance characteristics;
-- ensure that optimization does not compromise statistical correctness.
+- ensure that performance optimizations do not compromise statistical correctness.
 
-All comparisons follow an **apples-to-apples** methodology using matching benchmark workspaces, identical parameter values, identical scan configurations, and equivalent statistical models.
+All comparisons follow an **apples-to-apples** methodology using matching benchmark workspaces, identical parameter values, identical statistical models, and equivalent benchmark configurations.
 
 ---
 
@@ -19,7 +19,7 @@ All comparisons follow an **apples-to-apples** methodology using matching benchm
 
 Cross-framework benchmarking is fundamentally different from traditional performance benchmarking.
 
-Comparing two statistical frameworks is meaningful only if they evaluate the **same mathematical quantity** using the **same statistical model**.
+Comparing statistical inference frameworks is meaningful only if every engine evaluates the **same mathematical quantity** using the **same statistical model**.
 
 For this reason, every benchmark in this section is designed to eliminate differences arising from
 
@@ -27,9 +27,10 @@ For this reason, every benchmark in this section is designed to eliminate differ
 - workspace contents;
 - parameter initialization;
 - observed datasets;
+- normalization conventions;
 - benchmark configuration.
 
-Only after these quantities have been aligned are execution time, memory consumption, or numerical agreement compared.
+Only after these quantities have been aligned are execution time, memory consumption, and numerical agreement compared.
 
 ---
 
@@ -39,87 +40,130 @@ All cross-framework benchmarks operate on the canonical benchmark workspace coll
 
 Each HS3 workspace has a corresponding ROOT workspace generated from the same statistical model using the `workspace-scripts` repository.
 
-This ensures that every framework evaluates statistically equivalent models and that observed differences originate from the framework implementation rather than differences in the benchmark inputs.
+This guarantees that every execution engine evaluates statistically equivalent models and that any observed differences originate from the framework implementation rather than differences in the benchmark inputs.
 
 ---
 
-# Current Benchmark Suites
+# Execution Engines
 
-The repository currently includes the following cross-framework benchmarks.
+Depending on the benchmark, one or more of the following execution engines are compared.
+
+| Engine | Description |
+|---------|-------------|
+| **PyHS3 non-compiled (PyTensor)** | Eager execution without graph compilation. |
+| **PyHS3 compiled (JAX)** | JAX-compiled execution after graph compilation. Cold-start and steady-state execution are reported separately. |
+| **RooFit** | ROOT RooFit implementation using statistically equivalent ROOT workspaces. |
+| **xRooFit** | xRooFit likelihood evaluation built on top of RooFit. |
+
+Not every benchmark includes every execution engine. Each benchmark page specifies which engines participate in the comparison.
+
+---
+
+# Benchmark Categories
+
+The cross-framework benchmark suite intentionally compares different levels of statistical computation.
+
+Together, the benchmarks cover
+
+- engine-level scalar probability density function evaluation;
+- complete point-by-point likelihood evaluation;
+- batched full-dataset likelihood evaluation;
+- complete statistical workflows evaluated through xRooFit.
+
+These complementary benchmarks provide both fair engine-to-engine comparisons and realistic workflow-level performance measurements, allowing PyHS3 to be evaluated from multiple perspectives while maintaining statistical equivalence whenever a direct comparison is possible.
+
+---
+
+# Available Benchmarks
+
+The repository currently provides the following cross-framework benchmarks.
 
 ## Scalar PDF Evaluation
 
-Compares repeated normalized scalar probability density function evaluation between PyHS3 and RooFit.
+Compares repeated normalized scalar probability density function evaluation across
 
-This benchmark measures
+- **PyHS3 non-compiled (PyTensor)**;
+- **PyHS3 compiled (JAX)**;
+- **RooFit**.
 
-- cold-start latency;
-- warm evaluation latency;
+The benchmark reports
+
+- cold-start end-to-end latency;
+- steady-state scalar evaluation latency;
 - throughput;
-- resident memory usage;
-- numerical agreement.
+- memory usage;
+- numerical agreement;
+- compiled execution lifecycle.
 
-Unlike the compiled evaluation benchmark, this comparison intentionally evaluates only eager scalar PDF execution to preserve an apples-to-apples comparison.
+The benchmark isolates scalar PDF evaluation from likelihood construction, fitting and minimization, providing an engine-level comparison under identical statistical conditions.
 
 ---
 
-## ΔNLL Scan
+## ΔNLL Benchmark
 
-Compares the evaluation of identical ΔNLL scans using matching HS3 and ROOT workspaces.
+Compares complete negative log-likelihood evaluation using statistically equivalent HS3 and ROOT workspaces.
 
-Both frameworks
+All participating engines
 
-- evaluate the same observed events;
+- evaluate the same observed dataset;
 - scan the same parameter of interest;
 - use identical parameter values;
 - compute the same likelihood quantity.
 
-The benchmark reports both numerical agreement and performance characteristics.
+The benchmark distinguishes between
+
+- **point-by-point likelihood evaluation**, providing the primary apples-to-apples engine-to-engine comparison; and
+- **batched full-dataset evaluation**, demonstrating the native vectorized execution model of pyHS3.
+
+Numerical agreement is verified before any performance measurements are interpreted.
 
 ---
 
 ## xRooFit Benchmark
 
-Compares complete likelihood evaluation workflows between **PyHS3** and **xRooFit** using matching HS3 and ROOT workspaces.
+Compares complete likelihood evaluation workflows between **PyHS3** and **xRooFit** using statistically equivalent HS3 and ROOT workspaces.
 
 The benchmark evaluates
 
 - PyHS3 non-compiled execution;
 - PyHS3 compiled execution;
-- xRooFit NLL evaluation.
+- xRooFit likelihood evaluation.
 
-All engines execute an equivalent ΔNLL scan over the same parameter of interest using identical datasets, scan ranges, and benchmark configurations.
+All engines execute equivalent ΔNLL scans using identical datasets, parameter values, scan grids and benchmark configurations.
 
-Besides numerical validation, the benchmark separately reports
+In addition to numerical validation, the benchmark separately reports
 
 - workspace loading;
 - model construction;
-- NLL construction;
-- first (cold) evaluation;
+- likelihood construction;
+- first (cold-start) evaluation;
 - steady-state evaluation;
 - complete scan performance;
 - memory usage.
 
-This benchmark therefore provides both an engine-to-engine performance comparison and a numerical validation of equivalent statistical workflows.
+This benchmark therefore provides both an engine-to-engine workflow comparison and an independent validation of PyHS3 against the public xRooFit API.
 
 ---
 
 # Apples-to-Apples Methodology
 
-Every benchmark in this section follows the same validation principles.
+The benchmarks in this section are designed to compare equivalent statistical computations whenever a direct engine-to-engine comparison is possible.
 
-Whenever possible, all compared frameworks use
+Whenever supported by the participating frameworks, all engines use
 
 - identical statistical models;
 - identical observed datasets;
 - identical parameter values;
+- identical observable values;
 - identical scan grids;
 - identical benchmark configurations;
-- equivalent mathematical definitions.
+- identical numerical tolerances;
+- equivalent mathematical definitions;
+- isolated benchmark processes.
 
 This methodology minimizes systematic differences unrelated to implementation and allows benchmark results to be interpreted with confidence.
 
-Where an exact one-to-one comparison is not possible, the corresponding benchmark documentation explicitly describes the assumptions and limitations.
+Where an exact one-to-one comparison is not possible—for example, for batched full-dataset evaluation—the corresponding benchmark documentation explicitly describes the methodological differences and explains how the resulting performance measurements should be interpreted.
 
 ---
 
@@ -127,17 +171,18 @@ Where an exact one-to-one comparison is not possible, the corresponding benchmar
 
 Performance measurements alone are not sufficient for cross-framework benchmarking.
 
-Every benchmark therefore validates that the compared frameworks produce numerically equivalent results before drawing conclusions about performance.
+Every benchmark therefore validates that the compared execution engines produce numerically equivalent statistical results **before any performance measurements are interpreted**.
 
 Depending on the benchmark, validation may include
 
-- scalar PDF values;
-- likelihood values;
-- ΔNLL profiles;
+- scalar PDF agreement;
+- negative log-likelihood agreement;
+- ΔNLL profile agreement;
 - point-by-point residuals;
-- agreement within predefined numerical tolerances.
+- best-fit parameter agreement;
+- configurable numerical tolerances.
 
-Only validated benchmark results should be interpreted as meaningful performance comparisons.
+Only benchmark runs that satisfy the corresponding validation criteria should be interpreted as meaningful performance comparisons.
 
 ---
 
@@ -146,12 +191,14 @@ Only validated benchmark results should be interpreted as meaningful performance
 Cross-framework benchmarking provides several important benefits.
 
 - Independent verification of PyHS3 implementations.
-- Confidence that optimizations preserve numerical correctness.
-- Identification of performance trade-offs across frameworks.
+- Confidence that performance optimizations preserve numerical correctness.
+- Identification of performance trade-offs across execution engines.
 - Reproducible comparisons using common benchmark inputs.
-- Transparent reporting of both performance and numerical agreement.
+- Transparent reporting of both numerical agreement and execution performance.
+- Separation of cold-start initialization costs from steady-state execution performance.
+- Direct comparison between compiled and non-compiled PyHS3 execution.
 
-Together, these benchmarks complement the workflow benchmarks by demonstrating not only how fast PyHS3 performs, but also how its results compare with established statistical frameworks.
+Together, these benchmarks complement the workflow benchmarks by demonstrating not only how efficiently PyHS3 executes statistical computations, but also how its numerical results compare with established statistical inference frameworks.
 
 ---
 
@@ -160,10 +207,19 @@ Together, these benchmarks complement the workflow benchmarks by demonstrating n
 This section currently includes
 
 - **Scalar PDF Evaluation**
-- **ΔNLL Scan**
+- **ΔNLL Benchmark**
 - **xRooFit Benchmark**
 
-Each benchmark page describes the benchmark methodology, execution procedure, generated outputs, validation strategy, and interpretation of the reported results.
+Each benchmark page describes
+
+- benchmark methodology;
+- benchmark lifecycle;
+- execution procedure;
+- command-line interface;
+- generated outputs;
+- numerical validation strategy;
+- interpretation of the reported performance;
+- benchmark limitations where applicable.
 
 ---
 

@@ -23,11 +23,11 @@ memory-scaling = "python -m src.run_memory_scaling"
 model-complexity = "python -m src.run_model_complexity_scaling"
 graph-canonicalization = "python -m src.run_graph_canonicalization"
 graph-optimization = "python -m src.run_graph_optimization"
+cross-nll = "python -m src.run_cross_nll_scan"
+cross-pdf-evaluation = "python -m src.run_cross_scalar_pdf_evaluation"
 
 # Suite-level commands
-benchmark = "python -m src.run_all_benchmarks --preset smoke"
-benchmark-default = "python -m src.run_all_benchmarks --preset default"
-benchmark-full = "python -m src.run_all_benchmarks --preset full"
+benchmark = "python -m src.run_all_benchmarks --benchmarks all --groups all --plot"
 plot = "python -m src.plot_benchmark_overview"
 
 # Profiling

@@ -115,19 +115,13 @@ BENCHMARKS: dict[str, BenchmarkSpec] = {
         module="src.run_model_complexity_scaling",
         uses_workspace_matrix=True,
     ),
-    "cross_binned_likelihood_evaluation": BenchmarkSpec(
-        name="cross_binned_likelihood_evaluation",
-        group="cross",
-        kind="single_workspace",
-        module="src.run_cross_binned_likelihood_evaluation",
-        uses_workspace_matrix=True,
-    ),
     "cross_nll_scan": BenchmarkSpec(
         name="cross_nll_scan",
         group="cross",
-        kind="single_workspace",
+        kind="multi_workspace",
         module="src.run_cross_nll_scan",
         uses_workspace_matrix=True,
+        requires_root_pair=True,
     ),
     "pyhs3_xroofit_benchmark": BenchmarkSpec(
         name="pyhs3_xroofit_benchmark",
@@ -137,13 +131,27 @@ BENCHMARKS: dict[str, BenchmarkSpec] = {
         uses_workspace_matrix=True,
         requires_root_pair=True,
     ),
+    "cross_binned_likelihood_evaluation": BenchmarkSpec(
+        name="cross_binned_likelihood_evaluation",
+        group="cross",
+        kind="single_workspace",
+        module="src.run_cross_binned_likelihood_evaluation",
+        uses_workspace_matrix=True,
+    ),
     "cross_model_complexity_scaling": BenchmarkSpec(
         name="cross_model_complexity_scaling",
         group="cross",
-        kind="directory_pair",
+        kind="run_once",
         module="src.run_cross_model_complexity_scaling",
         uses_workspace_matrix=False,
-        requires_root_pair=True,
+        run_once=True,
+    ),
+    "cross_vectorized_pdf_evaluation": BenchmarkSpec(
+        name="cross_vectorized_pdf_evaluation",
+        group="cross",
+        kind="run_once",
+        module="src.run_cross_vectorized_pdf_evaluation",
+        uses_workspace_matrix=False,
         run_once=True,
     ),
     "cross_scalar_pdf_evaluation": BenchmarkSpec(
@@ -151,14 +159,6 @@ BENCHMARKS: dict[str, BenchmarkSpec] = {
         group="scalar",
         kind="scalar_workspace_dir",
         module="src.run_cross_scalar_pdf_evaluation",
-        uses_workspace_matrix=False,
-        run_once=True,
-    ),
-    "cross_vectorized_pdf_evaluation": BenchmarkSpec(
-        name="cross_vectorized_pdf_evaluation",
-        group="scalar",
-        kind="scalar_workspace_dir",
-        module="src.run_cross_vectorized_pdf_evaluation",
         uses_workspace_matrix=False,
         run_once=True,
     ),
@@ -219,8 +219,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-scan-points", nargs="+", type=int, default=[101])
     parser.add_argument("--n-points", nargs="+", type=int, default=[101])
     parser.add_argument("--warmup-iterations", type=int, default=1)
+    parser.add_argument("--timing-repeats", type=int, default=7)
+    parser.add_argument("--warmup-evaluations", type=int, default=100)
+    parser.add_argument("--validation-points", type=int, default=257)
+    parser.add_argument("--batch-size", type=int, default=10)
+    parser.add_argument("--n-batches", type=int, default=9)
+    parser.add_argument("--warmup-batches", type=int, default=3)
+    parser.add_argument("--scan-repeats", type=int, default=5)
+    parser.add_argument("--input-modes", nargs="+", default=["varying"])
+    parser.add_argument(
+        "--categories", nargs="+", default=["pointwise_nll", "batched_full_dataset_nll"]
+    )
 
     parser.add_argument("--distribution", default="sig_ch0")
+    parser.add_argument("--nll-distribution", default="model_ch0")
     parser.add_argument("--scan-parameter", default="mu_sig")
     parser.add_argument("--scan-min", type=float, default=0.0)
     parser.add_argument("--scan-max", type=float, default=2.0)
@@ -238,6 +250,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root-workspace-name", default="combWS")
     parser.add_argument("--poi", default="mu_sig")
     parser.add_argument("--xroofit-library", default="libxRooFit")
+    parser.add_argument(
+        "--xroofit-pyhs3-combined",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Evaluate all inferred channels in the PyHS3 side of the xRooFit benchmark.",
+    )
+    parser.add_argument(
+        "--xroofit-pyhs3-channels",
+        default=None,
+        help="Optional comma-separated channel list, for example ch0,ch1,ch2.",
+    )
+    parser.add_argument("--pyhs3-noncompiled-mode", default="FAST_COMPILE")
+    parser.add_argument("--pyhs3-compiled-mode", default="FAST_RUN")
+    parser.add_argument(
+        "--pyhs3-nll-mode",
+        choices=["logpdf", "extended-mixture"],
+        default="extended-mixture",
+    )
+    parser.add_argument("--n-warmup-evaluations", type=int, default=3)
+    parser.add_argument("--n-evaluation-runs", type=int, default=20)
+    parser.add_argument("--n-scan-runs", type=int, default=10)
+    parser.add_argument("--poi-timing-value", type=float, default=1.0)
+    parser.add_argument("--delta-tolerance", type=float, default=1e-6)
+    parser.add_argument("--delta-relative-tolerance", type=float, default=1e-7)
+    parser.add_argument("--absolute-pyhs3-tolerance", type=float, default=1e-10)
+    parser.add_argument("--minimum-tolerance", type=float, default=1e-12)
 
     parser.add_argument(
         "--output-dir", type=Path, default=Path("results/benchmark_matrix")
@@ -358,6 +396,50 @@ def command_for_multi_workspace(
 ) -> list[str]:
     cmd = base_command(spec.module)
 
+    if spec.name == "cross_nll_scan":
+        root_workspace = paired_root_path(workspace, args)
+        if root_workspace is None:
+            raise FileNotFoundError(f"Missing matching ROOT workspace for {workspace}")
+        cmd += [
+            "--workspaces",
+            str(workspace),
+            "--root-workspaces",
+            str(root_workspace),
+            "--engines",
+            *(args.frameworks or ["pyhs3_noncompiled", "pyhs3_compiled", "roofit"]),
+            "--categories",
+            *args.categories,
+            "--analysis",
+            args.analysis,
+            "--distribution",
+            args.nll_distribution,
+            "--data-name",
+            args.pyhs3_data_name or "combData_ch0",
+            "--poi",
+            args.poi,
+            "--mode",
+            args.modes[0],
+            "--mu-min",
+            str(args.scan_min),
+            "--mu-max",
+            str(args.scan_max),
+            "--n-mu-values",
+            str(args.n_points[0]),
+            "--batch-size",
+            str(args.batch_size),
+            "--n-batches",
+            str(args.n_batches),
+            "--warmup-batches",
+            str(args.warmup_batches),
+            "--scan-repeats",
+            str(args.scan_repeats),
+            "--output",
+            str(output_dir / output_name),
+        ]
+        if args.plot:
+            cmd += ["--plot", "--plot-dir", str(plot_dir)]
+        return cmd
+
     cmd += ["--workspaces", str(workspace)]
     cmd += ["--output-dir", str(output_dir), "--output-name", output_name]
 
@@ -438,6 +520,61 @@ def command_for_multi_workspace_batch(
 
     cmd = base_command(spec.module)
 
+    if spec.name == "cross_nll_scan":
+        root_workspaces = [
+            paired_root_path(workspace, args) for workspace in workspaces
+        ]
+        missing = [
+            str(workspace)
+            for workspace, root_workspace in zip(
+                workspaces, root_workspaces, strict=True
+            )
+            if root_workspace is None
+        ]
+        if missing:
+            raise FileNotFoundError(
+                "Missing matching ROOT workspaces for: " + ", ".join(missing)
+            )
+        cmd += [
+            "--workspaces",
+            *[str(workspace) for workspace in workspaces],
+            "--root-workspaces",
+            *[str(path) for path in root_workspaces if path is not None],
+            "--engines",
+            *(args.frameworks or ["pyhs3_noncompiled", "pyhs3_compiled", "roofit"]),
+            "--categories",
+            *args.categories,
+            "--analysis",
+            args.analysis,
+            "--distribution",
+            args.nll_distribution,
+            "--data-name",
+            args.pyhs3_data_name or "combData_ch0",
+            "--poi",
+            args.poi,
+            "--mode",
+            args.modes[0],
+            "--mu-min",
+            str(args.scan_min),
+            "--mu-max",
+            str(args.scan_max),
+            "--n-mu-values",
+            str(args.n_points[0]),
+            "--batch-size",
+            str(args.batch_size),
+            "--n-batches",
+            str(args.n_batches),
+            "--warmup-batches",
+            str(args.warmup_batches),
+            "--scan-repeats",
+            str(args.scan_repeats),
+            "--output",
+            str(output_dir / output_name),
+        ]
+        if args.plot:
+            cmd += ["--plot", "--plot-dir", str(plot_dir)]
+        return cmd
+
     cmd += ["--workspaces", *[str(workspace) for workspace in workspaces]]
     cmd += ["--output-dir", str(output_dir), "--output-name", output_name]
 
@@ -511,43 +648,41 @@ def command_for_single_workspace(
         cmd += [
             "--workspace",
             str(workspace),
-            "--mu",
-            str(args.mu),
-            "--delta-reference-mu",
-            str(args.delta_reference_mu),
-            "--n-runs",
-            str(args.n_runs),
-            "--warmup-iterations",
-            str(args.warmup_iterations),
-            "--output-dir",
-            str(output_dir),
-            "--output-name",
-            output_name,
+            "--frameworks",
+            *(args.frameworks or ["pyhs3", "pyhf", "roofit"]),
+            "--target",
+            args.targets[0],
+            "--n-points",
+            str(args.n_points[0]),
+            "--output",
+            str(output_dir / output_name),
         ]
-        if args.frameworks:
-            cmd += ["--frameworks", *args.frameworks]
-        if args.fail_fast:
-            cmd += ["--fail-fast"]
+        if getattr(args, "fail_fast", False):
+            cmd.append("--fail-fast")
 
     elif spec.name == "cross_nll_scan":
         cmd += [
             "--workspace",
             str(workspace),
-            "--mu-min",
-            str(args.scan_min),
-            "--mu-max",
-            str(args.scan_max),
+            "--frameworks",
+            *(args.frameworks or ["pyhs3", "pyhf", "roofit"]),
+            "--analysis",
+            args.analysis,
+            "--distribution",
+            getattr(args, "nll_distribution", "model_ch0"),
+            "--poi",
+            args.poi,
             "--n-points",
             str(args.n_points[0]),
-            "--warmup-iterations",
-            str(args.warmup_iterations),
+            "--scan-min",
+            str(args.scan_min),
+            "--scan-max",
+            str(args.scan_max),
             "--output",
             str(output_dir / output_name),
         ]
-        if args.frameworks:
-            cmd += ["--frameworks", *args.frameworks]
-        if args.fail_fast:
-            cmd += ["--fail-fast"]
+        if getattr(args, "fail_fast", False):
+            cmd.append("--fail-fast")
 
     else:
         raise ValueError(f"Unsupported single-workspace benchmark: {spec.name}")
@@ -567,8 +702,12 @@ def command_for_json_root_pair(
     plot_dir: Path,
     output_name: str,
 ) -> list[str]:
-    cmd = base_command(spec.module)
+    """Build a command for the current compiled/non-compiled PyHS3 vs xRooFit benchmark."""
 
+    if spec.name != "pyhs3_xroofit_benchmark":
+        raise ValueError(f"Unsupported JSON/ROOT-pair benchmark: {spec.name}")
+
+    cmd = base_command(spec.module)
     cmd += [
         "--json-workspace",
         str(json_workspace),
@@ -576,32 +715,56 @@ def command_for_json_root_pair(
         str(root_workspace),
         "--analysis",
         args.analysis,
+        "--target",
+        args.targets[0],
         "--xroofit-dataset-name",
         args.xroofit_dataset_name,
         "--root-workspace-name",
         args.root_workspace_name,
         "--poi",
         args.poi,
+        "--pyhs3-noncompiled-mode",
+        getattr(args, "pyhs3_noncompiled_mode", "FAST_COMPILE"),
+        "--pyhs3-compiled-mode",
+        getattr(args, "pyhs3_compiled_mode", "FAST_RUN"),
+        "--pyhs3-nll-mode",
+        getattr(args, "pyhs3_nll_mode", "extended-mixture"),
         "--scan-min",
         str(args.scan_min),
         "--scan-max",
         str(args.scan_max),
         "--n-scan-points",
         str(args.n_points[0]),
-        "--n-runs",
-        str(args.n_runs),
+        "--n-warmup-evaluations",
+        str(getattr(args, "n_warmup_evaluations", 3)),
+        "--n-evaluation-runs",
+        str(getattr(args, "n_evaluation_runs", 20)),
+        "--n-scan-runs",
+        str(getattr(args, "n_scan_runs", 10)),
+        "--poi-timing-value",
+        str(getattr(args, "poi_timing_value", 1.0)),
+        "--delta-tolerance",
+        str(getattr(args, "delta_tolerance", 1e-6)),
+        "--delta-relative-tolerance",
+        str(getattr(args, "delta_relative_tolerance", 1e-7)),
+        "--absolute-pyhs3-tolerance",
+        str(getattr(args, "absolute_pyhs3_tolerance", 1e-10)),
+        "--minimum-tolerance",
+        str(getattr(args, "minimum_tolerance", 1e-12)),
         "--output",
         str(output_dir / output_name),
         "--xroofit-library",
         args.xroofit_library,
     ]
 
+    if getattr(args, "xroofit_pyhs3_combined", True):
+        cmd.append("--pyhs3-combined")
+    if getattr(args, "xroofit_pyhs3_channels", None):
+        cmd += ["--pyhs3-channels", getattr(args, "xroofit_pyhs3_channels", None)]
     if args.pyhs3_data_name:
         cmd += ["--pyhs3-data-name", args.pyhs3_data_name]
-
     if args.xroofit_model_name:
         cmd += ["--xroofit-model-name", args.xroofit_model_name]
-
     if args.plot:
         cmd += ["--plot", "--plot-dir", str(plot_dir)]
 
@@ -614,47 +777,32 @@ def command_for_run_once(
     output_dir: Path,
     plot_dir: Path,
     output_name: str,
+    workspaces: list[Path] | None = None,
 ) -> list[str]:
     cmd = base_command(spec.module)
 
-    if spec.name == "cross_model_complexity_scaling":
+    if spec.name == "cross_scalar_pdf_evaluation":
         cmd += [
-            "--json-input-dir",
+            "--workspace-dir",
             str(args.workspace_dir),
-            "--root-input-dir",
-            str(args.root_workspace_dir or args.workspace_dir),
-            "--n-runs",
-            str(args.n_runs),
-            "--mu-sig",
-            str(args.mu),
-            "--scan-min",
-            str(args.scan_min),
-            "--scan-max",
-            str(args.scan_max),
-            "--n-scan-points",
-            str(args.n_points[0]),
-            "--output",
-            str(output_dir / output_name),
         ]
-        if args.fail_fast:
-            cmd += ["--fail-fast"]
-
-    elif spec.name == "cross_scalar_pdf_evaluation":
-        workspaces = [
-            args.workspace_dir
-            / "5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json",
-            args.workspace_dir
-            / "10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x.json",
-            args.workspace_dir
-            / "30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json",
-        ]
-
+        if args.root_workspace_dir is not None:
+            cmd += ["--root-workspace-dir", str(args.root_workspace_dir)]
         cmd += [
-            "--workspaces",
-            *[str(w) for w in workspaces],
             "--frameworks",
-            "pyhs3",
-            "root",
+            *list(
+                dict.fromkeys(
+                    [
+                        *(
+                            args.scalar_frameworks
+                            or ["pyhs3_noncompiled", "pyhs3_compiled"]
+                        ),
+                        "root",
+                    ]
+                )
+            ),
+            "--input-modes",
+            *getattr(args, "input_modes", ["varying"]),
             "--distribution",
             args.distribution,
             "--target",
@@ -663,38 +811,39 @@ def command_for_run_once(
             args.modes[0],
             "--n-evaluations",
             *[str(v) for v in args.n_evaluations],
-            "--output-dir",
-            str(output_dir),
-            "--output-name",
-            output_name,
+            "--timing-repeats",
+            str(getattr(args, "timing_repeats", 7)),
+            "--warmup-evaluations",
+            str(getattr(args, "warmup_evaluations", 100)),
+            "--validation-points",
+            str(getattr(args, "validation_points", 257)),
+            "--output",
+            str(output_dir / output_name),
         ]
-
-        if args.plot:
-            cmd += [
-                "--plot",
-                "--plot-dir",
-                str(plot_dir),
-            ]
 
     elif spec.name == "cross_vectorized_pdf_evaluation":
         cmd += [
-            "--pyhs3-workspace-dir",
+            "--workspace-dir",
             str(args.workspace_dir),
+            "--scenarios",
+            *(args.scenarios or []),
             "--n-points",
-            *[str(value) for value in args.n_points],
-            "--n-runs",
-            str(args.n_runs),
-            "--output-dir",
-            str(output_dir),
-            "--output-name",
-            output_name,
+            str(args.n_points[0]),
+            "--output",
+            str(output_dir / output_name),
         ]
-        if args.scalar_frameworks:
-            cmd += ["--frameworks", *args.scalar_frameworks]
-        if args.scenarios:
-            cmd += ["--scenarios", *args.scenarios]
-        if args.fail_fast:
-            cmd += ["--fail-fast"]
+
+    elif spec.name == "cross_model_complexity_scaling":
+        cmd += [
+            "--json-input-dir",
+            str(args.workspace_dir),
+            "--root-input-dir",
+            str(args.root_workspace_dir or args.workspace_dir),
+            "--output",
+            str(output_dir / output_name),
+        ]
+        if getattr(args, "fail_fast", False):
+            cmd.append("--fail-fast")
 
     elif spec.name == "benchmark_overview":
         cmd += [
@@ -907,7 +1056,7 @@ def main() -> None:
                     args, spec.name, None, repeat_index
                 )
                 command = command_for_run_once(
-                    spec, args, output_dir, plot_dir, output_name
+                    spec, args, output_dir, plot_dir, output_name, workspaces
                 )
 
                 print(f"[{spec.group}] {spec.name}")

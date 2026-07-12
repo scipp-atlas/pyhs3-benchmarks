@@ -86,7 +86,9 @@ BENCHMARK_LABELS = {
     "model_complexity_scaling": "Model complexity",
     "memory_scaling": "Memory scaling",
     "cross_scalar_pdf_evaluation": "Cross scalar PDF",
+    "cross_scalar_pdf": "Cross scalar PDF",
     "cross_nll_scan": "Cross ΔNLL scan",
+    "cross_nll": "Cross ΔNLL scan",
     "pyhs3_xroofit_benchmark": "PyHS3 vs xRooFit",
     "cross_model_complexity_scaling": "Cross model complexity",
 }
@@ -242,12 +244,12 @@ def workspace_from_result(
 
 
 def framework_from_result(result: dict[str, Any]) -> str | None:
-    framework = result.get("framework")
-    if framework:
-        return str(framework)
-    label = result.get("framework_label")
-    if label:
-        return str(label)
+    """Resolve framework/engine labels across legacy and current schemas."""
+
+    for key in ("framework", "engine", "framework_label", "engine_label"):
+        value = result.get(key)
+        if value:
+            return str(value)
     return None
 
 
@@ -372,16 +374,26 @@ def collect_overview_records(
                     "benchmark_label": normalize_benchmark_name(str(benchmark)),
                     "workspace": resolved_workspace,
                     "workspace_label": get_workspace_label(result_for_label),
-                    "target": result.get("target"),
+                    "target": (
+                        result.get("target")
+                        or result.get("distribution")
+                        or result.get("analysis")
+                    ),
                     "mode": result.get("mode") or payload.get("mode"),
                     "framework": framework_from_result(result),
+                    "engine": result.get("engine"),
+                    "category": result.get("category_key") or result.get("category"),
+                    "input_mode": result.get("input_mode"),
                     "source_file": str(result_file),
                     "status": result.get("status", "unknown"),
                     "n_runs": result.get("n_runs") or payload.get("n_runs"),
                     "n_evaluations": result.get("n_evaluations")
                     or payload.get("n_evaluations"),
-                    "n_scan_points": result.get("n_scan_points")
-                    or payload.get("n_points"),
+                    "n_scan_points": (
+                        result.get("n_scan_points")
+                        or payload.get("n_points")
+                        or payload.get("configuration", {}).get("n_mu_values")
+                    ),
                 }
 
                 n_evaluations = maybe_to_float(record["n_evaluations"])
@@ -400,6 +412,8 @@ def collect_overview_records(
                         result.get("average_runtime_seconds_per_evaluation")
                         or result.get("time_per_evaluation_seconds")
                         or result.get("time_per_value_seconds")
+                        or result.get("time_per_value_seconds_median")
+                        or result.get("steady_state_seconds_median")
                         or result.get("warm_time_per_evaluation_seconds")
                         or result.get("warm_per_evaluation_seconds")
                         or derived_time_per_evaluation
@@ -411,15 +425,19 @@ def collect_overview_records(
                     "total_runtime_seconds": (
                         result.get("total_runtime_seconds")
                         or result.get("full_scan_time_seconds")
+                        or result.get("full_scan_time_seconds_median")
                         or result.get("scan_time_seconds")
                     ),
                     "total_setup_time_seconds": (
                         result.get("total_setup_time_seconds")
+                        or result.get("cold_start_end_to_end_seconds")
+                        or result.get("end_to_end_first_evaluation_seconds")
                         or result.get("model_build_time_seconds")
                         or result.get("build_time_seconds")
                     ),
-                    "cold_first_evaluation_time_seconds": result.get(
-                        "cold_first_evaluation_time_seconds"
+                    "cold_first_evaluation_time_seconds": (
+                        result.get("cold_first_evaluation_time_seconds")
+                        or result.get("first_call_seconds")
                     ),
                     "warm_evaluation_time_seconds_mean": (
                         result.get("warm_evaluation_time_seconds_mean")
@@ -432,6 +450,7 @@ def collect_overview_records(
                     "total_peak_rss_delta_mb": result.get("total_peak_rss_delta_mb"),
                     "throughput_evaluations_per_second": (
                         result.get("throughput_evaluations_per_second")
+                        or result.get("scan_throughput_points_per_second")
                         or result.get("throughput")
                     ),
                     "delta_nll_shape_max_abs_diff": (
@@ -782,7 +801,7 @@ def make_performance_summary_plot(
         (
             "Cross scalar PDF",
             "time_per_evaluation_us",
-            {"cross_scalar_pdf_evaluation"},
+            {"cross_scalar_pdf_evaluation", "cross_scalar_pdf"},
             "µs/eval",
         ),
         (
@@ -794,7 +813,7 @@ def make_performance_summary_plot(
         (
             "Cross ΔNLL scan",
             "time_per_scan_point_us",
-            {"cross_nll_scan", "pyhs3_xroofit_benchmark"},
+            {"cross_nll_scan", "cross_nll", "pyhs3_xroofit_benchmark"},
             "µs/point",
         ),
     ]
@@ -833,7 +852,9 @@ def make_performance_summary_plot(
             workspace = compact_workspace_name(record.get("workspace"))
             if record.get("framework") and record.get("benchmark") in {
                 "cross_scalar_pdf_evaluation",
+                "cross_scalar_pdf",
                 "cross_nll_scan",
+                "cross_nll",
                 "pyhs3_xroofit_benchmark",
             }:
                 workspace = f"{workspace}\n{record['framework']}"
@@ -916,7 +937,12 @@ def make_scan_summary_plot(records: list[dict[str, Any]], plot_dir: Path) -> Non
         metric_key="runtime_ms_per_scan_point",
         metric_label="Runtime per scan point [ms]",
         unit="ms/point",
-        benchmark_filter={"nll_scan", "cross_nll_scan", "pyhs3_xroofit_benchmark"},
+        benchmark_filter={
+            "nll_scan",
+            "cross_nll_scan",
+            "cross_nll",
+            "pyhs3_xroofit_benchmark",
+        },
         max_rows=10,
     )
 
@@ -1080,134 +1106,278 @@ def make_stage_memory_plot(records: list[dict[str, Any]], plot_dir: Path) -> Non
     )
 
 
-def make_cross_framework_summary_plot(
-    records: list[dict[str, Any]], plot_dir: Path
+def _canonical_cross_engine(record: dict[str, Any]) -> str | None:
+    """Return one stable engine key for current and legacy result schemas."""
+
+    raw = (
+        record.get("engine")
+        or record.get("framework")
+        or record.get("engine_label")
+        or record.get("framework_label")
+    )
+    if raw is None:
+        return None
+
+    normalized = str(raw).strip().lower().replace("-", "_").replace(" ", "_")
+
+    aliases = {
+        "pyhs3_noncompiled": "pyhs3_noncompiled",
+        "pyhs3_non_compiled": "pyhs3_noncompiled",
+        "pyhs3_(pytensor)": "pyhs3_noncompiled",
+        "pyhs3_noncompiled_(pytensor)": "pyhs3_noncompiled",
+        "pyhs3_non_compiled_(pytensor)": "pyhs3_noncompiled",
+        "pyhs3_compiled": "pyhs3_compiled",
+        "pyhs3_compiled_(jax)": "pyhs3_compiled",
+        "roofit": "roofit",
+        "root": "roofit",
+    }
+    return aliases.get(normalized)
+
+
+def _cross_workspace_label(name: str | None) -> str:
+    """Create a compact workspace label suitable for grouped overview plots."""
+
+    if not name:
+        return "Unknown"
+
+    cleaned = Path(str(name)).name.removesuffix(".json").removesuffix(".root")
+    parts = cleaned.split("_")
+
+    if parts and parts[0].endswith("ch"):
+        channel = parts[0]
+        np_state = next((part for part in parts if part.startswith("np")), "")
+        yield_scale = next((part for part in parts if part.startswith("yield")), "")
+        details = " / ".join(part for part in (np_state, yield_scale) if part)
+        return f"{channel}\n{details}" if details else channel
+
+    return compact_workspace_name(name)
+
+
+def _select_fastest_unique_cross_rows(
+    records: list[dict[str, Any]],
+    *,
+    benchmark_names: set[str],
+    metric_key: str,
+    required_category: str | None = None,
+    required_input_mode: str | None = None,
+) -> list[dict[str, Any]]:
+    """Select one valid row per workspace and engine.
+
+    Result files can contain several batch sizes, repeats, input modes, or
+    compatibility aliases. For overview purposes, keep one row per
+    workspace/engine. When several equivalent rows remain, use the row with the
+    largest evaluation count and then the smallest measured latency.
+    """
+
+    candidates: list[dict[str, Any]] = []
+
+    for record in records:
+        if record.get("benchmark") not in benchmark_names:
+            continue
+        if record.get("status") != "success":
+            continue
+        if (
+            required_category is not None
+            and record.get("category") != required_category
+        ):
+            continue
+        if (
+            required_input_mode is not None
+            and record.get("input_mode") != required_input_mode
+        ):
+            continue
+
+        engine = _canonical_cross_engine(record)
+        value = maybe_to_float(record.get(metric_key))
+        if engine is None or value is None or value <= 0.0:
+            continue
+
+        row = dict(record)
+        row["_canonical_engine"] = engine
+        row["_metric_value"] = value
+        row["_workspace_group"] = _cross_workspace_label(record.get("workspace"))
+        row["_evaluation_count"] = maybe_to_float(record.get("n_evaluations")) or 0.0
+        candidates.append(row)
+
+    selected: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in candidates:
+        key = (row["_workspace_group"], row["_canonical_engine"])
+        previous = selected.get(key)
+        if previous is None:
+            selected[key] = row
+            continue
+
+        previous_count = float(previous["_evaluation_count"])
+        current_count = float(row["_evaluation_count"])
+
+        if current_count > previous_count:
+            selected[key] = row
+        elif (
+            current_count == previous_count
+            and row["_metric_value"] < previous["_metric_value"]
+        ):
+            selected[key] = row
+
+    return list(selected.values())
+
+
+def _make_cross_framework_grouped_plot(
+    rows: list[dict[str, Any]],
+    output_path: Path,
+    *,
+    title: str,
+    y_label: str,
+    value_suffix: str,
 ) -> None:
-    """Compare cross-framework runtime on apples-to-apples benchmarks."""
+    """Plot three execution engines side by side for every workspace."""
 
-    selected = [
-        record
-        for record in records
-        if record.get("benchmark")
-        in {
-            "cross_scalar_pdf_evaluation",
-            "cross_nll_scan",
-            "pyhs3_xroofit_benchmark",
-        }
-        and record.get("framework")
-        and record.get("status") == "success"
-    ]
-    if not selected:
-        return
-
-    grouped: dict[tuple[str, str, str], dict[str, Any]] = {}
-
-    for record in selected:
-        benchmark = record.get("benchmark")
-        framework = str(record["framework"])
-
-        if benchmark == "cross_scalar_pdf_evaluation":
-            value = maybe_to_float(record.get("time_per_evaluation_us"))
-            metric = "Scalar PDF"
-            unit = "µs/eval"
-        elif benchmark in {"cross_nll_scan", "pyhs3_xroofit_benchmark"}:
-            value = maybe_to_float(record.get("time_per_scan_point_us"))
-            metric = "ΔNLL scan"
-            unit = "µs/point"
-        else:
-            continue
-
-        if value is None or value <= 0:
-            continue
-
-        workspace = compact_workspace_name(record.get("workspace"))
-        key = (metric, workspace, framework)
-
-        previous = grouped.get(key)
-        if previous is None or value < previous["value"]:
-            grouped[key] = {
-                "metric": metric,
-                "workspace": workspace,
-                "framework": framework,
-                "value": value,
-                "unit": unit,
-            }
-
-    rows = list(grouped.values())
     if not rows:
         return
 
-    metric_order = {"Scalar PDF": 0, "ΔNLL scan": 1}
-    framework_order = {
-        "pyhs3": 0,
-        "PyHS3": 0,
-        "root": 1,
-        "roofit": 1,
-        "RooFit": 1,
-        "xroofit": 2,
+    engine_order = ["pyhs3_noncompiled", "pyhs3_compiled", "roofit"]
+    engine_labels = {
+        "pyhs3_noncompiled": "pyHS3 non-compiled (PyTensor)",
+        "pyhs3_compiled": "pyHS3 compiled (JAX)",
+        "roofit": "RooFit",
+    }
+    engine_colors = {
+        "pyhs3_noncompiled": "#1565C0",
+        "pyhs3_compiled": "#EF6C00",
+        "roofit": "#00897B",
     }
 
-    rows = sorted(
-        rows,
-        key=lambda row: (
-            metric_order.get(row["metric"], 99),
-            row["workspace"],
-            framework_order.get(row["framework"], 99),
-            row["value"],
-        ),
-    )
+    workspace_order: list[str] = []
+    for row in rows:
+        workspace = str(row["_workspace_group"])
+        if workspace not in workspace_order:
+            workspace_order.append(workspace)
 
-    labels = [
-        f"{row['metric']}\n{row['workspace']}\n{row['framework']}" for row in rows
-    ]
-    values = [row["value"] for row in rows]
-    colors = ["#4E79A7" if row["metric"] == "Scalar PDF" else "#59A14F" for row in rows]
+    # Prefer channel-count ordering for canonical workspaces.
+    def workspace_sort_key(label: str) -> tuple[int, str]:
+        first_line = label.splitlines()[0]
+        digits = "".join(character for character in first_line if character.isdigit())
+        return (int(digits) if digits else 10**9, label)
 
-    y = np.arange(len(rows)) * 1.45
+    workspace_order = sorted(workspace_order, key=workspace_sort_key)
 
-    fig_height = max(9.0, 0.62 * len(rows) + 2.5)
-    fig, ax = plt.subplots(figsize=(16.5, fig_height))
+    values_by_key = {
+        (str(row["_workspace_group"]), str(row["_canonical_engine"])): float(
+            row["_metric_value"]
+        )
+        for row in rows
+    }
 
-    ax.barh(y, values, color=colors, height=0.95)
+    fig_width = max(10.5, 2.4 * len(workspace_order) + 3.0)
+    fig, ax = plt.subplots(figsize=(fig_width, 7.0))
 
-    ax.set_yticks(y)
-    ax.set_yticklabels(labels, fontsize=8.5, linespacing=1.25)
+    x = np.arange(len(workspace_order), dtype=float)
+    width = 0.23
+    all_values: list[float] = []
 
-    max_value = max(values)
-    for index, row in enumerate(rows):
-        value = row["value"]
-        ax.text(
-            value + max_value * 0.018,
-            y[index],
-            f"{value:.2f} {row['unit']}",
-            va="center",
-            ha="left",
-            fontsize=9.5,
-            fontweight="bold",
+    for engine_index, engine in enumerate(engine_order):
+        values = [
+            values_by_key.get((workspace, engine), np.nan)
+            for workspace in workspace_order
+        ]
+        offsets = x + (engine_index - 1) * width
+        bars = ax.bar(
+            offsets,
+            values,
+            width=width,
+            label=engine_labels[engine],
+            color=engine_colors[engine],
+            edgecolor="white",
+            linewidth=0.9,
         )
 
-    ax.set_xlabel("Runtime")
-    ax.set_title(
-        "Cross-framework runtime comparison",
-        loc="left",
-        pad=16,
-        fontweight="bold",
-    )
+        for bar, value in zip(bars, values, strict=True):
+            if not np.isfinite(value) or value <= 0.0:
+                continue
+            all_values.append(float(value))
+            ax.annotate(
+                f"{value:.2f}",
+                xy=(bar.get_x() + bar.get_width() / 2.0, value),
+                xytext=(0, 5),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=9.5,
+                fontweight="bold",
+                rotation=0,
+            )
 
-    ax.set_xlim(0, max_value * 1.30)
-    ax.set_ylim(y[0] - 1.0, y[-1] + 1.0)
+    if not all_values:
+        plt.close(fig)
+        return
 
+    ratio = max(all_values) / min(all_values)
+    if ratio >= 20.0:
+        ax.set_yscale("log")
+        ax.set_ylim(min(all_values) * 0.65, max(all_values) * 1.65)
+    else:
+        ax.set_ylim(0.0, max(all_values) * 1.28)
+
+    ax.set_title(title, loc="left", pad=18, fontweight="bold")
+    ax.set_ylabel(y_label)
+    ax.set_xlabel("Workspace")
+    ax.set_xticks(x)
+    ax.set_xticklabels(workspace_order, fontsize=12)
+    ax.legend(frameon=False, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.16))
     finalize_axes(ax)
 
-    legend_handles = [
-        plt.Rectangle((0, 0), 1, 1, color="#4E79A7", label="Scalar PDF"),
-        plt.Rectangle((0, 0), 1, 1, color="#59A14F", label="ΔNLL scan"),
-    ]
-    ax.legend(handles=legend_handles, frameon=False, loc="lower right")
+    ax.text(
+        1.0,
+        1.015,
+        f"Values shown in {value_suffix}",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=10.5,
+        color="0.35",
+    )
 
-    fig.subplots_adjust(left=0.38, right=0.97, top=0.93, bottom=0.07)
+    fig.subplots_adjust(left=0.10, right=0.98, top=0.90, bottom=0.24)
+    save_figure(fig, output_path)
 
-    save_figure(fig, plot_dir / "benchmark_overview_cross_framework_summary.png")
+
+def make_cross_framework_summary_plot(
+    records: list[dict[str, Any]], plot_dir: Path
+) -> None:
+    """Create separate Scalar PDF and pointwise NLL cross-framework summaries.
+
+    The two metrics intentionally use different output figures because a scalar
+    PDF call and one complete NLL evaluation are not interchangeable units.
+    Each figure groups results by workspace and compares the same three engines:
+    non-compiled pyHS3, compiled pyHS3, and RooFit.
+    """
+
+    scalar_rows = _select_fastest_unique_cross_rows(
+        records,
+        benchmark_names={"cross_scalar_pdf_evaluation", "cross_scalar_pdf"},
+        metric_key="time_per_evaluation_us",
+        required_input_mode="varying",
+    )
+    _make_cross_framework_grouped_plot(
+        scalar_rows,
+        plot_dir / "benchmark_overview_cross_framework_scalar_pdf.png",
+        title="Cross-framework Scalar PDF summary",
+        y_label="Median time per scalar PDF evaluation [µs]",
+        value_suffix="µs/evaluation",
+    )
+
+    pointwise_nll_rows = _select_fastest_unique_cross_rows(
+        records,
+        benchmark_names={"cross_nll_scan", "cross_nll"},
+        metric_key="time_per_scan_point_us",
+        required_category="pointwise_nll",
+    )
+    _make_cross_framework_grouped_plot(
+        pointwise_nll_rows,
+        plot_dir / "benchmark_overview_cross_framework_pointwise_nll.png",
+        title="Cross-framework Pointwise NLL summary",
+        y_label="Median time per complete NLL evaluation [µs]",
+        value_suffix="µs/NLL evaluation",
+    )
 
 
 def make_diagnostics_plot(records: list[dict[str, Any]], plot_dir: Path) -> None:
