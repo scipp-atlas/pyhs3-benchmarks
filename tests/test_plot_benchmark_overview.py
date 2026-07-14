@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import runpy
 import sys
+import numpy as np
 from pathlib import Path
 from typing import Any
 
@@ -1475,3 +1476,503 @@ def test_extra_make_cross_framework_summary_plot_no_usable_rows_returns(
         tmp_path,
     )
     assert not (tmp_path / "benchmark_overview_cross_framework_summary.png").exists()
+
+
+def test_extract_cross_binned_likelihood_results_all_branches() -> None:
+    assert (
+        benchmark._extract_cross_binned_likelihood_results({"benchmark": "other"}) == []
+    )
+
+    payload = {
+        "benchmark": "cross_binned_likelihood",
+        "summary": [
+            "not-a-row",
+            {
+                "workspace_type": "paired simple HistFactory/HS3: correlated-background",
+                "framework": "pyhs3",
+                "agreement": "expected + Delta NLL agree",
+                "runtime_seconds": 6e-6,
+                "compiled": True,
+                "batched": False,
+                "execution_mode": "compiled/warm PyTensor function",
+            },
+            {
+                "workspace_type": "",
+                "framework": "pyhf-numpy",
+                "agreement": "agreement failed",
+                "runtime_seconds": 5e-5,
+                "compiled": False,
+                "batched": False,
+                "execution_mode": "warm NumPy function call",
+            },
+        ],
+    }
+
+    rows = benchmark._extract_cross_binned_likelihood_results(payload)
+
+    assert len(rows) == 2
+    assert rows[0]["workspace"] == "correlated-background"
+    assert rows[0]["status"] == "success"
+    assert rows[0]["engine"] == "pyhs3"
+    assert rows[0]["average_runtime_seconds_per_evaluation"] == pytest.approx(6e-6)
+    assert rows[1]["workspace"] == "paired-model"
+    assert rows[1]["status"] == "failed"
+
+
+def test_extract_results_returns_cross_binned_rows() -> None:
+    payload = {
+        "benchmark": "cross_binned_likelihood",
+        "summary": [
+            {
+                "workspace_type": "paired simple HistFactory/HS3: model",
+                "framework": "pyhs3",
+                "agreement": "expected + Delta NLL agree",
+                "runtime_seconds": 1e-6,
+            }
+        ],
+    }
+    rows = benchmark.extract_results(payload)
+    assert len(rows) == 1
+    assert rows[0]["workspace"] == "model"
+
+
+def test_nested_mapping_value() -> None:
+    assert benchmark._nested_mapping_value("not-a-dict", "x") is None
+    assert benchmark._nested_mapping_value({"x": 3}, "x") == 3
+    assert benchmark._nested_mapping_value({}, "x") is None
+
+
+@pytest.mark.parametrize(
+    ("record", "expected"),
+    [
+        ({"engine": "pyhs3-noncompiled"}, "pyhs3_noncompiled"),
+        ({"framework": "pyhs3 non compiled"}, "pyhs3_noncompiled"),
+        ({"engine_label": "pyHS3 (PyTensor)"}, "pyhs3_noncompiled"),
+        ({"framework_label": "pyhs3 noncompiled (pytensor)"}, "pyhs3_noncompiled"),
+        ({"engine": "pyhs3 non compiled (pytensor)"}, "pyhs3_noncompiled"),
+        ({"engine": "pyhs3-compiled"}, "pyhs3_compiled"),
+        ({"engine": "pyhs3 compiled (jax)"}, "pyhs3_compiled"),
+        ({"engine": "roofit"}, "roofit"),
+        ({"engine": "root"}, "roofit"),
+        ({"engine": "pyhs3"}, "pyhs3"),
+        ({"engine": "pyhf"}, "pyhf_numpy"),
+        ({"engine": "pyhf numpy"}, "pyhf_numpy"),
+        ({}, None),
+        ({"engine": "unknown"}, None),
+    ],
+)
+def test_canonical_cross_engine_aliases(
+    record: dict[str, Any],
+    expected: str | None,
+) -> None:
+    assert benchmark._canonical_cross_engine(record) == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        (None, "Unknown"),
+        (
+            "5ch_bkgRooExp_sigGeneric_npOn_constrGauss_yield10x.json",
+            "5ch\nnpOn / yield10x",
+        ),
+        (
+            "10ch_bkgGenericPoly_sigGeneric.json",
+            "10ch",
+        ),
+        ("simple_workspace.json", "Simple"),
+    ],
+)
+def test_cross_workspace_label(name: str | None, expected: str) -> None:
+    assert benchmark._cross_workspace_label(name) == expected
+
+
+def test_select_fastest_unique_cross_rows_filters_and_deduplicates() -> None:
+    records = [
+        # wrong benchmark
+        {
+            "benchmark": "other",
+            "status": "success",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 1.0,
+        },
+        # failed
+        {
+            "benchmark": "cross",
+            "status": "failed",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 1.0,
+        },
+        # category mismatch
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "wrong",
+            "input_mode": "varying",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 1.0,
+        },
+        # input mode mismatch
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "constant",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 1.0,
+        },
+        # unknown engine
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "varying",
+            "engine": "unknown",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 1.0,
+        },
+        # missing metric
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "varying",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+        },
+        # zero metric
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "varying",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 0.0,
+        },
+        # first valid row
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "varying",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 5.0,
+            "n_evaluations": 10,
+        },
+        # larger evaluation count wins even if slower
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "varying",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 7.0,
+            "n_evaluations": 20,
+        },
+        # equal count, faster latency wins
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "varying",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 3.0,
+            "n_evaluations": 20,
+        },
+        # equal count, slower latency loses
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "varying",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 4.0,
+            "n_evaluations": 20,
+        },
+        # second engine creates second selected row
+        {
+            "benchmark": "cross",
+            "status": "success",
+            "category": "pointwise_nll",
+            "input_mode": "varying",
+            "engine": "pyhs3 compiled (jax)",
+            "workspace": "5ch_npOn_yield10x.json",
+            "metric": 2.0,
+            "n_evaluations": None,
+        },
+    ]
+
+    selected = benchmark._select_fastest_unique_cross_rows(
+        records,
+        benchmark_names={"cross"},
+        metric_key="metric",
+        required_category="pointwise_nll",
+        required_input_mode="varying",
+    )
+
+    assert len(selected) == 2
+    by_engine = {row["_canonical_engine"]: row for row in selected}
+    assert by_engine["roofit"]["_metric_value"] == pytest.approx(3.0)
+    assert by_engine["roofit"]["_evaluation_count"] == pytest.approx(20.0)
+    assert by_engine["pyhs3_compiled"]["_metric_value"] == pytest.approx(2.0)
+    assert by_engine["roofit"]["_workspace_group"] == "5ch\nnpOn / yield10x"
+
+
+def _cross_plot_rows(values: dict[tuple[str, str], float]) -> list[dict[str, Any]]:
+    return [
+        {
+            "_workspace_group": workspace,
+            "_canonical_engine": engine,
+            "_metric_value": value,
+        }
+        for (workspace, engine), value in values.items()
+    ]
+
+
+def test_make_cross_framework_grouped_plot_empty_returns(tmp_path: Path) -> None:
+    output = tmp_path / "empty.png"
+    benchmark._make_cross_framework_grouped_plot(
+        [],
+        output,
+        title="Empty",
+        y_label="Latency",
+        value_suffix="µs",
+    )
+    assert not output.exists()
+
+
+def test_make_cross_framework_grouped_plot_linear_and_workspace_sort(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "linear.png"
+    rows = _cross_plot_rows(
+        {
+            ("30ch\nnpOn / yield1x", "pyhs3_noncompiled"): 3.0,
+            ("30ch\nnpOn / yield1x", "pyhs3_compiled"): 2.0,
+            ("30ch\nnpOn / yield1x", "roofit"): 1.0,
+            ("5ch\nnpOn / yield10x", "pyhs3_noncompiled"): 4.0,
+            ("5ch\nnpOn / yield10x", "pyhs3_compiled"): 2.5,
+            ("5ch\nnpOn / yield10x", "roofit"): 1.5,
+            ("Unknown", "roofit"): 2.0,
+        }
+    )
+
+    benchmark._make_cross_framework_grouped_plot(
+        rows,
+        output,
+        title="Linear",
+        y_label="Latency",
+        value_suffix="µs/evaluation",
+    )
+
+    assert output.exists()
+
+
+def test_make_cross_framework_grouped_plot_log_and_missing_values(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "log.png"
+    rows = _cross_plot_rows(
+        {
+            ("5ch", "pyhs3_noncompiled"): 100.0,
+            ("5ch", "roofit"): 1.0,
+            # pyhs3_compiled intentionally missing -> NaN branch
+        }
+    )
+
+    benchmark._make_cross_framework_grouped_plot(
+        rows,
+        output,
+        title="Log",
+        y_label="Latency",
+        value_suffix="µs/evaluation",
+    )
+
+    assert output.exists()
+
+
+def test_make_cross_framework_grouped_plot_closes_when_all_values_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "invalid.png"
+    rows = _cross_plot_rows(
+        {
+            ("5ch", "pyhs3_noncompiled"): np.nan,
+            ("5ch", "pyhs3_compiled"): 0.0,
+            ("5ch", "roofit"): -1.0,
+        }
+    )
+    closed: list[Any] = []
+    original_close = benchmark.plt.close
+    monkeypatch.setattr(
+        benchmark.plt,
+        "close",
+        lambda figure: (closed.append(figure), original_close(figure)),
+    )
+
+    benchmark._make_cross_framework_grouped_plot(
+        rows,
+        output,
+        title="Invalid",
+        y_label="Latency",
+        value_suffix="µs",
+    )
+
+    assert closed
+    assert not output.exists()
+
+
+def test_make_histfactory_likelihood_plot_empty_returns(tmp_path: Path) -> None:
+    output = tmp_path / "empty.png"
+    benchmark._make_histfactory_likelihood_plot([], output)
+    assert not output.exists()
+
+
+def test_make_histfactory_likelihood_plot_linear(tmp_path: Path) -> None:
+    output = tmp_path / "hist-linear.png"
+    rows = _cross_plot_rows(
+        {
+            ("correlated-background", "pyhs3"): 6.0,
+            ("correlated-background", "pyhf_numpy"): 12.0,
+            ("uncorrelated-background", "pyhs3"): 7.0,
+            ("uncorrelated-background", "pyhf_numpy"): 14.0,
+        }
+    )
+
+    benchmark._make_histfactory_likelihood_plot(rows, output)
+    assert output.exists()
+
+
+def test_make_histfactory_likelihood_plot_log_and_missing_value(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "hist-log.png"
+    rows = _cross_plot_rows(
+        {
+            ("model", "pyhs3"): 1.0,
+            ("model", "pyhf_numpy"): 25.0,
+            ("model-two", "pyhs3"): 2.0,
+            # pyhf missing for second model -> NaN branch
+        }
+    )
+
+    benchmark._make_histfactory_likelihood_plot(rows, output)
+    assert output.exists()
+
+
+def test_make_histfactory_likelihood_plot_closes_when_all_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "hist-invalid.png"
+    rows = _cross_plot_rows(
+        {
+            ("model", "pyhs3"): np.nan,
+            ("model", "pyhf_numpy"): 0.0,
+        }
+    )
+    closed: list[Any] = []
+    original_close = benchmark.plt.close
+    monkeypatch.setattr(
+        benchmark.plt,
+        "close",
+        lambda figure: (closed.append(figure), original_close(figure)),
+    )
+
+    benchmark._make_histfactory_likelihood_plot(rows, output)
+
+    assert closed
+    assert not output.exists()
+
+
+def test_make_cross_framework_summary_plot_creates_all_three_outputs(
+    tmp_path: Path,
+) -> None:
+    records = [
+        # scalar PDF rows
+        {
+            "benchmark": "cross_scalar_pdf_evaluation",
+            "status": "success",
+            "input_mode": "varying",
+            "engine": "pyhs3 noncompiled",
+            "workspace": "5ch_npOn_yield10x.json",
+            "time_per_evaluation_us": 4.0,
+            "n_evaluations": 100,
+        },
+        {
+            "benchmark": "cross_scalar_pdf_evaluation",
+            "status": "success",
+            "input_mode": "varying",
+            "engine": "pyhs3 compiled",
+            "workspace": "5ch_npOn_yield10x.json",
+            "time_per_evaluation_us": 40.0,
+            "n_evaluations": 100,
+        },
+        {
+            "benchmark": "cross_scalar_pdf_evaluation",
+            "status": "success",
+            "input_mode": "varying",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "time_per_evaluation_us": 1.0,
+            "n_evaluations": 100,
+        },
+        # pointwise NLL rows
+        {
+            "benchmark": "cross_nll_scan",
+            "status": "success",
+            "category": "pointwise_nll",
+            "engine": "pyhs3 noncompiled",
+            "workspace": "5ch_npOn_yield10x.json",
+            "time_per_scan_point_us": 100.0,
+        },
+        {
+            "benchmark": "cross_nll_scan",
+            "status": "success",
+            "category": "pointwise_nll",
+            "engine": "pyhs3 compiled",
+            "workspace": "5ch_npOn_yield10x.json",
+            "time_per_scan_point_us": 10.0,
+        },
+        {
+            "benchmark": "cross_nll_scan",
+            "status": "success",
+            "category": "pointwise_nll",
+            "engine": "roofit",
+            "workspace": "5ch_npOn_yield10x.json",
+            "time_per_scan_point_us": 20.0,
+        },
+        # HistFactory rows
+        {
+            "benchmark": "cross_binned_likelihood",
+            "status": "success",
+            "engine": "pyhs3",
+            "workspace": "correlated-background",
+            "time_per_evaluation_us": 6.0,
+        },
+        {
+            "benchmark": "cross_binned_likelihood",
+            "status": "success",
+            "engine": "pyhf-numpy",
+            "workspace": "correlated-background",
+            "time_per_evaluation_us": 60.0,
+        },
+    ]
+
+    benchmark.make_cross_framework_summary_plot(records, tmp_path)
+
+    assert (tmp_path / "benchmark_overview_cross_framework_scalar_pdf.png").exists()
+    assert (tmp_path / "benchmark_overview_cross_framework_pointwise_nll.png").exists()
+    assert (
+        tmp_path / "benchmark_overview_cross_framework_histfactory_likelihood.png"
+    ).exists()

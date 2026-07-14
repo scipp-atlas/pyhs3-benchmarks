@@ -1745,3 +1745,442 @@ def test_main_dispatches_run(
     assert captured["json_path"] == json_workspace_path
     assert captured["root_path"] == root_workspace_path
     assert captured["xroofit_library"] is None
+
+
+def test_infer_combined_channels_missing_data_root(
+    monkeypatch: pytest.MonkeyPatch,
+    json_workspace_path: Path,
+) -> None:
+    FakeWorkspaceLoader.loaded_workspace = SimpleNamespace()
+    monkeypatch.setattr(benchmark, "Workspace", FakeWorkspaceLoader)
+
+    with pytest.raises(ValueError, match="does not contain data.root"):
+        benchmark.infer_combined_channels(json_workspace_path)
+
+
+def test_build_pyhs3_case_without_free_params(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ModelWithoutFreeParams:
+        pass
+
+    workspace = FakePyHS3Workspace()
+    workspace._model = ModelWithoutFreeParams()
+    monkeypatch.setattr(
+        benchmark,
+        "extract_parameter_point",
+        lambda workspace, parameter_point: {"mu_sig": np.asarray(1.0)},
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "get_pyhs3_data_values",
+        lambda workspace, data_name, observable_index: np.asarray([0.1]),
+    )
+
+    case = benchmark.build_pyhs3_case_from_loaded_workspace(
+        workspace=workspace,
+        analysis_name="L_ch0",
+        target="model_ch0",
+        data_name="combData_ch0",
+        poi="mu_sig",
+        parameter_point=None,
+        observable_name="x",
+        observable_index=0,
+        mode="FAST_RUN",
+        nll_mode="logpdf",
+        signal_pdf="sig_ch0",
+        background_pdf="bkg_ch0",
+        signal_yield_param="nsig_ch0",
+        background_yield_param="nbkg_ch0",
+    )
+
+    assert case.poi == "mu_sig"
+    assert np.allclose(case.params["x"], [0.1])
+
+
+def test_set_root_defaults_handles_missing_range_accessors(
+    monkeypatch: pytest.MonkeyPatch,
+    json_workspace_path: Path,
+) -> None:
+    class VarWithoutRange(FakeRootVar):
+        def getMin(self) -> float:
+            raise RuntimeError("no minimum")
+
+        def getMax(self) -> float:
+            raise RuntimeError("no maximum")
+
+    workspace = FakeRootWorkspace({"mu_sig": VarWithoutRange("mu_sig", value=0.0)})
+    FakeWorkspaceLoader.loaded_workspace = FakePyHS3Workspace(
+        points=[FakeParameterPoint(parameters=[FakeParameter("mu_sig", 2.5)])]
+    )
+    monkeypatch.setattr(benchmark, "Workspace", FakeWorkspaceLoader)
+
+    result = benchmark._set_root_defaults_from_pyhs3(
+        workspace,
+        json_workspace_path,
+        None,
+    )
+
+    assert result["applied"] == {"mu_sig": 2.5}
+    assert workspace.var("mu_sig").getVal() == pytest.approx(2.5)
+
+
+def test_close_case_ignores_root_close_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = make_xroofit_case()
+
+    monkeypatch.setattr(benchmark, "restore_xroofit_case", lambda case: None)
+
+    def fail_close() -> None:
+        raise RuntimeError("close failed")
+
+    case.root_file.Close = fail_close
+    benchmark.close_case(case)
+
+
+def test_build_steady_state_poi_values_interior_and_duplicate_skip() -> None:
+    interior = benchmark.build_steady_state_poi_values(
+        [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+        4,
+    )
+    assert interior == [1.0, 3.0, 2.0, 4.0]
+
+    duplicate_grid = benchmark.build_steady_state_poi_values(
+        [0.0, 1.0, 1.0, 2.0],
+        4,
+    )
+    assert duplicate_grid == [0.0, 1.0, 2.0, 0.0]
+    assert all(
+        left != right
+        for left, right in zip(
+            duplicate_grid,
+            duplicate_grid[1:],
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("failure_mode", "message"),
+    [
+        ("first", "non-finite first NLL"),
+        ("warmup", "non-finite warm-up NLL"),
+        ("steady_value", "non-finite steady-state NLL"),
+    ],
+)
+def test_measure_engine_rejects_nonfinite_evaluations(
+    monkeypatch: pytest.MonkeyPatch,
+    failure_mode: str,
+    message: str,
+) -> None:
+    case = make_pyhs3_case()
+    calls = 0
+
+    def evaluate(_case: Any, value: float) -> float:
+        nonlocal calls
+        calls += 1
+        if failure_mode == "first" and calls == 1:
+            return float("nan")
+        if failure_mode == "warmup" and calls == 2:
+            return float("nan")
+        if failure_mode == "steady_value" and calls == 3:
+            return float("nan")
+        return float(value)
+
+    spec = benchmark.EngineSpec(
+        name="test_engine",
+        build_func=lambda: case,
+        eval_func=evaluate,
+        restore_func=lambda case: None,
+        operational_definition="test",
+    )
+    ticks = iter(float(i + 1) for i in range(100))
+    monkeypatch.setattr(benchmark.time, "perf_counter", lambda: next(ticks))
+    monkeypatch.setattr(benchmark, "get_current_rss_mb", lambda: 1.0)
+    monkeypatch.setattr(benchmark, "get_peak_rss_mb", lambda: 2.0)
+
+    with pytest.raises(benchmark.ValidationFailure, match=message):
+        benchmark.measure_engine(
+            spec=spec,
+            scan_values=[0.0, 1.0, 2.0],
+            n_warmup_evaluations=1,
+            n_evaluation_runs=1,
+            n_scan_runs=1,
+            poi_value=1.0,
+            repeat_tolerance=1e-12,
+        )
+
+
+def test_measure_engine_rejects_invalid_steady_timing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = make_pyhs3_case()
+    spec = benchmark.EngineSpec(
+        name="test_engine",
+        build_func=lambda: case,
+        eval_func=lambda case, value: float(value),
+        restore_func=lambda case: None,
+        operational_definition="test",
+    )
+
+    # Build start/end, first start/end, then a zero-duration steady call.
+    ticks = iter([0.0, 1.0, 2.0, 3.0, 4.0, 4.0])
+    monkeypatch.setattr(benchmark.time, "perf_counter", lambda: next(ticks))
+    monkeypatch.setattr(benchmark, "get_current_rss_mb", lambda: 1.0)
+    monkeypatch.setattr(benchmark, "get_peak_rss_mb", lambda: 2.0)
+
+    with pytest.raises(
+        benchmark.ValidationFailure,
+        match="steady-state timing is invalid",
+    ):
+        benchmark.measure_engine(
+            spec=spec,
+            scan_values=[0.0, 1.0, 2.0],
+            n_warmup_evaluations=0,
+            n_evaluation_runs=1,
+            n_scan_runs=1,
+            poi_value=1.0,
+            repeat_tolerance=1e-12,
+        )
+
+
+def test_measure_engine_rejects_zero_scan_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = make_pyhs3_case()
+    spec = benchmark.EngineSpec(
+        name="test_engine",
+        build_func=lambda: case,
+        eval_func=lambda case, value: float(value),
+        restore_func=lambda case: None,
+        operational_definition="test",
+    )
+    ticks = iter(float(i + 1) for i in range(100))
+    monkeypatch.setattr(benchmark.time, "perf_counter", lambda: next(ticks))
+    monkeypatch.setattr(benchmark, "get_current_rss_mb", lambda: 1.0)
+    monkeypatch.setattr(benchmark, "get_peak_rss_mb", lambda: 2.0)
+
+    with pytest.raises(RuntimeError, match="No full scan was executed"):
+        benchmark.measure_engine(
+            spec=spec,
+            scan_values=[0.0, 1.0],
+            n_warmup_evaluations=0,
+            n_evaluation_runs=1,
+            n_scan_runs=0,
+            poi_value=1.0,
+            repeat_tolerance=1e-12,
+        )
+
+
+def test_make_residual_plot_uses_log_scale_for_large_dynamic_range(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    agreements = {
+        "comparisons": {
+            "pyhs3_noncompiled_vs_pyhs3_compiled": {
+                "delta_nll_difference": [1e-9, 1e-3],
+            },
+            "pyhs3_noncompiled_vs_xroofit": {
+                "delta_nll_difference": [1e-8, 1e-4],
+            },
+            "pyhs3_compiled_vs_xroofit": {
+                "delta_nll_difference": [1e-7, 1e-5],
+            },
+        }
+    }
+    observed: dict[str, Any] = {}
+
+    def capture_save(fig: Any, output_path: Path) -> None:
+        observed["yscale"] = fig.axes[0].get_yscale()
+        benchmark.plt.close(fig)
+
+    monkeypatch.setattr(benchmark, "_save_figure", capture_save)
+
+    benchmark.make_residual_plot(
+        agreements,
+        [0.0, 1.0],
+        "mu",
+        tmp_path / "residual.png",
+    )
+
+    assert observed["yscale"] == "log"
+
+
+def test_print_engine_result_xroofit_metadata(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    result = make_engine_result("xroofit", [2.0, 1.0, 2.0])
+    result.update(
+        {
+            "xroofit_runtime_verified": True,
+            "xroofit_node_python_type": "ROOT.xRooNode",
+            "xroofit_nll_python_type": "ROOT.xRooNLLVar",
+            "xroofit_nll_cpp_class": "xRooNLLVar",
+        }
+    )
+
+    benchmark.print_result(result)
+
+    output = capsys.readouterr().out
+    assert "xRooFit runtime verified" in output
+    assert "ROOT.xRooNode" in output
+    assert "ROOT.xRooNLLVar" in output
+    assert "xRooNLLVar" in output
+
+
+def test_run_uses_combined_pyhs3_builder(
+    monkeypatch: pytest.MonkeyPatch,
+    json_workspace_path: Path,
+    root_workspace_path: Path,
+    tmp_path: Path,
+) -> None:
+    combined_calls: list[dict[str, Any]] = []
+
+    def fake_combined_builder(**kwargs: Any) -> benchmark.CombinedPyHS3Case:
+        combined_calls.append(kwargs)
+        channel = make_pyhs3_case()
+        return benchmark.CombinedPyHS3Case(
+            channels=(channel,),
+            poi="mu_sig",
+            initial_poi=1.0,
+            engine_mode=kwargs["mode"],
+            phase_timings={},
+        )
+
+    monkeypatch.setattr(
+        benchmark,
+        "build_combined_pyhs3_case",
+        fake_combined_builder,
+    )
+    monkeypatch.setattr(
+        benchmark,
+        "build_xroofit_case",
+        lambda **kwargs: make_xroofit_case(),
+    )
+
+    def fake_measure_engine(**kwargs: Any) -> dict[str, Any]:
+        engine_spec = kwargs["spec"]
+        case = engine_spec.build_func()
+        engine_spec.restore_func(case)
+        benchmark.close_case(case)
+        return make_engine_result(engine_spec.name, [2.0, 1.0, 2.0])
+
+    monkeypatch.setattr(benchmark, "measure_engine", fake_measure_engine)
+    monkeypatch.setattr(
+        benchmark,
+        "build_all_agreements",
+        lambda successful, **kwargs: {
+            "validation_status": "success",
+            "comparisons": {},
+        },
+    )
+    monkeypatch.setattr(benchmark, "save_json", lambda payload, output: None)
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
+    monkeypatch.setattr(benchmark, "print_agreement", lambda agreement: None)
+
+    benchmark.run(
+        **valid_run_kwargs(
+            json_workspace_path,
+            root_workspace_path,
+            tmp_path,
+            pyhs3_combined=True,
+            pyhs3_channels="ch0",
+        )
+    )
+
+    assert len(combined_calls) == 2
+    assert {call["mode"] for call in combined_calls} == {
+        "FAST_COMPILE",
+        "FAST_RUN",
+    }
+
+
+def test_module_main_guard_and_fallback_import_branch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import builtins
+    import runpy
+
+    original_import = builtins.__import__
+
+    def import_without_root(
+        name: str,
+        globals: Any = None,
+        locals: Any = None,
+        fromlist: Any = (),
+        level: int = 0,
+    ) -> Any:
+        if name == "ROOT":
+            raise ImportError("ROOT intentionally unavailable")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_root)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [str(Path(benchmark.__file__)), "--help"],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        runpy.run_path(str(Path(benchmark.__file__)), run_name="__main__")
+
+    assert exc_info.value.code == 0
+
+
+def test_run_uses_single_channel_pyhs3_builder(
+    monkeypatch: pytest.MonkeyPatch,
+    json_workspace_path: Path,
+    root_workspace_path: Path,
+    tmp_path: Path,
+) -> None:
+    single_calls: list[dict[str, Any]] = []
+
+    def fake_single_builder(**kwargs: Any) -> benchmark.PyHS3Case:
+        single_calls.append(kwargs)
+        return make_pyhs3_case(nll_mode=kwargs["nll_mode"])
+
+    monkeypatch.setattr(benchmark, "build_pyhs3_case", fake_single_builder)
+    monkeypatch.setattr(
+        benchmark,
+        "build_xroofit_case",
+        lambda **kwargs: make_xroofit_case(),
+    )
+
+    def fake_measure_engine(**kwargs: Any) -> dict[str, Any]:
+        engine_spec = kwargs["spec"]
+        case = engine_spec.build_func()
+        engine_spec.restore_func(case)
+        benchmark.close_case(case)
+        return make_engine_result(engine_spec.name, [2.0, 1.0, 2.0])
+
+    monkeypatch.setattr(benchmark, "measure_engine", fake_measure_engine)
+    monkeypatch.setattr(
+        benchmark,
+        "build_all_agreements",
+        lambda successful, **kwargs: {
+            "validation_status": "success",
+            "comparisons": {},
+        },
+    )
+    monkeypatch.setattr(benchmark, "save_json", lambda payload, output: None)
+    monkeypatch.setattr(benchmark, "print_result", lambda result: None)
+    monkeypatch.setattr(benchmark, "print_agreement", lambda agreement: None)
+
+    benchmark.run(
+        **valid_run_kwargs(
+            json_workspace_path,
+            root_workspace_path,
+            tmp_path,
+            pyhs3_combined=False,
+            pyhs3_channels=None,
+            xroofit_model_name="pdfs/channel_model",
+            xroofit_dataset_name="channel_data",
+        )
+    )
+
+    assert len(single_calls) == 2
+    assert {call["mode"] for call in single_calls} == {
+        "FAST_COMPILE",
+        "FAST_RUN",
+    }

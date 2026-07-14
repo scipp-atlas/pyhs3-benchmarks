@@ -146,6 +146,14 @@ BENCHMARKS: dict[str, BenchmarkSpec] = {
         uses_workspace_matrix=False,
         run_once=True,
     ),
+    "cross_binned_likelihood": BenchmarkSpec(
+        name="cross_binned_likelihood",
+        group="cross",
+        kind="run_once",
+        module="src.run_cross_binned_likelihood",
+        uses_workspace_matrix=False,
+        run_once=True,
+    ),
     "cross_vectorized_pdf_evaluation": BenchmarkSpec(
         name="cross_vectorized_pdf_evaluation",
         group="cross",
@@ -242,6 +250,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--frameworks", nargs="+", default=None)
     parser.add_argument("--scalar-frameworks", nargs="+", default=None)
     parser.add_argument("--scenarios", nargs="+", default=None)
+
+    parser.add_argument(
+        "--pyhf-input-dir",
+        type=Path,
+        default=Path("inputs/pyhf"),
+        help="Directory containing paired simple HIFA/HS3 workspaces.",
+    )
+    parser.add_argument("--pyhf-mu-min", type=float, default=0.0)
+    parser.add_argument("--pyhf-mu-max", type=float, default=3.0)
+    parser.add_argument("--pyhf-mu-points", type=int, default=201)
+    parser.add_argument("--pyhf-repeats", type=int, default=5000)
+    parser.add_argument("--pyhf-warmups", type=int, default=100)
+    parser.add_argument("--pyhf-scaling-repeats", type=int, default=1000)
+    parser.add_argument(
+        "--pyhf-scaling-bins",
+        nargs="+",
+        type=int,
+        default=[2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048],
+    )
+    parser.add_argument("--pyhf-rtol", type=float, default=1e-7)
+    parser.add_argument("--pyhf-atol", type=float, default=1e-8)
 
     parser.add_argument("--analysis", default="L_ch0")
     parser.add_argument("--pyhs3-data-name", default=None)
@@ -844,6 +873,34 @@ def command_for_run_once(
         ]
         if getattr(args, "fail_fast", False):
             cmd.append("--fail-fast")
+
+    elif spec.name == "cross_binned_likelihood":
+        cmd += [
+            "--input-dir",
+            str(args.pyhf_input_dir),
+            "--results-dir",
+            str(output_dir),
+            "--plots-dir",
+            str(plot_dir),
+            "--mu-min",
+            str(args.pyhf_mu_min),
+            "--mu-max",
+            str(args.pyhf_mu_max),
+            "--mu-points",
+            str(args.pyhf_mu_points),
+            "--repeats",
+            str(args.pyhf_repeats),
+            "--warmups",
+            str(args.pyhf_warmups),
+            "--scaling-repeats",
+            str(args.pyhf_scaling_repeats),
+            "--scaling-bins",
+            *[str(value) for value in args.pyhf_scaling_bins],
+            "--rtol",
+            str(args.pyhf_rtol),
+            "--atol",
+            str(args.pyhf_atol),
+        ]
 
     elif spec.name == "benchmark_overview":
         cmd += [

@@ -145,6 +145,32 @@ This benchmark therefore provides both an engine-to-engine workflow comparison a
 
 ---
 
+## Cross-Framework Binned Likelihood
+
+Compares statistically equivalent HistFactory models between
+
+- PyHS3
+- pyhf (NumPy backend)
+
+Unlike the RooFit benchmarks, this benchmark operates on simple paired HistFactory/HS3 workspaces that can be represented identically by both frameworks.
+
+The benchmark validates
+
+- expected event counts;
+- ΔNLL agreement;
+- likelihood residuals;
+
+before comparing
+
+- workspace/model construction;
+- first evaluation;
+- warm function-call latency;
+- scaling with increasing numbers of histogram bins.
+
+This benchmark provides the primary apples-to-apples engine-to-engine comparison between PyHS3 and pyhf.
+
+---
+
 # Apples-to-Apples Methodology
 
 The benchmarks in this section are designed to compare equivalent statistical computations whenever a direct engine-to-engine comparison is possible.
@@ -209,6 +235,7 @@ This section currently includes
 - **Scalar PDF Evaluation**
 - **ΔNLL Benchmark**
 - **xRooFit Benchmark**
+- **Binned likelihood**
 
 Each benchmark page describes
 

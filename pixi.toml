@@ -23,8 +23,12 @@ memory-scaling = "python -m src.run_memory_scaling"
 model-complexity = "python -m src.run_model_complexity_scaling"
 graph-canonicalization = "python -m src.run_graph_canonicalization"
 graph-optimization = "python -m src.run_graph_optimization"
-cross-nll = "python -m src.run_cross_nll_scan"
+
+# Cross-framework benchmarks
 cross-pdf-evaluation = "python -m src.run_cross_scalar_pdf_evaluation"
+cross-nll = "python -m src.run_cross_nll_scan"
+cross-binned-likelihood = "python -m src.run_cross_binned_likelihood"
+xroofit = "python -m src.run_pyhs3_xroofit_benchmark"
 
 # Suite-level commands
 benchmark = "python -m src.run_all_benchmarks --benchmarks all --groups all --plot"

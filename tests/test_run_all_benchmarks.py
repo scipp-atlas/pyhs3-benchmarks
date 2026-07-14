@@ -992,3 +992,186 @@ def test_module_main_guard_runs_dry_run(
     payload = json.loads((summary_dir / "matrix_summary.json").read_text())
     assert payload["dry_run"] == 1
     assert payload["total"] == 1
+
+
+def test_command_for_multi_workspace_cross_nll_scan_success_and_missing_root(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "case.json"
+    workspace.write_text("{}")
+    args = make_args(
+        plot=True,
+        frameworks=["pyhs3_compiled", "roofit"],
+        categories=["pointwise_nll"],
+        nll_distribution="model_ch0",
+        batch_size=4,
+        n_batches=5,
+        warmup_batches=2,
+        scan_repeats=3,
+        n_points=[17],
+    )
+
+    with pytest.raises(FileNotFoundError, match="Missing matching ROOT workspace"):
+        benchmark.command_for_multi_workspace(
+            spec("cross_nll_scan"),
+            workspace,
+            args,
+            tmp_path / "out",
+            tmp_path / "plots",
+            "result.json",
+        )
+
+    root_workspace = tmp_path / "case.root"
+    root_workspace.write_text("root")
+    command = benchmark.command_for_multi_workspace(
+        spec("cross_nll_scan"),
+        workspace,
+        args,
+        tmp_path / "out",
+        tmp_path / "plots",
+        "result.json",
+    )
+
+    assert "--root-workspaces" in command
+    assert str(root_workspace) in command
+    assert command[command.index("--engines") + 1 : command.index("--categories")] == [
+        "pyhs3_compiled",
+        "roofit",
+    ]
+    assert "pointwise_nll" in command
+    assert command[command.index("--n-mu-values") + 1] == "17"
+    assert command[command.index("--batch-size") + 1] == "4"
+    assert command[command.index("--n-batches") + 1] == "5"
+    assert command[command.index("--warmup-batches") + 1] == "2"
+    assert command[command.index("--scan-repeats") + 1] == "3"
+    assert "--plot" in command
+
+
+def test_command_for_multi_workspace_batch_cross_nll_scan_success_and_missing_roots(
+    tmp_path: Path,
+) -> None:
+    workspaces = [tmp_path / "a.json", tmp_path / "b.json"]
+    for workspace in workspaces:
+        workspace.write_text("{}")
+
+    args = make_args(
+        plot=True,
+        categories=["pointwise_nll", "batched_full_dataset_nll"],
+        nll_distribution="model_ch0",
+        batch_size=2,
+        n_batches=3,
+        warmup_batches=1,
+        scan_repeats=4,
+        n_points=[19],
+    )
+
+    with pytest.raises(FileNotFoundError, match="Missing matching ROOT workspaces for"):
+        benchmark.command_for_multi_workspace_batch(
+            spec("cross_nll_scan"),
+            workspaces,
+            args,
+            tmp_path / "out",
+            tmp_path / "plots",
+            "result.json",
+        )
+
+    roots = [tmp_path / "a.root", tmp_path / "b.root"]
+    for root in roots:
+        root.write_text("root")
+
+    command = benchmark.command_for_multi_workspace_batch(
+        spec("cross_nll_scan"),
+        workspaces,
+        args,
+        tmp_path / "out",
+        tmp_path / "plots",
+        "result.json",
+    )
+
+    assert command.count("--workspaces") == 1
+    assert all(str(workspace) in command for workspace in workspaces)
+    assert command.count("--root-workspaces") == 1
+    assert all(str(root) in command for root in roots)
+    assert "pointwise_nll" in command
+    assert "batched_full_dataset_nll" in command
+    assert command[command.index("--n-mu-values") + 1] == "19"
+    assert "--plot" in command
+
+
+def test_command_for_json_root_pair_rejects_unknown_and_adds_channels(
+    tmp_path: Path,
+) -> None:
+    bad_spec = benchmark.BenchmarkSpec(
+        "other_pair", "cross", "json_root_pair", "src.other", True
+    )
+    with pytest.raises(ValueError, match="Unsupported JSON/ROOT-pair benchmark"):
+        benchmark.command_for_json_root_pair(
+            bad_spec,
+            tmp_path / "case.json",
+            tmp_path / "case.root",
+            make_args(),
+            tmp_path / "out",
+            tmp_path / "plots",
+            "result.json",
+        )
+
+    args = make_args(
+        xroofit_pyhs3_channels="ch0,ch1",
+        xroofit_pyhs3_combined=False,
+    )
+    command = benchmark.command_for_json_root_pair(
+        spec("pyhs3_xroofit_benchmark"),
+        tmp_path / "case.json",
+        tmp_path / "case.root",
+        args,
+        tmp_path / "out",
+        tmp_path / "plots",
+        "result.json",
+    )
+    assert "--pyhs3-combined" not in command
+    assert command[command.index("--pyhs3-channels") + 1] == "ch0,ch1"
+
+
+def test_command_for_run_once_cross_binned_likelihood(tmp_path: Path) -> None:
+    args = make_args(
+        plot=True,
+        pyhf_input_dir=tmp_path / "pyhf",
+        pyhf_mu_min=-1.0,
+        pyhf_mu_max=4.0,
+        pyhf_mu_points=31,
+        pyhf_repeats=50,
+        pyhf_warmups=7,
+        pyhf_scaling_repeats=11,
+        pyhf_scaling_bins=[2, 8, 32],
+        pyhf_rtol=1e-9,
+        pyhf_atol=1e-10,
+    )
+    command = benchmark.command_for_run_once(
+        spec("cross_binned_likelihood"),
+        args,
+        tmp_path / "out",
+        tmp_path / "plots",
+        "result.json",
+    )
+
+    expected_values = {
+        "--input-dir": str(tmp_path / "pyhf"),
+        "--results-dir": str(tmp_path / "out"),
+        "--plots-dir": str(tmp_path / "plots"),
+        "--mu-min": "-1.0",
+        "--mu-max": "4.0",
+        "--mu-points": "31",
+        "--repeats": "50",
+        "--warmups": "7",
+        "--scaling-repeats": "11",
+        "--rtol": "1e-09",
+        "--atol": "1e-10",
+    }
+    for flag, value in expected_values.items():
+        assert command[command.index(flag) + 1] == value
+    scaling_start = command.index("--scaling-bins") + 1
+    scaling_end = command.index("--rtol")
+    assert command[scaling_start:scaling_end] == ["2", "8", "32"]
+    # The benchmark owns its plots-dir argument and the generic plot switch is
+    # appended separately by the matrix runner.
+    assert "--plot" in command

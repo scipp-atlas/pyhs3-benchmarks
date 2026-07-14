@@ -1,145 +1,204 @@
 # Benchmark Overview
 
-This page summarizes the complete benchmark suite and provides a high-level overview of the performance characteristics measured across all implemented benchmarks.
+## Overview
 
-Unlike the individual benchmark pages, which focus on a single experiment, the overview aggregates results from multiple benchmark categories and highlights setup costs, runtime behaviour, memory usage, and cross-framework comparisons.
+`plot_benchmark_overview.py` generates high-level summary figures from
+the benchmark matrix produced by `run_all_benchmarks.py`. Rather than
+re-running benchmarks, it collects benchmark outputs from
+`results/benchmark_matrix`, extracts the metrics of interest, and
+produces publication-ready summary plots.
 
-Generate the overview using:
+The script provides a unified view of:
 
-```bash
+-   overall benchmark performance;
+-   timing breakdown by benchmark stage;
+-   memory usage by benchmark stage;
+-   cross-framework scalar PDF comparisons;
+-   cross-framework pointwise ΔNLL comparisons;
+-   cross-framework HistFactory likelihood comparisons.
+
+------------------------------------------------------------------------
+
+# Workflow
+
+``` text
+run_all_benchmarks.py
+        │
+        ▼
+results/benchmark_matrix/
+        │
+        ▼
+plot_benchmark_overview.py
+        │
+        ▼
+docs/assets/images/plots/benchmark_overview/
+```
+
+The plotting script automatically discovers benchmark outputs and skips
+unavailable benchmarks, allowing the overview to remain valid even when
+only a subset of the benchmark suite has been executed.
+
+------------------------------------------------------------------------
+
+# Command line interface
+
+``` bash
 pixi run python -m src.plot_benchmark_overview \
-    --results-dir results/docs_examples \
-    --plot-dir docs/assets/plots/benchmark_overview \
+    --results-dir results/benchmark_matrix \
+    --plot-dir docs/assets/images/plots/benchmark_overview \
     --plots all
 ```
 
----
+## Arguments
 
-## Command-line Arguments
+  Argument          Description
+  ----------------- -------------------------------------------------------
+  `--results-dir`   Root directory containing benchmark results.
+  `--plot-dir`      Output directory for generated figures.
+  `--plots`         Comma-separated list of overview figures to generate.
 
-The benchmark overview script supports the following command-line arguments.
+------------------------------------------------------------------------
 
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--results-dir` | `Path` | `results/` | Root directory containing benchmark result JSON files. The script recursively searches for files ending with `_result.json`. |
-| `--plot-dir` | `Path` | `docs/assets/plots/benchmark_overview/` | Directory where the generated overview plots will be saved. |
-| `--plots` | `str ...` | `all` | Overview plots to generate. Supported values are `performance_summary`, `setup_summary`, `evaluation_summary`, `scan_summary`, `stage_timing`, `stage_memory`, `diagnostics`, `cross_framework_summary`, or `all`. |
-| `--benchmarks` | `str ...` | all benchmarks | Restrict the overview to specific benchmark names. |
-| `--workspaces` | `str ...` | all workspaces | Include only selected workspaces. |
-| `--targets` | `str ...` | all targets | Filter results by target distribution. |
-| `--modes` | `str ...` | all modes | Filter by PyTensor compilation mode. |
-| `--n-runs` | `int ...` | all | Filter by the number of timing repetitions. |
-| `--n-evaluations` | `int ...` | all | Filter evaluation benchmarks by evaluation count. |
-| `--n-scan-points` | `int ...` | all | Filter NLL scan benchmarks by scan resolution. |
-| `--include-failed` | flag | disabled | Include failed benchmark runs. |
-| `--strict` | flag | disabled | Stop immediately if malformed result files are encountered. |
+# Supported plot groups
 
----
+-   performance_summary
+-   stage_timing
+-   stage_memory
+-   cross_framework_summary
 
-## Benchmark performance summary
+`cross_framework_summary` produces three figures:
 
-![Benchmark performance summary](../assets/plots/benchmark_overview/benchmark_overview_performance_summary.png)
+1.  Cross-framework Scalar PDF summary
+2.  Cross-framework Pointwise NLL summary
+3.  Cross-framework HistFactory likelihood summary
 
-This figure provides a compact overview of the most important benchmark metrics collected across the project.
+------------------------------------------------------------------------
 
-It summarizes:
+# Automatically discovered benchmark outputs
 
-- workspace setup latency;
-- compiled evaluation performance;
-- scalar PDF evaluation performance;
-- pointwise NLL evaluation performance.
+The script searches the benchmark matrix and loads metrics from
+benchmark JSON files, including runtime, peak memory, compiled
+evaluation latency, PDF evaluation, ΔNLL scan timings, and
+cross-framework validation results.
 
-Rather than replacing the individual benchmark reports, this figure provides a convenient high-level summary of the complete benchmark suite.
+Missing benchmarks are ignored rather than treated as errors.
 
----
+------------------------------------------------------------------------
 
-## Stage timing breakdown
+# Generated figures
 
-![Stage timing breakdown](../assets/plots/benchmark_overview/benchmark_overview_stage_timing.png)
+## 1. Benchmark performance summary
 
-This figure decomposes the total initialization time into the individual execution stages:
+![](../assets/plots/benchmark_overview/benchmark_overview_performance_summary.png)
 
-- workspace loading;
-- model creation;
-- log-probability graph construction;
-- JAX compilation.
+This dashboard provides a compact comparison of the principal
+performance metrics across the benchmark suite:
 
-The figure illustrates where the initialization cost is spent before steady-state evaluations become possible.
+-   setup time;
+-   compiled evaluation latency;
+-   PDF evaluation latency;
+-   scalar cross-framework PDF evaluation;
+-   NLL scan latency;
+-   cross-framework ΔNLL evaluation.
 
-Across all tested workspaces, model creation and JAX compilation dominate the overall startup latency.
+It is intended as the first high-level performance overview.
 
----
+------------------------------------------------------------------------
 
-## Stage memory breakdown
+## 2. Stage timing breakdown
 
-![Stage memory breakdown](../assets/plots/benchmark_overview/benchmark_overview_stage_memory.png)
+![](../assets/plots/benchmark_overview/benchmark_overview_stage_timing.png)
 
-This figure shows the increase in peak RSS memory during the initialization pipeline.
+Shows the contribution of each benchmark stage:
 
-Most additional memory is allocated during JAX compilation, while the remaining stages contribute comparatively little to the total memory footprint.
+-   workspace loading;
+-   model creation;
+-   log-probability construction;
+-   log-probability compilation;
+-   compiled evaluation;
+-   PDF evaluation;
+-   NLL scan.
 
-Together with the timing breakdown, this figure identifies which initialization stages dominate both runtime and memory consumption.
+This figure identifies which stages dominate total runtime.
 
----
+------------------------------------------------------------------------
 
-## Cross-framework Scalar PDF summary
+## 3. Stage memory breakdown
 
-![Cross-framework Scalar PDF summary](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_scalar_pdf.png)
+![](../assets/plots/benchmark_overview/benchmark_overview_stage_memory.png)
 
-This overview summarizes the apples-to-apples scalar PDF benchmark.
+Displays peak RSS growth attributed to each benchmark stage.
 
-For every workspace, the figure compares:
+Compilation is typically the dominant memory consumer.
 
-- **pyHS3 non-compiled (PyTensor)**
-- **pyHS3 compiled (JAX)**
-- **RooFit**
+------------------------------------------------------------------------
 
-Only the **varying observable** benchmark configuration is included. This prevents RooFit from returning cached values and ensures that every framework evaluates the PDF for changing observable values.
+## 4. Cross-framework Scalar PDF summary
 
-The comparison therefore reflects the true steady-state cost of individual scalar PDF evaluations.
+![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_scalar_pdf.png)
 
----
+Compares scalar PDF evaluation latency across supported frameworks
+(PyHS3, RooFit, and other available engines).
 
-## Cross-framework Pointwise NLL summary
+This benchmark measures a single PDF evaluation and is independent of
+likelihood scans.
 
-![Cross-framework Pointwise NLL summary](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_pointwise_nll.png)
+------------------------------------------------------------------------
 
-This figure summarizes the point-by-point negative log-likelihood (NLL) benchmark.
+## 5. Cross-framework Pointwise NLL summary
 
-Each bar represents one complete NLL evaluation performed using:
+![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_pointwise_nll.png)
 
-- identical datasets;
-- identical parameter values;
-- identical model configurations.
+Compares complete pointwise NLL evaluations.
 
-For compiled pyHS3, the JAX compilation phase is intentionally excluded from the timed region, so only steady-state evaluation performance is compared.
+Unlike scalar PDF evaluation, this benchmark evaluates the entire
+negative log-likelihood for one parameter point.
 
-Across all tested workspaces, the compiled implementation consistently outperforms the non-compiled PyTensor implementation, with speedups ranging from approximately **2.5× to nearly 18×**, depending on the model complexity.
+------------------------------------------------------------------------
 
-RooFit remains highly competitive on some larger workspaces, while compiled pyHS3 approaches or exceeds RooFit performance on others.
+## 6. Cross-framework HistFactory likelihood summary
 
----
+![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_histfactory_likelihood.png)
 
-## Notes
+Summarizes the paired HistFactory benchmark introduced for
+engine-to-engine comparison between PyHS3 and pyhf.
 
-- The overview automatically discovers benchmark result files by recursively searching `--results-dir` for files ending in `_result.json`.
-- By default, only successful benchmark runs are included in the generated plots.
-- Cross-framework summaries include only numerically validated apples-to-apples comparisons.
-- Multiple filters (`--benchmarks`, `--workspaces`, `--targets`, etc.) may be combined to generate overview reports for specific subsets of benchmark results.
-- Unless `--strict` is enabled, malformed or incomplete result files are skipped automatically so that a single invalid benchmark does not prevent generation of the remaining overview figures.
+Characteristics:
 
----
+-   identical statistical models;
+-   identical expected event counts;
+-   ΔNLL agreement validated numerically;
+-   warm steady-state evaluation only;
+-   apples-to-apples engine comparison.
 
-## Notes on xRooFit
+This benchmark intentionally uses simple paired HistFactory models and
+should not be interpreted as a replacement for the RooFit/xRooFit
+benchmarks, which evaluate more complex workspaces.
 
-A dedicated xRooFit benchmark was also investigated.
+------------------------------------------------------------------------
 
-However, for the generated benchmark workspaces,
+# Internal architecture
 
-```cpp
-xRooNode(...).nll(...)
-```
+The overview generator performs four steps:
 
-did not successfully construct a valid NLL object, preventing a fully apples-to-apples comparison against xRooFit's own NLL implementation.
+1.  Discover benchmark outputs.
+2.  Parse benchmark-specific JSON formats.
+3.  Convert metrics into a common internal representation.
+4.  Produce publication-quality figures.
 
-Consequently, the current cross-framework comparisons use **RooFit** as the ROOT reference implementation. Support for dedicated xRooFit NLL benchmarks can be added once compatible workspaces become available.
+Adding a new benchmark generally requires only extending the parser and
+registering its metrics.
+
+------------------------------------------------------------------------
+
+# Notes
+
+-   The overview aggregates existing benchmark outputs and never
+    executes benchmarks.
+-   Missing benchmark results are skipped automatically.
+-   Cross-framework figures intentionally summarize different benchmark
+    families and should not be interpreted as a single ranking across
+    incompatible statistical models.
+-   HistFactory comparisons are limited to paired compatible models,
+    while RooFit comparisons evaluate substantially more complex
+    workspaces.

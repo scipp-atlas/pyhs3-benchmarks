@@ -91,6 +91,7 @@ BENCHMARK_LABELS = {
     "cross_nll": "Cross ΔNLL scan",
     "pyhs3_xroofit_benchmark": "PyHS3 vs xRooFit",
     "cross_model_complexity_scaling": "Cross model complexity",
+    "cross_binned_likelihood": "Cross HistFactory likelihood",
 }
 
 WORKSPACE_LABELS = {
@@ -188,6 +189,7 @@ def iter_result_files(results_dir: Path) -> list[Path]:
         path
         for path in results_dir.rglob("*.json")
         if path.name.endswith("_result.json")
+        or (path.name == "results.json" and "cross_binned_likelihood" in path.parts)
     )
 
 
@@ -291,8 +293,54 @@ def flatten_nested_result(
     return flattened
 
 
+def _extract_cross_binned_likelihood_results(
+    payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Normalize the summary rows emitted by cross_binned_likelihood."""
+
+    if payload.get("benchmark") != "cross_binned_likelihood":
+        return []
+
+    rows = []
+    for summary_row in payload.get("summary", []):
+        if not isinstance(summary_row, dict):
+            continue
+
+        workspace_type = str(summary_row.get("workspace_type", ""))
+        model_name = workspace_type.rsplit(": ", maxsplit=1)[-1] or "paired-model"
+
+        rows.append(
+            {
+                "workspace": model_name,
+                "framework": summary_row.get("framework"),
+                "engine": summary_row.get("framework"),
+                "status": (
+                    "success"
+                    if summary_row.get("agreement") == "expected + Delta NLL agree"
+                    else "failed"
+                ),
+                "category_key": "histfactory_likelihood",
+                "input_mode": "warm",
+                "runtime_seconds": summary_row.get("runtime_seconds"),
+                "average_runtime_seconds_per_evaluation": summary_row.get(
+                    "runtime_seconds"
+                ),
+                "compiled": summary_row.get("compiled"),
+                "batched": summary_row.get("batched"),
+                "agreement_status": summary_row.get("agreement"),
+                "execution_mode": summary_row.get("execution_mode"),
+            }
+        )
+
+    return rows
+
+
 def extract_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Extract valid result rows from a benchmark result payload."""
+
+    cross_binned_rows = _extract_cross_binned_likelihood_results(payload)
+    if cross_binned_rows:
+        return cross_binned_rows
 
     results = payload.get("results", [])
 
@@ -310,6 +358,17 @@ def extract_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
             extracted.append(result)
 
     return extracted
+
+
+def _nested_mapping_value(
+    container: Any,
+    key: str,
+) -> Any:
+    """Return a nested value only when the container is a mapping-like dict."""
+
+    if not isinstance(container, dict):
+        return None
+    return container.get(key)
 
 
 def maybe_to_float(value: Any) -> float | None:
@@ -416,6 +475,7 @@ def collect_overview_records(
                         or result.get("steady_state_seconds_median")
                         or result.get("warm_time_per_evaluation_seconds")
                         or result.get("warm_per_evaluation_seconds")
+                        or result.get("runtime_seconds")
                         or derived_time_per_evaluation
                     ),
                     "runtime_per_scan_point_seconds": (
@@ -456,12 +516,26 @@ def collect_overview_records(
                     "delta_nll_shape_max_abs_diff": (
                         result.get("delta_nll_shape_max_abs_diff")
                         or result.get("delta_nll_max_abs_diff")
-                        or (result.get("agreement") or {}).get("delta_nll_max_abs_diff")
+                        or _nested_mapping_value(
+                            result.get("agreement"),
+                            "delta_nll_max_abs_diff",
+                        )
+                        or _nested_mapping_value(
+                            result.get("agreement"),
+                            "delta_nll_max_abs_difference",
+                        )
                     ),
                     "minimum_mu_abs_diff": (
                         result.get("minimum_mu_abs_diff")
                         or result.get("minimum_poi_abs_diff")
-                        or (result.get("agreement") or {}).get("minimum_poi_abs_diff")
+                        or _nested_mapping_value(
+                            result.get("agreement"),
+                            "minimum_poi_abs_diff",
+                        )
+                        or _nested_mapping_value(
+                            result.get("agreement"),
+                            "minimum_grid_difference",
+                        )
                     ),
                 }
                 record.update(metric_candidates)
@@ -805,6 +879,12 @@ def make_performance_summary_plot(
             "µs/eval",
         ),
         (
+            "Cross HistFactory likelihood",
+            "time_per_evaluation_us",
+            {"cross_binned_likelihood"},
+            "µs/eval",
+        ),
+        (
             "NLL scan time",
             "runtime_ms_per_scan_point",
             {"nll_scan"},
@@ -856,6 +936,7 @@ def make_performance_summary_plot(
                 "cross_nll_scan",
                 "cross_nll",
                 "pyhs3_xroofit_benchmark",
+                "cross_binned_likelihood",
             }:
                 workspace = f"{workspace}\n{record['framework']}"
             value = maybe_to_float(record.get(metric_key))
@@ -1130,6 +1211,9 @@ def _canonical_cross_engine(record: dict[str, Any]) -> str | None:
         "pyhs3_compiled_(jax)": "pyhs3_compiled",
         "roofit": "roofit",
         "root": "roofit",
+        "pyhs3": "pyhs3",
+        "pyhf": "pyhf_numpy",
+        "pyhf_numpy": "pyhf_numpy",
     }
     return aliases.get(normalized)
 
@@ -1340,6 +1424,108 @@ def _make_cross_framework_grouped_plot(
     save_figure(fig, output_path)
 
 
+def _make_histfactory_likelihood_plot(
+    rows: list[dict[str, Any]],
+    output_path: Path,
+) -> None:
+    """Compare warm likelihood calls for the paired PyHS3/pyhf models."""
+
+    if not rows:
+        return
+
+    engine_order = ["pyhs3", "pyhf_numpy"]
+    engine_labels = {
+        "pyhs3": "PyHS3 compiled/warm (PyTensor)",
+        "pyhf_numpy": "pyhf NumPy warm",
+    }
+
+    workspace_order = []
+    for row in rows:
+        workspace = str(row["_workspace_group"])
+        if workspace not in workspace_order:
+            workspace_order.append(workspace)
+
+    values_by_key = {
+        (str(row["_workspace_group"]), str(row["_canonical_engine"])): float(
+            row["_metric_value"]
+        )
+        for row in rows
+    }
+
+    fig, ax = plt.subplots(figsize=(max(9.0, 2.5 * len(workspace_order) + 3.0), 6.6))
+    x = np.arange(len(workspace_order), dtype=float)
+    width = 0.32
+    all_values = []
+
+    for engine_index, engine in enumerate(engine_order):
+        values = [
+            values_by_key.get((workspace, engine), np.nan)
+            for workspace in workspace_order
+        ]
+        offsets = x + (engine_index - 0.5) * width
+        bars = ax.bar(
+            offsets,
+            values,
+            width=width,
+            label=engine_labels[engine],
+            edgecolor="white",
+            linewidth=0.9,
+        )
+
+        for bar, value in zip(bars, values, strict=True):
+            if not np.isfinite(value) or value <= 0.0:
+                continue
+            all_values.append(float(value))
+            ax.annotate(
+                f"{value:.2f}",
+                xy=(bar.get_x() + bar.get_width() / 2.0, value),
+                xytext=(0, 5),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=10,
+                fontweight="bold",
+            )
+
+    if not all_values:
+        plt.close(fig)
+        return
+
+    ratio = max(all_values) / min(all_values)
+    if ratio >= 20.0:
+        ax.set_yscale("log")
+        ax.set_ylim(min(all_values) * 0.65, max(all_values) * 1.65)
+    else:
+        ax.set_ylim(0.0, max(all_values) * 1.28)
+
+    ax.set_title(
+        "Cross-framework HistFactory likelihood summary",
+        loc="left",
+        pad=18,
+        fontweight="bold",
+    )
+    ax.set_ylabel("Median warm NLL evaluation time [µs]")
+    ax.set_xlabel("Paired model")
+    ax.set_xticks(x)
+    ax.set_xticklabels(workspace_order, fontsize=12)
+    ax.legend(frameon=False, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.15))
+    finalize_axes(ax)
+
+    ax.text(
+        1.0,
+        1.015,
+        "Paired simple HistFactory/HS3 models only",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=10.5,
+        color="0.35",
+    )
+
+    fig.subplots_adjust(left=0.12, right=0.98, top=0.90, bottom=0.24)
+    save_figure(fig, output_path)
+
+
 def make_cross_framework_summary_plot(
     records: list[dict[str, Any]], plot_dir: Path
 ) -> None:
@@ -1377,6 +1563,16 @@ def make_cross_framework_summary_plot(
         title="Cross-framework Pointwise NLL summary",
         y_label="Median time per complete NLL evaluation [µs]",
         value_suffix="µs/NLL evaluation",
+    )
+
+    histfactory_rows = _select_fastest_unique_cross_rows(
+        records,
+        benchmark_names={"cross_binned_likelihood"},
+        metric_key="time_per_evaluation_us",
+    )
+    _make_histfactory_likelihood_plot(
+        histfactory_rows,
+        plot_dir / "benchmark_overview_cross_framework_histfactory_likelihood.png",
     )
 
 

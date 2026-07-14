@@ -46,7 +46,8 @@ nav = [
     { "Overview" = "cross-framework/index.md" },
     { "Scalar PDF Evaluation" = "cross-framework/scalar-pdf.md" },
     { "ΔNLL Scan" = "cross-framework/nll-scan.md" },
-    { "xRooFit" = "cross-framework/xroofit.md" }
+    { "xRooFit" = "cross-framework/xroofit.md" },
+    { "HistFactory Likelihood" = "cross-framework/binned-likelihood.md" },
   ] },
 
   { "Development" = "development.md" },
