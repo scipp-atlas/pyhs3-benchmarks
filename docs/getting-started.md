@@ -1,4 +1,4 @@
-# Getting Started
+# Quick Start
 
 On this page, you will learn how to run your first benchmark, execute multiple benchmark suites, and understand the generated outputs.
 

@@ -7,11 +7,11 @@ site_dir = "site"
 nav = [
   { "Home" = "index.md" },
 
-  { "Getting Started" = [
-    { "Installation" = "installation.md" },
-    { "Getting Started" = "getting-started.md" },
-    { "Repository Structure" = "repository-structure.md" }
-  ] },
+{ "Getting Started" = [
+  { "Installation" = "installation.md" },
+  { "Quick Start" = "getting-started.md" },
+  { "Repository Structure" = "repository-structure.md" }
+] },
 
   { "Concepts" = [
     { "Benchmark Methodology" = "benchmark-methodology.md" },
