@@ -6,7 +6,7 @@ PyHS3 Benchmarks is primarily a command-line benchmarking framework rather than 
 
 ---
 
-# Repository Interfaces
+## Repository Interfaces
 
 The repository exposes four primary interfaces.
 
@@ -21,7 +21,7 @@ These interfaces support interactive benchmarking, automated performance analysi
 
 ---
 
-# Command-Line Interface
+## Command-Line Interface
 
 Individual benchmark suites can be executed using
 
@@ -33,7 +33,7 @@ See **Getting Started** for benchmark-specific examples and common command-line 
 
 ---
 
-# Benchmark Runner
+## Benchmark Runner
 
 Complete benchmark campaigns can be executed using
 
@@ -47,11 +47,11 @@ See **Benchmark Runner** for implementation details.
 
 ---
 
-# Repository Modules
+## Repository Modules
 
 Several modules provide shared functionality across benchmark suites.
 
-## Configuration
+### Configuration
 
 ```text
 src/config.py
@@ -59,7 +59,7 @@ src/config.py
 
 Provides repository-wide configuration, including benchmark directories, output locations, plotting paths, and shared constants.
 
-## Benchmark Stages
+### Benchmark Stages
 
 ```text
 src/benchmark_stages.py
@@ -67,7 +67,7 @@ src/benchmark_stages.py
 
 Defines the common representation of workflow stages used throughout the benchmarking pipeline.
 
-## Utilities
+### Utilities
 
 ```text
 src/utils.py
@@ -77,7 +77,7 @@ Provides shared helper functions reused across benchmark implementations.
 
 ---
 
-# Benchmark Outputs
+## Benchmark Outputs
 
 Benchmark results are exposed through structured JSON reports together with generated figures.
 
@@ -85,7 +85,7 @@ See **Outputs** for the report format and generated artifacts.
 
 ---
 
-# Internal API
+## Internal API
 
 Most modules inside `src/` are implementation details rather than a stable public Python API.
 
@@ -93,7 +93,7 @@ Although they can be imported directly, users are encouraged to interact with th
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 
