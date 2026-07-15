@@ -1,39 +1,77 @@
 # Memory Scaling
 
-The memory scaling benchmark measures the memory footprint of the complete PyHS3 workflow.
+On this page, you will learn how memory usage is distributed across the PyHS3 workflow and which workflow stages dominate the overall memory footprint.
 
-Unlike the runtime benchmarks, this benchmark isolates each major workflow stage in a separate process, allowing memory usage to be attributed to individual stages without interference from previous allocations.
+The **Memory Scaling** benchmark measures memory consumption for each major workflow stage using isolated benchmark processes. Running every stage independently allows memory allocations to be attributed to individual stages without interference from previous computations.
 
-For each stage, the benchmark measures
+---
 
-- current RSS before execution;
-- current RSS after execution;
+# What This Benchmark Measures
+
+For each workflow stage, the benchmark reports
+
 - current RSS increase;
-- peak RSS before execution;
-- peak RSS after execution;
-- peak RSS increase.
+- peak RSS increase;
+- current RSS after execution;
+- peak RSS after execution.
+
+The following workflow stages are benchmarked independently:
+
+1. Workspace Loading
+2. Model Creation
+3. Log-Probability Construction
+4. Log-Probability Compilation
+5. Compiled Evaluation
+6. PDF Evaluation
+7. NLL Scan
+
+Measurement methodology and execution strategy are described in **Benchmark Methodology**.
 
 ---
 
-# What is measured
+# Benchmark Workflow
 
-Each workflow stage is executed independently:
+```text
+Workspace
+      │
+      ▼
+Execute Workflow Stage
+      │
+      ▼
+Measure Current RSS
+      │
+      ▼
+Measure Peak RSS
+      │
+      ▼
+Validate Results
+      │
+      ▼
+JSON Report
+      │
+      ▼
+Comparison Plots (optional)
+```
 
-1. workspace loading;
-2. model creation;
-3. log-probability construction;
-4. log-probability compilation;
-5. compiled log-probability evaluation;
-6. PDF evaluation;
-7. NLL scan.
-
-Running each stage in an isolated process ensures that memory measurements reflect only the allocations introduced by that stage.
+Each workflow stage executes in a separate Python process to isolate its memory footprint.
 
 ---
 
-# Running the benchmark
+# When to Use This Benchmark
 
-## Individual benchmark
+This benchmark is useful for
+
+- identifying memory-intensive workflow stages;
+- comparing memory usage across different workflows;
+- measuring compilation overhead;
+- tracking memory regressions;
+- evaluating memory scaling with increasing model complexity.
+
+---
+
+# Running the Benchmark
+
+## Run directly
 
 ```bash
 pixi run python -m src.run_memory_scaling \
@@ -51,7 +89,7 @@ pixi run python -m src.run_memory_scaling \
     --plot-dir docs/assets/plots/memory_scaling
 ```
 
-## Using the benchmark runner
+## Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -71,103 +109,111 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
----
+# Command-line Arguments
 
-## Command-line Arguments
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | Workspace files to benchmark. |
+| `--targets` | Model targets. |
+| `--modes` | PyTensor compilation modes. |
+| `--stages` | Workflow stages to profile. |
+| `--n-runs` | Number of repeated timing measurements. |
+| `--n-evaluations` | Number of repeated evaluations. |
+| `--distribution` | Distribution used during PDF evaluation. |
+| `--scan-parameter` | Parameter scanned during the NLL benchmark. |
+| `--scan-min` | Lower scan bound. |
+| `--scan-max` | Upper scan bound. |
+| `--n-scan-points` | Number of scan points. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison figures. |
+| `--plot-dir` | Directory for generated plots. |
 
-The benchmark supports the following command-line arguments.
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files used for memory profiling. Each workspace is benchmarked independently. |
-| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names). A separate benchmark is executed for each target. |
-| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes used throughout the workflow. |
-| `--stages` | `str ...` | `all` | Workflow stages to profile. Supported values are `all`, `workspace_loading`, `model_creation`, `log_prob_construction`, `log_prob_compilation`, `compiled_evaluation`, `pdf_evaluation`, and `nll_scan`. |
-| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated timing measurements for workflow stages that perform repeated timing. |
-| `--n-evaluations` | `int` | `DEFAULT_N_EVALUATIONS` | Number of repeated evaluations used by the compiled evaluation and PDF evaluation stages. |
-| `--distribution` | `str` | `sig_ch0` | Probability distribution evaluated during the PDF evaluation stage. |
-| `--scan-parameter` | `str` | `mu_sig` | Model parameter varied during the NLL scan stage. |
-| `--scan-min` | `float` | `0.0` | Lower bound of the NLL scan range. |
-| `--scan-max` | `float` | `5.0` | Upper bound of the NLL scan range. Must be greater than `--scan-min`. |
-| `--n-scan-points` | `int` | `101` | Number of uniformly spaced scan points used during the NLL scan stage. |
-| `--output-dir` | `Path` | `results/memory_scaling/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `memory_scaling_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate memory comparison plots for the selected workflow stages. |
-| `--plot-dir` | `Path` | `docs/assets/plots/memory_scaling/` | Directory where generated benchmark plots will be stored. |
-
-## Notes
-
-- At least one workspace, target, and compilation mode must be provided.
-- By default, all workflow stages are profiled. Use `--stages` to measure only selected stages.
-- Each workflow stage is executed in an isolated Python process so that memory measurements are not affected by allocations from previous stages.
-- `--n-runs` and `--n-evaluations` must be at least **1**.
-- `--scan-min` must be smaller than `--scan-max`.
-- `--n-scan-points` must be at least **2**.
-- The benchmark records current RSS and peak RSS before and after every workflow stage, allowing memory usage to be attributed to individual stages independently.
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
 
 ---
 
-# Benchmark outputs
+# Generated Outputs
 
 The benchmark produces
 
-- current RSS increase for each workflow stage;
-- peak RSS increase for each workflow stage;
-- peak RSS after each workflow stage;
-- per-stage timing information when available;
-- JSON result file;
-- optional plots.
+```text
+results/
+└── memory_scaling/
+    └── memory_scaling_result.json
+```
+
+and, when plotting is enabled,
+
+```text
+docs/
+└── assets/
+    └── plots/
+        └── memory_scaling/
+```
+
+The report structure and output conventions are documented in **Benchmark Results**.
 
 ---
 
-# Validation
+# Results
 
-Each benchmark run verifies that
-
-- every workflow stage completes successfully;
-- all RSS measurements are collected;
-- memory statistics are available for every stage;
-- benchmark-specific validation passes for each stage;
-- all results are written to the output JSON.
-
----
-
-# Example results
-
-## Current RSS increase
+## Current RSS Increase
 
 ![](../assets/plots/memory_scaling/memory_scaling_current_rss_delta.png)
 
-The current RSS increase is negligible for most workflow stages.
+Current RSS remains small for most workflow stages.
 
-The dominant allocation occurs during log-probability compilation, where the JAX compilation pipeline allocates approximately 140 MB of additional memory. Workspace loading and model creation introduce only modest memory growth, while compiled evaluation, PDF evaluation, and NLL scanning require almost no additional memory.
+The dominant allocation occurs during **Log-Probability Compilation**, where JAX compilation allocates approximately **140 MB** of additional memory. Workspace loading, model creation, compiled evaluation, PDF evaluation, and NLL scanning contribute comparatively little to overall memory growth.
 
 ---
 
-## Peak RSS increase
+## Peak RSS Increase
 
 ![](../assets/plots/memory_scaling/memory_scaling_peak_rss_delta.png)
 
 Peak RSS closely follows the current RSS measurements.
 
-Again, nearly all additional memory is allocated during log-probability compilation, while the remaining workflow stages contribute only small or negligible increases.
+Again, compilation is responsible for nearly all additional memory allocation, while the remaining workflow stages exhibit only modest increases.
 
 ---
 
-## Peak RSS after each workflow stage
+## Peak RSS After Each Workflow Stage
 
 ![](../assets/plots/memory_scaling/memory_scaling_peak_rss_after.png)
 
-The highest peak RSS is observed immediately after log-probability compilation.
+The highest memory footprint is observed immediately after log-probability compilation.
 
-Subsequent compiled evaluations and NLL scans reuse the compiled representation without introducing significant additional allocations, demonstrating that the compilation cost is largely a one-time overhead.
+Subsequent compiled evaluations, PDF evaluations, and NLL scans reuse the compiled representation without introducing substantial additional allocations.
 
 ---
 
-# Interpretation
+# Key Observations
 
-The benchmark shows that memory consumption is concentrated almost entirely in the log-probability compilation stage.
+The benchmark highlights several important characteristics of the current implementation.
 
-Workspace loading, model construction, PDF evaluation, and NLL scanning have relatively small memory footprints. Once compilation has completed, subsequent evaluations reuse the compiled graph with essentially no additional memory growth.
+- Memory consumption is dominated by log-probability compilation.
+- Workspace loading and model construction have relatively small memory footprints.
+- Runtime evaluation stages reuse the compiled graph with minimal additional allocations.
+- Compilation represents the primary one-time memory cost of the workflow.
 
-This behavior indicates that the primary memory cost of the workflow is the initial JAX compilation, while repeated likelihood evaluations remain memory efficient.
+---
+
+# Limitations
+
+This benchmark measures memory usage for individual workflow stages executed in isolation.
+
+It is intended for comparative analysis of memory behavior rather than detailed runtime performance. Timing-focused measurements are documented in the corresponding benchmark pages.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Benchmark Methodology**
+- **Benchmark Results**
+- **Workspace Lifecycle**
+- **Log-Probability Compilation**
+- **Compiled Evaluation**
+- **Model Complexity Scaling**

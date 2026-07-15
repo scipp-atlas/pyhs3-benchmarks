@@ -1,23 +1,80 @@
-# Compiled Evaluation Benchmark
+# Compiled Evaluation
 
-This benchmark measures the execution cost of evaluating a previously compiled pyHS3 log-probability graph.
+On this page, you will learn what the **Compiled Evaluation** benchmark measures, how to run it, and how to interpret its results.
 
-Unlike the graph construction or compilation benchmarks, this benchmark excludes workspace loading, model creation, graph construction, and graph compilation. These steps are performed once during setup and are not included in the reported timings. The measured operation is repeated execution of the compiled graph.
+The **Compiled Evaluation** benchmark measures the performance of repeatedly executing an already compiled PyHS3 log-probability graph.
 
-## What is measured
+Unlike **Log-Probability Compilation**, this benchmark excludes workspace loading, model creation, graph construction, graph optimization, and compilation. Those stages are performed once during setup. Only execution of the compiled graph is included in the reported measurements.
 
-For every workspace, target, mode, and evaluation count, the benchmark reports:
+---
 
-- Average wall time per evaluation
-- Throughput (evaluations per second)
-- Current RSS memory delta
-- Peak RSS memory delta
+# What This Benchmark Measures
 
-Before timing begins, the benchmark validates that repeated evaluations produce stable finite outputs.
+For each benchmark configuration, the benchmark reports
 
-## Running
+- average wall time per evaluation;
+- evaluation throughput;
+- current RSS memory increase;
+- peak RSS memory increase;
+- numerical validation status.
 
-Run the benchmark directly:
+Before timing begins, the benchmark verifies that repeated evaluations produce stable finite outputs.
+
+Details of the measurement methodology are described in **Benchmark Methodology**.
+
+---
+
+# Benchmark Workflow
+
+```text
+Workspace
+      │
+      ▼
+Workspace.load(...)
+      │
+      ▼
+Workspace.model(...)
+      │
+      ▼
+model.log_prob
+      │
+      ▼
+Compile Graph
+      │
+      ▼
+Repeated Graph Evaluation
+      │
+      ├────────► Average Time
+      ├────────► Throughput
+      ├────────► Memory
+      └────────► Validation
+      │
+      ▼
+JSON Report
+      │
+      ▼
+Comparison Plots (optional)
+```
+
+Only execution of the compiled graph contributes to the reported benchmark results.
+
+---
+
+# When to Use This Benchmark
+
+This benchmark is useful for
+
+- measuring steady-state compiled execution performance;
+- comparing evaluation throughput across benchmark workspaces;
+- detecting execution-time regressions;
+- evaluating runtime memory usage;
+- separating execution costs from compilation overhead.
+
+---
+
+# Running the Benchmark
+
+## Run directly
 
 ```bash
 pixi run python -m src.run_compiled_evaluation \
@@ -30,12 +87,12 @@ pixi run python -m src.run_compiled_evaluation \
     --targets L_ch0 \
     --modes FAST_RUN \
     --n-evaluations 1 10 100 1000 10000 \
-    --output-dir results/docs_examples/function_compilation \
+    --output-dir results/docs_examples/compiled_evaluation \
     --plot \
-    --plot-dir docs/assets/plots/function_compilation
+    --plot-dir docs/assets/plots/compiled_evaluation
 ```
 
-The benchmark can also be executed through the benchmark runner:
+## Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -49,56 +106,123 @@ pixi run python -m src.run_all_benchmarks \
     --targets L_ch0 \
     --modes FAST_RUN \
     --n-evaluations 1 10 100 1000 10000 \
-    --output-dir results/docs_examples \
-    --plot \
-    --plot-dir docs/assets
+    --plot
 ```
 
 ---
 
----
+# Command-line Arguments
 
-## Command-line Arguments
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | Workspace files to benchmark. |
+| `--targets` | Model targets passed to `Workspace.model(...)`. |
+| `--modes` | PyTensor compilation modes. |
+| `--n-evaluations` | Numbers of repeated compiled graph evaluations. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison plots. |
+| `--plot-dir` | Directory for generated figures. |
 
-The benchmark supports the following command-line arguments.
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
-| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the statistical model. |
-| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
-| `--n-evaluations` | `int ...` | `1 10 100 1000 10000` | Numbers of repeated compiled graph evaluations to benchmark. A separate benchmark is executed for each evaluation count. |
-| `--output-dir` | `Path` | `results/compiled_evaluation/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `compiled_evaluation_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
-| `--plot-dir` | `Path` | `docs/assets/plots/compiled_evaluation/` | Directory where generated benchmark plots will be stored. |
-
-## Notes
-
-- At least one workspace, target, compilation mode, and evaluation count must be provided.
-- A separate benchmark is executed for every combination of workspace, target, compilation mode, and number of evaluations.
-- Every value supplied to `--n-evaluations` must be greater than or equal to **1**.
-- Workspace loading, model creation, symbolic log-probability construction, and graph compilation are treated as setup steps and are excluded from the reported timing measurements.
-- Before timing begins, the benchmark performs several validation evaluations to verify that repeated executions produce finite and numerically stable outputs.
-- Memory usage is measured separately using a single compiled graph evaluation so that RSS measurements are not affected by repeated timing iterations.
-- Each benchmark configuration is executed in a fresh Python subprocess to improve measurement reproducibility and eliminate interference from previous runs.
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
 
 ---
 
-## Example results
+# Generated Outputs
 
-### Average evaluation time
+The benchmark produces
+
+```text
+results/
+└── compiled_evaluation/
+    └── compiled_evaluation_result.json
+```
+
+and, when plotting is enabled,
+
+```text
+docs/
+└── assets/
+    └── plots/
+        └── compiled_evaluation/
+            ├── compiled_evaluation_average_time.png
+            ├── compiled_evaluation_throughput.png
+            ├── compiled_evaluation_current_rss_delta.png
+            └── compiled_evaluation_peak_rss_delta.png
+```
+
+The report structure and output conventions are documented in **Benchmark Results**.
+
+---
+
+# Results
+
+## Average Evaluation Time
 
 ![Compiled evaluation average wall time](../assets/plots/compiled_evaluation/compiled_evaluation_average_time.png)
 
-The average evaluation time remains nearly constant for small and moderate numbers of evaluations. As the number of repeated evaluations increases to 10,000, the average execution time increases across all tested workspaces, indicating reduced throughput during long-running evaluation loops.
+Average execution time remains nearly constant for small and moderate numbers of repeated evaluations.
 
-### Evaluation throughput
+At very large evaluation counts (10,000 evaluations), execution time increases slightly across all benchmark workspaces, indicating a modest reduction in throughput during long-running evaluation loops.
+
+---
+
+## Evaluation Throughput
 
 ![Compiled evaluation throughput](../assets/plots/compiled_evaluation/compiled_evaluation_throughput.png)
 
-Throughput is largely stable between 1 and 100 evaluations and then gradually decreases as the number of repeated evaluations increases. The 10-channel workspace without nuisance parameters achieves the highest throughput across all tested evaluation counts.
+Throughput remains largely stable between 1 and 100 evaluations and gradually decreases for larger evaluation counts.
 
-### Memory usage
+The **10-channel** workspace without nuisance parameters achieves the highest throughput across all tested configurations.
 
-For all tested workspaces, both current RSS delta and peak RSS delta remain equal to zero during repeated compiled graph evaluation. This indicates that evaluating an already compiled graph does not allocate additional persistent memory beyond the initial setup phase.
+---
+
+## Memory Usage
+
+Current RSS and peak RSS remain effectively unchanged during repeated compiled graph evaluation.
+
+This demonstrates that executing an already compiled graph introduces no measurable additional persistent memory allocation beyond the initial setup and compilation stages.
+
+---
+
+# Implementation Notes
+
+The benchmark includes several implementation choices that improve measurement quality.
+
+- Workspace loading, model creation, graph construction, optimization, and compilation are excluded from the reported timings.
+- Repeated evaluations are performed on a single compiled graph.
+- Numerical validation is performed before timing begins.
+- Memory measurements are collected independently of timing measurements.
+
+The general benchmark methodology is documented in **Benchmark Methodology**.
+
+---
+
+# Limitations
+
+This benchmark measures only repeated execution of an already compiled log-probability graph.
+
+It does **not** measure
+
+- workspace loading;
+- model creation;
+- graph construction;
+- graph canonicalization;
+- graph optimization;
+- graph compilation;
+- PDF evaluation.
+
+These workflow stages are benchmarked separately.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Log-Probability Compilation**
+- **PDF Evaluation**
+- **NLL Scan**
+- **Benchmark Methodology**
+- **Benchmark Results**
+- **Workspace Lifecycle**

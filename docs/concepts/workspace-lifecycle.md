@@ -1,112 +1,54 @@
 # Workspace Lifecycle
 
-Every benchmark in the PyHS3 Benchmarks repository operates on one or more HS3 workspaces.
+On this page, you will learn how an HS3 workspace is transformed from a serialized model into an executable statistical representation used throughout the PyHS3 workflow.
 
-A workspace progresses through several well-defined stages during benchmark execution, from a serialized JSON description to an executable statistical model. Different benchmark suites measure different stages of this lifecycle, allowing the overall workflow to be analyzed in a modular and reproducible way.
+Rather than describing benchmark execution, this page focuses on the evolution of a workspace itself. Each stage transforms the statistical model into a representation suitable for the next stage of the inference pipeline.
 
 ---
 
 # Lifecycle Overview
 
-The complete workspace lifecycle is illustrated below.
-
-```text
-HS3 Workspace (JSON)
-          │
-          ▼
-Workspace Loading
-          │
-          ▼
-Model Creation
-          │
-          ▼
-Log-Probability Construction
-          │
-          ▼
-Graph Canonicalization
-          │
-          ▼
-Graph Optimization
-          │
-          ▼
-Compilation
-          │
-          ▼
-Compiled Model
-          │
-          ├────────────► PDF Evaluation
-          │
-          ├────────────► NLL Scan
-          │
-          ├────────────► Memory Scaling
-          │
-          └────────────► Cross-Framework Benchmarks
-```
-
-Each benchmark focuses on one or more stages of this lifecycle while reusing the outputs produced by previous stages.
+Each stage transforms the workspace into a richer internal representation that can be reused by subsequent stages.
 
 ---
 
 # Stage 1 — Workspace Loading
 
-The lifecycle begins with an HS3 workspace stored as a JSON document.
+The lifecycle begins with a serialized HS3 workspace stored as JSON.
 
-During this stage, the serialized workspace is deserialized into an in-memory `Workspace` object.
-
-This stage is measured by the **Workspace Loading** benchmark.
-
-Typical operations include
-
-- reading the workspace file;
-- validating the workspace structure;
-- constructing the in-memory workspace representation.
+During this stage the workspace is read from disk and converted into an in-memory `Workspace` object that represents the statistical model.
 
 ---
 
 # Stage 2 — Model Creation
 
-Once the workspace has been loaded, PyHS3 constructs the corresponding statistical model.
+The workspace is transformed into a collection of statistical model objects.
 
-During this stage,
-
-- model components are instantiated;
-- parameters are created;
-- observables are connected;
-- probability density functions are assembled.
-
-This stage is measured independently by the **Model Creation** benchmark.
+Parameters, observables, probability density functions, and model components are connected to form an executable representation of the statistical model.
 
 ---
 
 # Stage 3 — Log-Probability Construction
 
-The statistical model is transformed into a symbolic log-probability representation.
+The statistical model is converted into a symbolic log-probability graph.
 
-This stage constructs the computational graph that will later be optimized and evaluated.
-
-The resulting graph represents the mathematical operations required to evaluate the statistical model.
-
-This stage is measured by the **Log-Probability Construction** benchmark.
+Instead of performing numerical evaluation immediately, this stage builds a computational representation that can later be optimized and executed efficiently.
 
 ---
 
 # Stage 4 — Graph Canonicalization
 
-The symbolic graph is transformed into a canonical representation.
+The symbolic graph is rewritten into a canonical representation.
 
-Canonicalization simplifies graph structure and establishes a consistent representation that is independent of implementation details.
-
-This stage improves reproducibility and prepares the graph for subsequent optimization.
+This normalization step provides a consistent graph structure independent of how the original model was specified.
 
 ---
 
 # Stage 5 — Graph Optimization
 
-The canonical graph is optimized before numerical execution.
+The canonical graph is simplified before numerical execution.
 
-Typical optimizations include simplifying symbolic expressions and removing redundant computations where possible.
-
-The optimized graph forms the basis for efficient compiled execution.
+Expression simplification and elimination of redundant computations prepare the graph for efficient evaluation.
 
 ---
 
@@ -114,49 +56,45 @@ The optimized graph forms the basis for efficient compiled execution.
 
 The optimized graph is compiled into an executable representation.
 
-Compilation transforms the symbolic graph into a form suitable for repeated numerical evaluation.
-
-Compilation is performed only once and is measured separately from execution to distinguish setup costs from runtime performance.
+Compilation converts the symbolic computation into a form that can be evaluated repeatedly with minimal overhead.
 
 ---
 
 # Stage 7 — Numerical Evaluation
 
-After compilation, the workspace is ready for numerical computations.
+Once compilation is complete, the model can be evaluated efficiently.
 
-Depending on the benchmark, this stage may include
+Depending on the analysis, this executable representation may be used for
 
-- evaluating probability density functions;
-- evaluating compiled log-probabilities;
-- scanning the negative log-likelihood;
-- performing cross-framework comparisons.
+- probability density evaluation;
+- likelihood evaluation;
+- likelihood scans;
+- memory studies;
+- cross-framework comparisons.
 
-Because the expensive setup stages have already completed, these benchmarks measure execution performance independently of initialization costs.
+These analyses all reuse the same compiled statistical model.
 
 ---
 
-# Why Separate the Lifecycle?
+# Why the Lifecycle Matters
 
-The statistical inference workflow consists of multiple computational stages with different performance characteristics.
+Representing the workflow as a sequence of independent transformations provides several advantages.
 
-Measuring each stage independently makes it possible to
+- Each stage has a clearly defined responsibility.
+- Intermediate representations can be inspected independently.
+- Expensive preparation stages are performed only once.
+- Later stages reuse the outputs of earlier transformations.
 
-- identify computational bottlenecks;
-- evaluate optimization strategies;
-- distinguish setup costs from execution costs;
-- study memory usage throughout the workflow;
-- compare implementations at equivalent stages.
-
-This modular approach provides significantly more insight than measuring only the total execution time.
+This layered design simplifies both optimization and maintenance of the statistical inference pipeline.
 
 ---
 
 # Relationship to Benchmark Suites
 
-Each benchmark suite corresponds to one or more stages of the workspace lifecycle.
+Many benchmark suites measure the performance of one lifecycle stage.
 
-| Lifecycle stage | Benchmark |
-|-----------------|-----------|
+| Workspace lifecycle stage | Corresponding benchmark |
+|---------------------------|-------------------------|
 | Workspace Loading | Workspace Loading |
 | Model Creation | Model Creation |
 | Log-Probability Construction | Log-Probability Construction |
@@ -166,7 +104,7 @@ Each benchmark suite corresponds to one or more stages of the workspace lifecycl
 | Numerical Evaluation | Compiled Evaluation, PDF Evaluation, NLL Scan |
 | Cross-Framework Evaluation | Cross-Framework Benchmarks |
 
-Together these benchmark suites provide complete coverage of the statistical workflow implemented by PyHS3.
+This mapping allows individual stages of the workspace lifecycle to be evaluated independently without changing the underlying statistical workflow.
 
 ---
 
@@ -174,7 +112,7 @@ Together these benchmark suites provide complete coverage of the statistical wor
 
 See also
 
-- **Benchmark Workflow** for the overall benchmark execution process.
-- **Benchmark Methodology** for the measurement strategy used throughout the repository.
-- **Benchmark Suite** for detailed descriptions of each benchmark.
-- **Benchmark Results** for generated reports and visualizations.
+- **Benchmark Methodology** — how benchmark measurements are performed.
+- **Benchmark Suite** — detailed descriptions of each benchmark.
+- **Benchmark Workspaces** — available benchmark input models.
+- **Benchmark Results** — generated reports and visualizations.

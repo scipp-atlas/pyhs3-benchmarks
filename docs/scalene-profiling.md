@@ -1,71 +1,53 @@
 # Profiling with Scalene
 
-Performance benchmarking measures **how fast** an operation executes.
+On this page, you will learn how to use **Scalene** to profile benchmark implementations, identify performance bottlenecks, and guide optimization efforts.
 
-Profiling answers a different question:
-
-> **Where is execution time spent?**
-
-For this purpose, the benchmark suite uses **Scalene**, a high-performance profiler for Python that provides detailed CPU and memory attribution.
-
-Unlike traditional profilers, Scalene distinguishes between
-
-- Python execution time;
-- native extension execution time;
-- system time;
-- memory allocation;
-- memory growth;
-- memory copy volume.
-
-This information is invaluable when identifying optimization opportunities within PyHS3.
+While benchmarking measures **how fast** a benchmark executes, profiling explains **where execution time and memory are spent**. Within this repository, Scalene is an optional developer tool used to investigate benchmark performance rather than to produce benchmark results.
 
 ---
 
 # Why Scalene?
 
-Many PyHS3 operations involve
+PyHS3 Benchmarks combines Python orchestration with numerical libraries such as
 
 - NumPy;
 - JAX;
-- compiled numerical kernels;
-- Python orchestration;
-- memory-intensive graph construction.
+- compiled numerical kernels.
 
-Traditional profilers often attribute all execution time to Python function calls, making it difficult to understand where performance is actually spent.
+Traditional profilers often attribute most execution time to Python function calls, making it difficult to distinguish Python overhead from compiled execution.
 
-Scalene separates
+Scalene reports
 
 - Python CPU time;
 - native CPU time;
 - system CPU time;
 - memory allocation;
-- memory growth.
+- memory growth;
+- memory copy volume.
 
-This makes it significantly easier to identify performance bottlenecks and understand whether they originate from Python code or compiled libraries.
+This makes it easier to identify whether a performance bottleneck originates in Python code or compiled libraries.
 
 ---
 
-# What We Use Scalene For
+# Typical Use Cases
 
 Within this repository, Scalene is primarily used to
 
 - investigate performance bottlenecks;
 - identify expensive Python code paths;
-- study memory allocation patterns;
+- analyze memory allocation patterns;
 - understand memory growth;
-- guide optimization efforts.
+- evaluate the impact of performance optimizations.
 
-Scalene is intended for **performance analysis**, not benchmark reporting.
-
-The benchmark figures presented throughout this documentation are produced by the benchmarking framework itself. Scalene serves as a complementary tool for understanding *why* a benchmark performs the way it does.
+Benchmark reports and publication-quality figures are produced by the benchmarking framework itself. Scalene complements these results by explaining *why* a benchmark behaves as it does.
 
 ---
 
 # Running Scalene
 
-Any benchmark script can be profiled with Scalene.
+Any benchmark can be profiled using Scalene.
 
-For example, to profile the model creation benchmark:
+For example, to profile the Model Creation benchmark:
 
 ```bash
 pixi run scalene \
@@ -73,15 +55,15 @@ pixi run scalene \
     -o results/scalene/model_creation.json
 ```
 
-The `-o` option stores the profiling results in JSON format, allowing them to be archived or analyzed programmatically.
+The `-o` option stores the profile in JSON format for later inspection or automated analysis.
 
-Alternatively, Scalene can generate an interactive HTML report:
+To generate an interactive HTML report instead:
 
 ```bash
 pixi run scalene src/run_model_creation.py
 ```
 
-After execution, Scalene automatically creates an HTML report that can be viewed in a web browser.
+After execution, Scalene automatically generates an HTML report that can be explored in a web browser.
 
 ---
 
@@ -91,18 +73,18 @@ A common optimization workflow is
 
 1. Run a benchmark.
 2. Identify a slow stage.
-3. Profile that stage using Scalene.
-4. Locate Python bottlenecks.
+3. Profile that stage with Scalene.
+4. Locate the performance bottleneck.
 5. Optimize the implementation.
-6. Re-run the benchmark to quantify the improvement.
+6. Re-run the benchmark to measure the improvement.
 
-This separates **performance measurement** from **performance diagnosis**, resulting in a reproducible optimization workflow.
+This workflow separates **performance measurement** from **performance diagnosis**.
 
 ---
 
 # Understanding the Output
 
-Scalene reports several useful metrics.
+Scalene reports several useful performance metrics.
 
 | Metric | Description |
 |---------|-------------|
@@ -113,19 +95,17 @@ Scalene reports several useful metrics.
 | Memory Growth | Net memory increase |
 | Copy Volume | Amount of memory copied between objects |
 
-Together, these metrics provide a comprehensive view of application performance.
+Together, these metrics provide a detailed view of CPU and memory behavior during benchmark execution.
 
 ---
 
 # JSON Output
 
-Within this repository, Scalene profiles are commonly stored as JSON files in
+Scalene profiles are commonly stored under
 
 ```text
 results/scalene/
 ```
-
-Storing profiles as JSON allows profiling results to be archived, compared across benchmark runs, and analyzed programmatically.
 
 A typical profile contains
 
@@ -136,7 +116,7 @@ A typical profile contains
 - line-level CPU utilization;
 - memory allocation information.
 
-For example, the repository includes a Scalene profile generated while executing the `model_creation` benchmark, illustrating the structure of Scalene's JSON output. :contentReference[oaicite:0]{index=0}
+Because profiles are stored in JSON format, they can be archived, compared across optimization iterations, and analyzed programmatically.
 
 ---
 
@@ -147,15 +127,15 @@ Scalene is particularly useful when
 - optimizing benchmark implementations;
 - investigating unexpectedly slow benchmarks;
 - identifying excessive memory allocations;
-- validating the impact of performance optimizations.
+- validating optimization efforts.
 
-Routine benchmark execution does not require Scalene. It is an optional tool intended for performance investigation during development and optimization.
+Routine benchmark execution does **not** require Scalene. It is intended as a development and performance analysis tool.
 
 ---
 
 # Benchmarking vs Profiling
 
-Although closely related, benchmarking and profiling serve different purposes.
+Although closely related, benchmarking and profiling answer different questions.
 
 | Benchmarking | Profiling |
 |--------------|-----------|
@@ -164,12 +144,23 @@ Although closely related, benchmarking and profiling serve different purposes.
 | Generates benchmark reports | Guides optimization |
 | Compares implementations | Analyzes implementation details |
 
-In this repository, benchmarking is used to measure performance across benchmark suites, while Scalene is used to investigate and optimize the underlying implementation.
+See **Benchmark Methodology** for details on how benchmark measurements are collected and reported.
 
 ---
 
 # Further Reading
 
-Additional information about Scalene is available in the official project documentation:
+For installation instructions, advanced usage, and additional examples, see the official **Scalene** repository:
 
 https://github.com/plasma-umass/scalene
+
+---
+
+# Related Documentation
+
+See also
+
+- **Benchmark Methodology**
+- **Development**
+- **Outputs**
+- **Benchmark Matrix Runner**

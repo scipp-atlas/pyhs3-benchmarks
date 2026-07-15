@@ -1,14 +1,14 @@
 # Log-Probability Construction
 
-Constructing the symbolic log-probability graph is the first computational step after model creation.
+On this page, you will learn what the **Log-Probability Construction** benchmark measures, how to run it, and how to interpret its results.
 
-This benchmark measures the cost of accessing `model.log_prob`, which builds the symbolic PyTensor likelihood expression without compiling or evaluating it.
+The **Log-Probability Construction** benchmark measures the time and memory required to construct the symbolic PyTensor log-probability graph from an already created statistical model.
 
-The benchmark isolates graph construction from both model creation and graph compilation.
+Workspace loading and model creation are treated as setup steps and are excluded from the reported measurements. Likewise, graph compilation and numerical evaluation are benchmarked separately.
 
 ---
 
-# What is measured
+# What This Benchmark Measures
 
 The benchmark measures only the execution of
 
@@ -16,23 +16,65 @@ The benchmark measures only the execution of
 log_prob = model.log_prob
 ```
 
-The following operations are performed before timing begins:
+For each benchmark configuration, it reports
 
-- loading the workspace;
-- creating the statistical model.
+- mean wall time;
+- median wall time;
+- standard deviation;
+- current RSS memory increase;
+- peak RSS memory increase;
+- graph validation status.
 
-The following operations are **not** included:
+The benchmark measures symbolic graph construction only. Compilation and numerical execution are intentionally excluded.
 
-- graph compilation;
-- likelihood evaluation;
-- optimization passes;
-- numerical execution.
+Details of the measurement methodology are described in **Benchmark Methodology**.
 
 ---
 
-# Running the benchmark
+# Benchmark Workflow
 
-## Individual benchmark
+```text
+Workspace
+      │
+      ▼
+Workspace.load(...)
+      │
+      ▼
+Workspace.model(...)
+      │
+      ▼
+model.log_prob
+      │
+      ├────────► Graph Validation
+      ├────────► Timing Statistics
+      └────────► Memory Statistics
+      │
+      ▼
+JSON Report
+      │
+      ▼
+Comparison Plots (optional)
+```
+
+Only symbolic graph construction contributes to the reported benchmark results.
+
+---
+
+# When to Use This Benchmark
+
+This benchmark is useful for
+
+- measuring symbolic graph construction overhead;
+- comparing graph construction across benchmark workspaces;
+- evaluating memory consumption before compilation;
+- detecting graph-construction regressions;
+- separating graph construction from compilation costs.
+
+---
+
+# Running the Benchmark
+
+## Run directly
 
 ```bash
 pixi run python -m src.run_log_prob_construction \
@@ -50,7 +92,7 @@ pixi run python -m src.run_log_prob_construction \
     --plot-dir docs/assets/plots/log_prob_construction
 ```
 
-## Using the benchmark runner
+## Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -69,92 +111,118 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
----
+# Command-line Arguments
 
-## Command-line Arguments
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | Workspace files to benchmark. |
+| `--targets` | Model targets passed to `Workspace.model(...)`. |
+| `--modes` | PyTensor compilation modes. |
+| `--n-runs` | Number of repeated timing measurements. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison plots. |
+| `--plot-dir` | Directory for generated figures. |
 
-The benchmark supports the following command-line arguments.
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
-| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the statistical model. |
-| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
-| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated log-probability construction timing measurements for each workspace/target/mode combination. |
-| `--output-dir` | `Path` | `results/log_prob_construction/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `log_prob_construction_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
-| `--plot-dir` | `Path` | `docs/assets/plots/log_prob_construction/` | Directory where generated benchmark plots will be stored. |
-
-## Notes
-
-- At least one workspace, target, and compilation mode must be provided.
-- A separate benchmark is executed for every combination of workspace, target, and compilation mode.
-- `--n-runs` must be greater than or equal to **1**.
-- Workspace loading and model creation are treated as setup steps and are excluded from the reported timing measurements.
-- Each timing measurement constructs the symbolic log-probability graph from a freshly created model to ensure consistent and reproducible measurements.
-- The benchmark measures only symbolic graph construction (`model.log_prob`) and does not include graph compilation or numerical evaluation.
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
 
 ---
 
-# Benchmark outputs
+# Generated Outputs
 
 The benchmark produces
 
-- wall time measurements;
-- current RSS increase;
-- peak RSS increase;
-- validation information describing the constructed symbolic graph;
-- JSON result file;
-- optional plots.
+```text
+results/
+└── log_prob_construction/
+    └── log_prob_construction_result.json
+```
+
+and, when plotting is enabled,
+
+```text
+docs/
+└── assets/
+    └── plots/
+        └── log_prob_construction/
+            ├── log_prob_construction_wall_time.png
+            ├── log_prob_construction_current_rss_delta.png
+            └── log_prob_construction_peak_rss_delta.png
+```
+
+The report structure and output conventions are documented in **Benchmark Results**.
 
 ---
 
-# Validation
+# Results
 
-Each benchmark run verifies that
-
-- `model.log_prob` is successfully constructed;
-- the returned object is a PyTensor `TensorVariable`;
-- the graph has a valid dtype and dimensionality;
-- the graph is ready for compilation.
-
----
-
-# Example results
-
-## Wall time
+## Wall-Time Comparison
 
 ![](../assets/plots/log_prob_construction/log_prob_construction_wall_time.png)
 
-Graph construction is inexpensive, requiring approximately **5–10 ms** across the tested workspaces.
+Constructing the symbolic log-probability graph requires approximately **5–10 ms** across the benchmark workspace collection.
 
-The 10-channel workspace is noticeably faster (~5 ms), while the remaining workspaces consistently complete in about 9.7 ms.
+The observed runtime varies only modestly with workspace complexity, indicating that graph construction is inexpensive compared with later workflow stages such as compilation.
 
 ---
 
-## Current RSS increase
+## Current RSS Memory
 
 ![](../assets/plots/log_prob_construction/log_prob_construction_current_rss_delta.png)
 
-Constructing the symbolic graph allocates almost no additional memory.
+Current RSS remains below **0.05 MB** for every benchmark workspace.
 
-The measured RSS increase remains below **0.05 MB** for every workspace.
+The benchmark demonstrates that symbolic graph construction introduces almost no persistent memory overhead.
 
 ---
 
-## Peak RSS increase
+## Peak RSS Memory
 
 ![](../assets/plots/log_prob_construction/log_prob_construction_peak_rss_delta.png)
 
-Peak memory usage is effectively unchanged during graph construction.
+Peak RSS is effectively unchanged during graph construction.
 
-Only the smallest workspace exhibits a measurable increase (approximately **0.125 MB**), while all remaining workspaces show no observable peak RSS growth.
+Only the smallest benchmark workspace exhibits a measurable temporary allocation, while the remaining workspaces show negligible peak memory growth.
 
 ---
 
-# Interpretation
+# Implementation Notes
 
-This benchmark demonstrates that symbolic log-probability construction is both fast and memory efficient.
+The benchmark includes several implementation choices that improve measurement quality.
 
-Since only the computational graph is created, the cost remains nearly independent of workspace complexity and is substantially smaller than later stages such as graph compilation or likelihood evaluation.
+- Workspace loading is excluded from the reported timings.
+- Model creation is treated as a setup step.
+- Each benchmark constructs a fresh symbolic graph.
+- Graph validation is performed before results are recorded.
+
+The general benchmark methodology is documented in **Benchmark Methodology**.
+
+---
+
+# Limitations
+
+This benchmark measures only symbolic graph construction.
+
+It does **not** measure
+
+- workspace loading;
+- model creation;
+- graph compilation;
+- graph optimization;
+- compiled evaluation;
+- PDF evaluation;
+- likelihood evaluation.
+
+These workflow stages are benchmarked separately.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Workspace Lifecycle**
+- **Log-Probability Compilation**
+- **Model Creation**
+- **Benchmark Methodology**
+- **Benchmark Results**

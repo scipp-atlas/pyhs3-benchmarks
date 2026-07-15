@@ -1,25 +1,89 @@
-# Graph Canonicalization Benchmark
+# Graph Canonicalization
 
-## Overview
+On this page, you will learn what the **Graph Canonicalization** benchmark measures, how to run it, and how to interpret its results.
 
-This benchmark measures the cost of applying PyTensor's **canonicalization rewrites** to the computational graph produced from a pyHS3 likelihood model.
+The **Graph Canonicalization** benchmark measures the time and memory required to apply PyTensor's canonicalization rewrites to a symbolic `FunctionGraph`.
 
-Canonicalization is one of the earliest optimization stages performed by PyTensor before function compilation. During this pass, algebraically equivalent expressions are rewritten into a canonical form, redundant operations are simplified, and graph structure is normalized to enable later optimization passes.
-
-Unlike the previous benchmark (`log_prob_construction`), this benchmark operates directly on an already constructed `FunctionGraph`. It isolates the performance of the canonicalization stage itself.
-
-For every benchmark run the following metrics are collected:
-
-- graph canonicalization wall time,
-- current RSS memory increase,
-- peak RSS memory increase,
-- reduction in the number of Apply nodes after canonicalization.
+Workspace loading, model creation, symbolic log-probability construction, and `FunctionGraph` creation are treated as setup steps and are excluded from the reported measurements. Later optimization passes and JAX compilation are benchmarked separately.
 
 ---
 
-## Running the benchmark
+# What This Benchmark Measures
 
-### Standard benchmark
+The benchmark measures only the execution of the PyTensor `canonicalize` rewrite database.
+
+For each benchmark configuration, it reports
+
+- mean wall time;
+- median wall time;
+- standard deviation;
+- current RSS memory increase;
+- peak RSS memory increase;
+- graph simplification statistics.
+
+During validation, the benchmark records
+
+- graph inputs;
+- graph outputs;
+- ApplyNodes before canonicalization;
+- ApplyNodes after canonicalization.
+
+Only the canonicalization pass contributes to the reported timings.
+
+Details of the measurement methodology are described in **Benchmark Methodology**.
+
+---
+
+# Benchmark Workflow
+
+```text
+Workspace
+      │
+      ▼
+Workspace.load(...)
+      │
+      ▼
+Workspace.model(...)
+      │
+      ▼
+model.log_prob
+      │
+      ▼
+FunctionGraph(...)
+      │
+      ▼
+Canonicalization
+      │
+      ├────────► Graph Validation
+      ├────────► Timing Statistics
+      └────────► Memory Statistics
+      │
+      ▼
+JSON Report
+      │
+      ▼
+Comparison Plots (optional)
+```
+
+Only graph canonicalization contributes to the reported benchmark results.
+
+---
+
+# When to Use This Benchmark
+
+This benchmark is useful for
+
+- measuring canonicalization overhead;
+- comparing canonicalization across benchmark workspaces;
+- evaluating memory usage during graph normalization;
+- detecting canonicalization regressions;
+- measuring graph simplification before later optimization stages.
+
+---
+
+# Running the Benchmark
+
+## Run directly
 
 ```bash
 pixi run python -m src.run_graph_canonicalization \
@@ -37,7 +101,7 @@ pixi run python -m src.run_graph_canonicalization \
     --plot-dir docs/assets/plots/graph_canonicalization
 ```
 
-### Using the benchmark runner
+## Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -56,136 +120,137 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
----
+# Command-line Arguments
 
-## Command-line Arguments
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | Workspace files to benchmark. |
+| `--targets` | Model targets passed to `Workspace.model(...)`. |
+| `--modes` | PyTensor compilation modes. |
+| `--n-runs` | Number of repeated canonicalization measurements. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison plots. |
+| `--plot-dir` | Directory for generated figures. |
 
-The benchmark supports the following command-line arguments.
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
-| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the statistical model. |
-| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
-| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated graph canonicalization timing measurements for each workspace/target/mode combination. |
-| `--output-dir` | `Path` | `results/graph_canonicalization/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `graph_canonicalization_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
-| `--plot-dir` | `Path` | `docs/assets/plots/graph_canonicalization/` | Directory where generated benchmark plots will be stored. |
-
-## Notes
-
-- At least one workspace, target, and compilation mode must be provided.
-- A separate benchmark is executed for every combination of workspace, target, and compilation mode.
-- `--n-runs` must be greater than or equal to **1**.
-- Workspace loading, model creation, symbolic log-probability construction, and `FunctionGraph` creation are treated as setup steps and are excluded from the reported timing measurements.
-- Each timing iteration constructs a fresh `FunctionGraph` before applying the PyTensor `canonicalize` rewrite database, ensuring that only graph canonicalization is measured.
-- The benchmark validates the canonicalized graph by reporting the number of graph inputs, graph outputs, and ApplyNodes before and after canonicalization.
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
 
 ---
 
-## Implementation
+# Generated Outputs
 
-The benchmark performs the following steps:
+The benchmark produces
 
-1. Load the workspace.
-2. Construct the symbolic log-probability graph.
-3. Build a fresh `FunctionGraph`.
-4. Measure memory before canonicalization.
-5. Apply the PyTensor `canonicalize` rewrite database.
-6. Measure execution time.
-7. Measure memory after canonicalization.
-8. Record the reduction in Apply nodes.
+```text
+results/
+└── graph_canonicalization/
+    └── graph_canonicalization_result.json
+```
 
-Each timing benchmark rebuilds the graph from scratch to ensure independent measurements.
+and, when plotting is enabled,
+
+```text
+docs/
+└── assets/
+    └── plots/
+        └── graph_canonicalization/
+            ├── graph_canonicalization_wall_time.png
+            ├── graph_canonicalization_current_rss_delta.png
+            └── graph_canonicalization_peak_rss_delta.png
+```
+
+The report structure and output conventions are documented in **Benchmark Results**.
 
 ---
 
-## Results
+# Results
 
-### Wall time
+## Wall-Time Comparison
 
 ![Graph canonicalization wall time](../assets/plots/graph_canonicalization/graph_canonicalization_wall_time.png)
 
-Canonicalization requires approximately **313–528 ms**, depending on the workspace.
+Canonicalization completes in approximately **313–528 ms** across the benchmark workspace collection.
 
-| Workspace | Mean wall time (ms) |
-|-----------|--------------------:|
-| 1 channel | **527.5 ± 4.8** |
-| 3 channels | **451.1 ± 5.4** |
-| 5 channels | **477.0 ± 5.0** |
-| 10 channels | **313.5 ± 3.0** |
-| 30 channels | **453.1 ± 5.1** |
-
-The 10-channel workspace completes canonicalization fastest because its graph contains substantially fewer Apply nodes after disabling nuisance parameters.
-
-Overall, canonicalization contributes only a few hundred milliseconds to the compilation pipeline.
+The **10-channel** workspace is the fastest because disabling nuisance parameters produces a smaller symbolic graph. Overall, canonicalization contributes only a few hundred milliseconds to the compilation pipeline.
 
 ---
 
-### Current RSS increase
+## Current RSS Memory
 
 ![Current RSS](../assets/plots/graph_canonicalization/graph_canonicalization_current_rss_delta.png)
 
-Canonicalization allocates very little additional memory.
+Canonicalization increases resident memory by approximately **12–14 MB** across all benchmark workspaces.
 
-| Workspace | Current RSS increase (MB) |
-|-----------|--------------------------:|
-| 1 channel | **13.87** |
-| 3 channels | **11.32** |
-| 5 channels | **13.56** |
-| 10 channels | **13.27** |
-| 30 channels | **12.68** |
-
-Across all benchmark configurations the additional resident memory remains close to **12–14 MB**.
+The memory footprint remains stable regardless of workspace complexity.
 
 ---
 
-### Peak RSS increase
+## Peak RSS Memory
 
 ![Peak RSS](../assets/plots/graph_canonicalization/graph_canonicalization_peak_rss_delta.png)
 
-Peak RSS follows nearly the same trend as current RSS.
+Peak RSS closely follows current RSS.
 
-| Workspace | Peak RSS increase (MB) |
-|-----------|-----------------------:|
-| 1 channel | **13.61** |
-| 3 channels | **11.08** |
-| 5 channels | **13.72** |
-| 10 channels | **12.98** |
-| 30 channels | **12.62** |
-
-No benchmark exhibits excessive temporary allocations during canonicalization.
+The benchmark shows very little temporary memory allocation during canonicalization, indicating that the rewrite pass is memory efficient.
 
 ---
 
-## Graph simplification
+## Graph Simplification
 
-Besides timing and memory, this benchmark validates that canonicalization successfully simplifies the computational graph.
+Canonicalization also validates that the symbolic graph becomes substantially simpler after applying the rewrite rules.
 
-Typical reductions observed during benchmarking include:
-
-| Workspace | Apply nodes before | Apply nodes after | Reduction |
-|-----------|-------------------:|------------------:|----------:|
+| Workspace | ApplyNodes Before | ApplyNodes After | Reduction |
+|-----------|------------------:|-----------------:|----------:|
 | 1 channel | 101 | 51 | **−50** |
 | 3 channels | 94 | 48 | **−46** |
 | 5 channels | 97 | 48 | **−49** |
 | 10 channels | 80 | 29 | **−51** |
 | 30 channels | 94 | 48 | **−46** |
 
-Across all tested workspaces, canonicalization removes roughly **half of the Apply nodes**, confirming that the rewrite pass effectively simplifies the symbolic computation graph before later optimization stages.
+Across the benchmark dataset, approximately **half of the ApplyNodes** are removed during canonicalization, demonstrating that the rewrite pass effectively simplifies the symbolic computation graph before later optimization and compilation stages.
 
 ---
 
-## Summary
+# Implementation Notes
 
-The graph canonicalization benchmark demonstrates that PyTensor's canonicalization stage is lightweight.
+The benchmark includes several implementation choices that improve measurement quality.
 
-Across representative pyHS3 workspaces:
+- Workspace loading is excluded from the reported timings.
+- Model creation, symbolic graph construction, and `FunctionGraph` creation are treated as setup.
+- Each benchmark canonicalizes a freshly constructed graph.
+- Graph validation is performed before results are recorded.
 
-- execution time remains below **0.55 s**,
-- memory overhead stays around **12–14 MB**,
-- peak memory closely matches current RSS,
-- approximately **50% of Apply nodes** are eliminated during graph simplification.
+The general benchmark methodology is documented in **Benchmark Methodology**.
 
-These results indicate that canonicalization introduces only a modest compilation cost while substantially simplifying the symbolic graph for subsequent optimization passes.
+---
+
+# Limitations
+
+This benchmark measures only symbolic graph canonicalization.
+
+It does **not** measure
+
+- workspace loading;
+- model creation;
+- symbolic graph construction;
+- graph optimization;
+- graph compilation;
+- compiled evaluation;
+- PDF evaluation;
+- likelihood evaluation.
+
+These workflow stages are benchmarked separately.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Log-Probability Construction**
+- **Graph Optimization**
+- **Log-Probability Compilation**
+- **Compiled Evaluation**
+- **Benchmark Methodology**
+- **Benchmark Results**
+- **Workspace Lifecycle**

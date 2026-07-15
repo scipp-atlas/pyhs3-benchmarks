@@ -1,14 +1,14 @@
 # Testing
 
-The project includes a comprehensive unit test suite covering benchmark execution, validation, plotting utilities, helper functions, and command-line interfaces.
+On this page, you will learn how to run the test suite, measure test coverage, and validate repository changes before contributing.
 
-All tests are executed through the project's Pixi environment, ensuring a consistent and reproducible software stack across development machines and continuous integration.
+The project includes automated tests covering benchmark execution, shared infrastructure, plotting utilities, helper modules, and command-line interfaces. All tests are executed through the Pixi environment to ensure consistent behavior across development machines and continuous integration.
 
 ---
 
 # Running the Test Suite
 
-To execute the complete test suite, run
+Run the complete test suite with
 
 ```bash
 pixi run test
@@ -22,9 +22,9 @@ pixi run pytest
 
 ---
 
-# Running Coverage
+# Measuring Test Coverage
 
-To generate a terminal coverage report, run
+Generate a terminal coverage report:
 
 ```bash
 pixi run coverage
@@ -36,7 +36,7 @@ which executes
 pytest --cov=src --cov-report=term-missing
 ```
 
-To generate an HTML coverage report,
+To generate an HTML report instead:
 
 ```bash
 pixi run pytest \
@@ -44,7 +44,7 @@ pixi run pytest \
     --cov-report=html
 ```
 
-The report will be written to
+Coverage reports are written to
 
 ```text
 htmlcov/
@@ -55,45 +55,27 @@ htmlcov/
 
 # Running Individual Test Files
 
-Any benchmark can be tested independently.
+Benchmark test modules can be executed independently.
 
-Examples:
+For example,
 
 ```bash
 pixi run pytest tests/test_run_workspace_loading.py
 ```
 
+or
+
 ```bash
 pixi run pytest tests/test_run_model_creation.py
 ```
 
-```bash
-pixi run pytest tests/test_run_log_prob_compilation.py
-```
-
-```bash
-pixi run pytest tests/test_run_compiled_evaluation.py
-```
-
-```bash
-pixi run pytest tests/test_run_pdf_evaluation.py
-```
-
-```bash
-pixi run pytest tests/test_run_nll_scan.py
-```
-
-```bash
-pixi run pytest tests/test_run_cross_nll_scan.py
-```
+The same pattern applies to all benchmark-specific test modules.
 
 ---
 
 # Running Individual Tests
 
-Pytest also allows execution of a single test function.
-
-For example,
+Execute a single test using either a name filter
 
 ```bash
 pixi run pytest \
@@ -101,7 +83,7 @@ pixi run pytest \
     -k test_run_single_benchmark
 ```
 
-or
+or the fully qualified test name
 
 ```bash
 pixi run pytest \
@@ -112,7 +94,7 @@ pixi run pytest \
 
 # Test Organization
 
-The test suite mirrors the benchmark implementation.
+The test suite mirrors the structure of the benchmark implementations.
 
 ```text
 tests/
@@ -133,74 +115,68 @@ tests/
 └── test_utils.py
 ```
 
-Each benchmark module has a corresponding test module covering:
+Benchmark tests typically cover
 
-- benchmark configuration validation;
-- successful benchmark execution;
+- benchmark configuration;
+- successful execution;
 - failure handling;
-- JSON output generation;
+- JSON report generation;
 - plotting utilities;
-- command-line interface behavior;
+- command-line interfaces;
 - numerical validation where applicable.
 
 ---
 
-# Mock-based Testing
+# Mock-Based Testing
 
-Most unit tests use lightweight mocks instead of real HS3 workspaces.
+Most unit tests rely on lightweight mocks rather than real HS3 workspaces.
 
-This approach provides several advantages:
+This approach provides
 
 - deterministic execution;
 - fast test runtime;
-- no dependency on generated benchmark inputs;
-- reliable execution in continuous integration environments.
+- minimal external dependencies;
+- reliable continuous integration.
 
-Integration tests requiring real benchmark workspaces are intentionally kept to a minimum.
+Integration tests using real benchmark workspaces are kept to a minimum.
 
 ---
 
 # Development Checks
 
-Several additional development tasks are available through Pixi.
-
-Run the complete validation suite before opening a pull request:
+Before opening a pull request, run
 
 ```bash
 pixi run ci
 ```
 
-This performs:
+This executes
 
 - Python source compilation;
 - Ruff linting;
-- Ruff formatting checks.
+- formatting checks.
 
-To run the linter only,
+Individual tasks are also available:
 
 ```bash
 pixi run lint
 ```
 
-To automatically format the source code,
-
 ```bash
 pixi run format
 ```
-
-To verify formatting without modifying files,
 
 ```bash
 pixi run format-check
 ```
 
-If pre-commit hooks are used, they can be installed with
+If pre-commit hooks are used, install them with
 
 ```bash
 pixi run install-hooks
 ```
 
-and executed manually with
+and execute them with
 
 ```bash
 pixi run pre-commit
@@ -210,7 +186,7 @@ pixi run pre-commit
 
 # Continuous Integration
 
-The GitHub Actions workflow automatically executes the project's validation pipeline for every push and pull request.
+The GitHub Actions workflow automatically validates the repository for every push and pull request.
 
 Running
 
@@ -224,4 +200,16 @@ and
 pixi run test
 ```
 
-locally before submitting changes is therefore strongly recommended.
+locally before submitting changes is strongly recommended.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Development**
+- **Repository Structure**
+- **Benchmark Methodology**
+- **Getting Started**
+- **API Reference**

@@ -1,45 +1,38 @@
 # Benchmark Suite
 
-The PyHS3 Benchmarks repository provides a comprehensive collection of benchmarks covering the complete statistical model lifecycle.
+On this page, you will learn how the benchmark suite is organized and where to find documentation for each benchmark category.
 
-Rather than focusing on a single operation, the benchmark suite evaluates every major stage involved in preparing, optimizing, and evaluating statistical models represented using the HS3 format.
+The PyHS3 Benchmarks repository provides a comprehensive benchmark suite covering the complete lifecycle of statistical models, from workspace loading to compiled evaluation and cross-framework comparisons.
 
-All benchmark suites follow the common benchmarking methodology described in the **Benchmark Methodology** guide and operate on a common collection of benchmark workspaces unless stated otherwise.
+All benchmarks follow the common methodology described in **Benchmark Methodology** and use the benchmark workspace collection documented in **Benchmark Workspaces**, unless stated otherwise.
 
 ---
 
 # Benchmark Categories
 
-The benchmark suite is organized into three major categories.
+The documentation is organized into three main sections.
 
 ## Workflow Benchmarks
 
-Workflow benchmarks measure the cost of individual stages in the statistical model lifecycle.
+Workflow benchmarks measure individual stages of the PyHS3 execution pipeline.
 
-These benchmarks isolate specific operations, making it possible to identify performance bottlenecks, compare implementations, and evaluate optimization opportunities throughout the model execution pipeline.
+Each benchmark isolates one workflow stage, making it possible to understand initialization costs, execution performance, memory usage, and scalability independently.
 
 ## Cross-Framework Benchmarks
 
-Cross-framework benchmarks compare PyHS3 against other statistical inference frameworks.
+Cross-framework benchmarks compare PyHS3 with equivalent implementations in other statistical frameworks.
 
-These benchmarks evaluate both numerical agreement and execution performance across multiple implementations.
+These benchmarks evaluate both numerical agreement and execution performance using equivalent statistical models.
 
-## Reporting
+## Benchmark Results
 
-Every benchmark produces one or more of the following artifacts:
-
-- structured JSON reports;
-- visualization plots (optional);
-- benchmark metadata;
-- validation summaries (where applicable).
-
-Large benchmark campaigns additionally generate benchmark overview reports summarizing the entire execution.
+Benchmark reports can be combined into summary figures that compare workflow stages, memory usage, scalability, and cross-framework performance.
 
 ---
 
 # Benchmark Pipeline
 
-The benchmark suite follows the typical statistical model lifecycle.
+The workflow benchmarks follow the statistical model lifecycle.
 
 ```text
 HS3 Workspace
@@ -74,46 +67,46 @@ Compiled Evaluation
       └────────────► Cross-Framework Benchmarks
 ```
 
-The pipeline reflects the order in which statistical models are typically prepared, optimized, compiled, and evaluated during an analysis.
+Each workflow stage has a dedicated benchmark page describing what is measured, how to run the benchmark, and how to interpret the results.
 
 ---
 
 # Workflow Benchmarks
 
-| Benchmark | Measures | Input | Outputs |
-|------------|----------|-------|---------|
-| Workspace Loading | HS3 workspace deserialization | One or more HS3 workspaces | JSON report, wall-time plot, RSS memory plots |
-| Model Creation | Statistical model construction | One or more HS3 workspaces | JSON report, timing plots |
-| Log-Probability Construction | Computational graph construction | One or more HS3 workspaces | JSON report, timing plots |
-| Log-Probability Compilation | Graph compilation for execution | One or more HS3 workspaces | JSON report, timing plots |
-| Graph Canonicalization | Graph normalization | One or more HS3 workspaces | JSON report |
-| Graph Optimization | Graph optimization passes | One or more HS3 workspaces | JSON report |
-| Compiled Evaluation | Execution of compiled likelihoods | One or more HS3 workspaces | JSON report, timing plots |
-| PDF Evaluation | Probability density evaluation | One or more HS3 workspaces | JSON report, timing plots |
-| NLL Scan | Negative log-likelihood scans | One or more HS3 workspaces | JSON report, scan plots |
-| Memory Scaling | Memory consumption versus model size | Multiple HS3 workspaces | JSON report, scaling plots |
-| Model Complexity Scaling | Runtime scaling with model complexity | Multiple HS3 workspaces | JSON report, scaling plots |
+| Benchmark | Purpose |
+|------------|---------|
+| Workspace Loading | Measure HS3 workspace deserialization. |
+| Model Creation | Measure statistical model construction. |
+| Log-Probability Construction | Measure symbolic graph construction. |
+| Graph Canonicalization | Measure canonicalization rewrites. |
+| Graph Optimization | Measure graph optimization passes. |
+| Log-Probability Compilation | Measure JAX compilation. |
+| Compiled Evaluation | Measure execution of compiled log-probability graphs. |
+| PDF Evaluation | Measure repeated PDF evaluation. |
+| NLL Scan | Measure repeated likelihood scans. |
+| Memory Scaling | Compare memory usage across workflow stages. |
+| Model Complexity Scaling | Compare performance as model complexity increases. |
 
 ---
 
 # Cross-Framework Benchmarks
 
-| Benchmark | Frameworks | Purpose |
-|------------|------------|---------|
-| PyHS3 vs xRooFit | PyHS3, xRooFit | Compare end-to-end workflow performance |
-| Scalar PDF Evaluation | PyHS3, RooFit, PyHF | Compare scalar PDF evaluation performance |
-| Vectorized PDF Evaluation | PyHS3, RooFit | Compare vectorized PDF evaluation performance |
-| Binned Likelihood Evaluation | PyHS3, RooFit, PyHF | Compare binned likelihood evaluation |
-| NLL Scan | PyHS3, RooFit | Compare likelihood scan performance |
-| Model Complexity Scaling | Multiple frameworks | Compare scalability across increasingly complex statistical models |
+| Benchmark | Purpose |
+|------------|---------|
+| PyHS3 vs xRooFit | Compare end-to-end workflow performance. |
+| Scalar PDF Evaluation | Compare scalar probability density evaluation. |
+| Vectorized PDF Evaluation | Compare vectorized PDF evaluation. |
+| Binned Likelihood Evaluation | Compare HistFactory likelihood evaluation. |
+| NLL Scan | Compare likelihood scan performance. |
+| Model Complexity Scaling | Compare scalability across statistical frameworks. |
 
 ---
 
 # Running Benchmarks
 
-All benchmark suites can be executed through the benchmark runner.
+Benchmark campaigns are typically executed using the Benchmark Matrix Runner.
 
-For example, run a single benchmark:
+Run a single benchmark:
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -126,7 +119,7 @@ pixi run python -m src.run_all_benchmarks \
     --benchmarks workspace_loading
 ```
 
-or execute the complete benchmark suite:
+Run the complete benchmark suite:
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -139,25 +132,16 @@ pixi run python -m src.run_all_benchmarks \
     --benchmarks all
 ```
 
-Each benchmark page documents benchmark-specific command-line options, generated artifacts, output formats, and result interpretation.
+Additional execution options are documented in **Benchmark Matrix Runner**.
 
 ---
 
-# Related Documentation
+# Where to Go Next
 
-The documentation is organized as follows:
+Continue with the following documentation sections:
 
-- **Benchmark Methodology** — common benchmarking principles, measurement strategy, and execution methodology.
-- **Workflow Benchmarks** — detailed documentation for each benchmark in the statistical model lifecycle.
-- **Cross-Framework Benchmarks** — framework comparison methodology and benchmark results.
-
-Individual benchmark pages provide detailed descriptions of:
-
-- benchmark objectives;
-- execution workflow;
-- command-line interface;
-- generated outputs;
-- JSON result format;
-- performance plots;
-- implementation details;
-- benchmark limitations.
+- **Benchmark Methodology** — common benchmarking principles and measurement strategy.
+- **Benchmark Workspaces** — benchmark datasets and workspace catalog.
+- **Workflow Benchmarks** — detailed documentation for each workflow stage.
+- **Cross-Framework Benchmarks** — comparisons with RooFit, pyhf, and xRooFit.
+- **Benchmark Results** — interpreting benchmark reports and summary figures.

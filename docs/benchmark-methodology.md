@@ -1,24 +1,20 @@
 # Benchmark Methodology
 
-This document describes the methodology used throughout the **PyHS3 Benchmarks** project.
-
-Although individual benchmark suites evaluate different stages of the statistical inference workflow, they all follow the same measurement strategy, reporting conventions, and validation principles. A unified methodology ensures that benchmark results are reproducible, directly comparable, and suitable for long-term performance analysis.
+On this page, you will learn how benchmarks in **PyHS3 Benchmarks** are executed, measured, validated, and reported. Although benchmark suites target different stages of the statistical inference workflow, they all follow the same methodology to ensure reproducible and comparable results.
 
 ---
 
 # Goals
 
-The benchmark suite is designed to answer several complementary questions about the performance of PyHS3.
+The benchmark suite is designed to
 
-Rather than identifying a single "fastest" implementation, the benchmarks are intended to
+-   identify computational bottlenecks throughout the statistical workflow;
+-   evaluate the impact of implementation changes and optimizations;
+-   measure runtime and memory consumption;
+-   validate numerical agreement between equivalent implementations;
+-   monitor performance regressions across repository revisions.
 
-- identify computational bottlenecks throughout the statistical workflow;
-- evaluate the impact of implementation changes and optimizations;
-- measure runtime and memory consumption;
-- validate numerical agreement between equivalent implementations;
-- monitor performance regressions across repository revisions.
-
-Each benchmark therefore measures one well-defined aspect of the workflow while sharing a common execution and reporting infrastructure.
+Each benchmark measures one well-defined aspect of the workflow while sharing a common execution and reporting infrastructure.
 
 ---
 
@@ -28,56 +24,27 @@ Every benchmark in this repository follows the same guiding principles.
 
 ## Isolation
 
-Each benchmark measures a single stage of the statistical workflow whenever possible.
+Each benchmark isolates a single stage of the statistical workflow, making it easier to identify bottlenecks and evaluate optimization strategies.
 
 For example,
 
-- **Workspace Loading** measures only workspace deserialization;
-- **Model Creation** measures model construction independently of loading;
-- **Compiled Evaluation** measures numerical execution independently of compilation;
-- **Memory Scaling** isolates memory consumption during selected workflow stages.
-
-Separating workflow stages makes it easier to identify performance bottlenecks and evaluate optimization strategies without introducing unrelated sources of variability.
-
----
+-   **Workspace Loading** measures only workspace deserialization;
+-   **Model Creation** measures model construction independently of loading;
+-   **Compiled Evaluation** measures numerical execution independently of compilation;
+-   **Memory Scaling** isolates memory consumption during selected workflow stages.
 
 ## Reproducibility
 
-Benchmark inputs are deterministic.
-
-Benchmark workspaces are fixed, benchmark configurations are explicitly defined, and repeated executions use identical inputs.
-
-As a result, differences between benchmark runs primarily reflect implementation changes rather than variations in benchmark data.
-
----
+Benchmark inputs are deterministic. Fixed workspaces, explicit benchmark configurations, and identical inputs across repeated runs ensure that differences primarily reflect implementation changes rather than variations in benchmark data.
 
 ## Automation
 
-All benchmark suites are designed to execute automatically.
-
-The shared benchmark runner is responsible for
-
-- executing benchmark suites;
-- organizing benchmark outputs;
-- collecting benchmark statistics;
-- generating reports;
-- producing publication-quality figures.
-
-This enables complete benchmark campaigns to be executed using a consistent workflow.
-
----
+All benchmark suites run through the shared benchmark runner, which executes benchmarks, collects statistics, generates reports, and produces publication-quality figures using a consistent workflow.
 
 ## Extensibility
 
-Every benchmark follows the same execution model and reporting conventions.
-
-Adding a new benchmark typically requires only
-
-- implementing the benchmark;
-- registering it with the benchmark runner;
-- documenting its methodology.
-
-Existing reporting, plotting, and output infrastructure can then be reused without modification.
+Benchmarks share the same execution model and reporting conventions. Adding a new benchmark typically requires implementing the benchmark,
+registering it with the benchmark runner, and documenting its methodology.
 
 ---
 
@@ -85,7 +52,7 @@ Existing reporting, plotting, and output infrastructure can then be reused witho
 
 Every benchmark follows the same high-level execution pipeline.
 
-```text
+``` text
 Benchmark Workspace
         │
         ▼
@@ -120,47 +87,22 @@ Performance measurements are collected using a consistent execution strategy.
 
 ## Warm-up
 
-Some benchmark suites perform one or more warm-up iterations before measurements begin.
-
-Warm-up executions are excluded from the reported statistics.
-
-Their purpose is to remove one-time initialization costs such as
-
-- JIT compilation;
-- graph initialization;
-- cache population;
-- initial memory allocation.
-
-This produces measurements that more accurately represent repeated execution.
-
----
+Some benchmark suites perform one or more warm-up iterations before measurements begin. Warm-up executions are excluded from the reported
+statistics to remove one-time initialization costs such as JIT compilation, graph initialization, cache population, and initial memory allocation.
 
 ## Repeated Measurements
 
-Timing benchmarks are executed multiple times.
-
-Repeated execution reduces measurement noise introduced by
-
-- operating system scheduling;
-- temporary resource contention;
-- cache effects;
-- background processes.
-
-Reported timing values therefore represent aggregated statistics rather than a single execution.
-
----
+Timing benchmarks are executed multiple times to reduce measurement noise caused by operating system scheduling, temporary resource contention, cache effects, and background processes.
 
 ## Aggregation
 
-Benchmark outputs summarize repeated executions using aggregate statistics appropriate for the measured quantity.
+Repeated measurements are summarized using statistics appropriate for the benchmark, including:
 
-Depending on the benchmark, reported values may include
-
-- mean execution time;
-- standard deviation;
-- throughput;
-- peak memory usage;
-- current memory usage.
+-   mean execution time;
+-   standard deviation;
+-   throughput;
+-   peak memory usage;
+-   current memory usage.
 
 ---
 
@@ -168,10 +110,8 @@ Depending on the benchmark, reported values may include
 
 Different benchmark suites emphasize different performance characteristics.
 
-Commonly reported metrics include
-
 | Metric | Description |
-|---------|-------------|
+|--------|-------------|
 | Wall time | Total benchmark execution time |
 | Mean execution time | Average over repeated executions |
 | Throughput | Number of evaluations completed per unit time |
@@ -179,55 +119,35 @@ Commonly reported metrics include
 | Peak RSS delta | Maximum additional resident memory used |
 | Validation status | Numerical agreement with reference implementation |
 
-Individual benchmark pages describe any benchmark-specific metrics that they report.
+Individual benchmark pages describe any benchmark-specific metrics they report.
 
 ---
 
 # Numerical Validation
 
-Several benchmark suites evaluate not only performance but also numerical correctness.
+Several benchmark suites measure both performance and numerical correctness. Depending on the benchmark, validation may compare:
 
-Depending on the benchmark, validation may compare
+-   PDF values;
+-   negative log-likelihood values;
+-   likelihood scan shapes;
+-   compiled and interpreted execution;
+-   reference framework outputs.
 
-- PDF values;
-- negative log-likelihood values;
-- likelihood scan shapes;
-- compiled and interpreted execution;
-- reference framework outputs.
-
-Numerical validation ensures that performance optimizations preserve the underlying statistical model and do not alter computational results.
+These checks ensure that performance optimizations preserve the underlying statistical model.
 
 ---
 
 # Cross-Framework Comparisons
 
-Cross-framework benchmarks are designed to compare equivalent statistical computations rather than different analysis workflows.
+Cross-framework benchmarks compare equivalent statistical computations rather than different analysis workflows. Whenever possible, they use identical statistical models, datasets, parameter values, and benchmark configurations so that observed performance differences reflect implementation characteristics rather than benchmark inputs.
 
-Whenever possible, comparisons use
-
-- identical statistical models;
-- identical datasets;
-- identical parameter values;
-- equivalent benchmark configurations.
-
-This apples-to-apples methodology ensures that observed performance differences reflect implementation characteristics rather than differences in benchmark inputs.
-
-Some statistical frameworks expose different APIs or computational models. Where an exact one-to-one comparison is not possible, the corresponding benchmark documentation explicitly describes the assumptions and limitations of the comparison.
+Framework-specific assumptions or limitations are documented on the corresponding benchmark pages.
 
 ---
 
 # Benchmark Outputs
 
-Each benchmark produces a structured JSON report containing benchmark metadata, execution statistics, benchmark configuration, and validation results where applicable.
-
-These reports provide a stable interface for
-
-- visualization;
-- regression tracking;
-- automated analysis;
-- downstream reporting.
-
-Most benchmark suites also generate publication-quality figures directly from the JSON outputs, allowing plots to be regenerated without repeating benchmark execution.
+Each benchmark produces a structured JSON report containing benchmark metadata, execution statistics, benchmark configuration, and validation results where applicable. Most benchmark suites also generate publication-quality figures from these reports. See the **Outputs** page for details.
 
 ---
 
@@ -235,13 +155,12 @@ Most benchmark suites also generate publication-quality figures directly from th
 
 For meaningful comparisons across benchmark campaigns, it is recommended to
 
-- use identical benchmark workspaces;
-- execute benchmarks with the same benchmark configuration;
-- compare results produced by equivalent software environments;
-- avoid unnecessary background workload during benchmark execution;
-- compare optimized builds with optimized builds and debug builds with debug builds.
-
-Following these recommendations minimizes measurement variability and improves long-term comparability of benchmark results.
+-   use identical benchmark workspaces;
+-   execute benchmarks with the same benchmark configuration;
+-   compare results produced by equivalent software environments;
+-   avoid unnecessary background workload during benchmark execution;
+-   compare optimized builds with optimized builds and debug builds with
+    debug builds.
 
 ---
 
@@ -249,7 +168,7 @@ Following these recommendations minimizes measurement variability and improves l
 
 For additional information, see
 
-- **Benchmark Runner** for the shared execution infrastructure.
-- **Benchmark Results** for the generated reports and figures.
-- **Benchmark Workflow** for the overall benchmarking pipeline.
-- **Cross-Framework Validation** for framework-specific comparison methodology.
+-   **Benchmark Runner** for the shared execution infrastructure.
+-   **Outputs** for generated reports and figures.
+-   **Workspace Lifecycle** for the overall benchmarking pipeline.
+-   **Cross-Framework** for framework-specific comparison methodology.

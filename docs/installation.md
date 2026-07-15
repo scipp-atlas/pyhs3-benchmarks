@@ -1,49 +1,19 @@
 # Installation
 
-This guide explains how to install the **PyHS3 Benchmarks** repository and create a fully reproducible benchmarking environment.
+On this page, you will learn how to install **PyHS3 Benchmarks**, verify the installation, and prepare a reproducible benchmarking environment.
 
-By the end of this guide, you will have
-
-- cloned the repository;
-- installed all required dependencies;
-- verified that the benchmarking environment is working correctly;
-- executed your first benchmark.
-
----
-
-# What Will Be Installed?
-
-The PyHS3 Benchmarks repository uses **Pixi** to create a fully reproducible software environment.
-
-Running
-
-```bash
-pixi install
-```
-
-installs and configures everything required to execute the benchmark suite, including
-
-- the PyHS3 Benchmarks framework;
-- the PyHS3 library and its dependencies;
-- numerical computation and compilation backends;
-- plotting and visualization libraries;
-- benchmarking utilities;
-- the Python environment used throughout the repository.
-
-Because the environment is managed entirely by Pixi, no manual Python installation, virtual environment setup, or dependency management is required after cloning the repository.
-
-Every benchmark, example, and figure presented throughout this documentation is intended to run inside this environment.
+PyHS3 Benchmarks uses **Pixi** to provide a reproducible software environment with all dependencies required to execute the benchmark suite.
 
 ---
 
 # Prerequisites
 
-Before installing the repository, ensure that the following tools are available on your system.
+Before installing the repository, ensure that the following tools are available.
 
-- **Git**, for cloning the repository.
-- **Pixi**, for creating and managing the project environment.
+- **Git**
+- **Pixi**
 
-No additional software is required. Python and all project dependencies are installed automatically by Pixi.
+All Python packages and project dependencies are installed automatically by Pixi.
 
 ---
 
@@ -54,7 +24,7 @@ Installing the repository consists of four steps.
 1. Clone the repository.
 2. Create the project environment.
 3. Verify the installation.
-4. Execute a benchmark.
+4. Confirm that benchmark execution works correctly.
 
 ---
 
@@ -72,19 +42,27 @@ cd pyhs3-benchmarks
 
 # Create the Benchmark Environment
 
-Create the project environment by running
+Create the project environment.
 
 ```bash
 pixi install
 ```
 
-Pixi automatically resolves and installs all project dependencies, creating an isolated environment that matches the repository configuration.
+This command installs
+
+- PyHS3 Benchmarks;
+- PyHS3 and its dependencies;
+- numerical computation libraries;
+- plotting libraries;
+- benchmarking utilities.
+
+The environment is managed entirely by Pixi, ensuring that benchmark results are reproducible across systems.
 
 ---
 
 # Verify the Installation
 
-Verify that the installation completed successfully by executing the **Workspace Loading** benchmark.
+Run a simple benchmark to verify that the environment was created successfully.
 
 ```bash
 pixi run python -m src.run_workspace_loading \
@@ -96,18 +74,15 @@ pixi run python -m src.run_workspace_loading \
     --plot
 ```
 
-A successful execution should
+A successful execution loads the selected workspaces, executes the benchmark, generates a JSON report, and creates benchmark plots.
 
-- load the selected benchmark workspaces;
-- print benchmark statistics to the terminal;
-- generate a JSON benchmark report;
-- generate comparison plots.
+For details on benchmark execution, see **Getting Started**.
 
 ---
 
 # Verify the Benchmark Runner
 
-After confirming that an individual benchmark executes successfully, verify the shared benchmarking infrastructure by running the benchmark runner.
+After confirming that an individual benchmark executes correctly, verify the benchmark runner.
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -120,7 +95,9 @@ pixi run python -m src.run_all_benchmarks \
     --plot
 ```
 
-This verifies that the common benchmark execution framework is functioning correctly.
+This confirms that the shared benchmark infrastructure is configured correctly.
+
+For advanced execution modes, see **Benchmark Matrix Runner**.
 
 ---
 
@@ -134,7 +111,7 @@ results/
     └── workspace_loading_result.json
 ```
 
-and generated figures in
+and benchmark figures in
 
 ```text
 plots/
@@ -144,13 +121,13 @@ plots/
     └── workspace_loading_peak_rss_delta.png
 ```
 
-The exact outputs depend on the benchmark being executed.
+See **Outputs** for a complete description of generated reports and figures.
 
 ---
 
 # Updating the Environment
 
-If project dependencies change, synchronize the local environment by running
+If project dependencies change, synchronize the local environment.
 
 ```bash
 pixi install
@@ -164,7 +141,7 @@ Pixi automatically updates the environment to match the repository configuration
 
 ## Pixi is not installed
 
-Install Pixi before continuing with the installation.
+Install Pixi before creating the project environment.
 
 ---
 
@@ -185,10 +162,10 @@ again to ensure that all required dependencies have been installed successfully.
 Verify that
 
 - the selected workspace files exist in the `inputs/` directory;
-- the requested benchmark name is valid;
+- the benchmark name is valid;
 - the Pixi environment was created successfully.
 
-If benchmark execution still fails, verify that the repository was cloned correctly and that the installation completed without errors.
+If problems persist, verify that the repository was cloned correctly and that the installation completed without errors.
 
 ---
 
@@ -198,7 +175,8 @@ Your benchmarking environment is now ready.
 
 Continue with
 
-- **Getting Started** to execute your first benchmarking workflow.
-- **Repository Structure** to understand the organization of the repository.
-- **Benchmark Methodology** to learn how benchmark measurements are performed.
-- **Benchmark Suite** for an overview of all available benchmarks.
+- **Getting Started** to run your first benchmark.
+- **Benchmark Methodology** to understand how benchmarks are executed and measured.
+- **Benchmark Workspaces** to explore the available benchmark inputs.
+- **Outputs** to inspect generated reports and figures.
+- **Benchmark Matrix Runner** to execute complete benchmark campaigns.

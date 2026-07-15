@@ -1,137 +1,251 @@
 # Graph Optimization
 
-The **graph optimization** benchmark measures the time and memory required to optimize a PyTensor `FunctionGraph` using the JAX optimizer. During this stage, graph rewrite passes simplify the symbolic computation graph before it is compiled into an executable function.
+On this page, you will learn what the **Graph Optimization** benchmark measures, how to run it, and how to interpret its results.
 
-## What is measured
+The **Graph Optimization** benchmark measures the time and memory required to optimize a symbolic PyTensor `FunctionGraph` using the JAX optimizer.
 
-For each benchmark run the benchmark:
-
-1. Constructs the symbolic log-probability graph.
-2. Builds a PyTensor `FunctionGraph`.
-3. Applies the JAX graph optimizer.
-4. Measures:
-   - wall time,
-   - current RSS increase,
-   - peak RSS increase.
-5. Validates the optimized graph by reporting:
-   - graph inputs,
-   - graph outputs,
-   - ApplyNodes before optimization,
-   - ApplyNodes after optimization.
-
-Wall time is measured over **200 benchmark iterations**, while memory statistics are collected once in a fresh subprocess.
+Workspace loading, model creation, symbolic log-probability construction, and `FunctionGraph` creation are treated as setup steps and are excluded from the reported measurements. Compilation into executable code is benchmarked separately.
 
 ---
 
----
+# What This Benchmark Measures
 
-## Command-line Arguments
+The benchmark measures only the execution of the graph optimization stage.
 
-The benchmark supports the following command-line arguments.
+For each benchmark configuration, it reports
 
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
-| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the statistical model. |
-| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
-| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated graph optimization timing measurements for each workspace/target/mode combination. |
-| `--output-dir` | `Path` | `results/graph_optimization/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `graph_optimization_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
-| `--plot-dir` | `Path` | `docs/assets/plots/graph_optimization/` | Directory where generated benchmark plots will be stored. |
+- mean wall time;
+- median wall time;
+- standard deviation;
+- current RSS memory increase;
+- peak RSS memory increase;
+- graph validation statistics.
 
-## Notes
+During validation, the benchmark records
 
-- At least one workspace, target, and compilation mode must be provided.
-- A separate benchmark is executed for every combination of workspace, target, and compilation mode.
-- `--n-runs` must be greater than or equal to **1**.
-- Workspace loading, model creation, symbolic log-probability construction, and `FunctionGraph` creation are treated as setup steps and are excluded from the reported timing measurements.
-- Each timing iteration constructs a fresh `FunctionGraph` before applying the JAX optimizer, ensuring that only graph optimization is measured.
-- The benchmark validates the optimized graph by reporting the number of graph inputs, graph outputs, and ApplyNodes before and after optimization.
+- graph inputs;
+- graph outputs;
+- ApplyNodes before optimization;
+- ApplyNodes after optimization.
+
+Only graph optimization is included in the reported timings.
+
+Details of the measurement methodology are described in **Benchmark Methodology**.
 
 ---
 
-## Benchmark Results
+# Benchmark Workflow
 
-### Wall time
+```text
+Workspace
+      │
+      ▼
+Workspace.load(...)
+      │
+      ▼
+Workspace.model(...)
+      │
+      ▼
+model.log_prob
+      │
+      ▼
+FunctionGraph(...)
+      │
+      ▼
+JAX Graph Optimizer
+      │
+      ├────────► Graph Validation
+      ├────────► Timing Statistics
+      └────────► Memory Statistics
+      │
+      ▼
+JSON Report
+      │
+      ▼
+Comparison Plots (optional)
+```
 
-Graph optimization completes in approximately **390–663 ms** across the benchmark workspaces.
+Only the optimization pass contributes to the reported benchmark results.
 
-| Workspace | Mean wall time |
-|-----------|---------------:|
-| 1-channel | **663.342 ± 6.223 ms** |
-| 3-channel | **524.170 ± 5.265 ms** |
-| 5-channel | **568.531 ± 5.574 ms** |
-| 10-channel | **390.318 ± 4.192 ms** |
-| 30-channel | **523.558 ± 6.380 ms** |
+---
+
+# When to Use This Benchmark
+
+This benchmark is useful for
+
+- measuring graph rewrite performance;
+- comparing optimization costs across benchmark workspaces;
+- evaluating memory usage during optimization;
+- detecting optimizer regressions;
+- measuring graph simplification before compilation.
+
+---
+
+# Running the Benchmark
+
+## Run directly
+
+```bash
+pixi run python -m src.run_graph_optimization \
+    --workspaces \
+        inputs/1ch_bkgRooExp_sigGauss_shapeFloat_npOn_constrGauss_yield1x.json \
+        inputs/3ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
+        inputs/5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json \
+        inputs/10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x.json \
+        inputs/30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
+    --targets L_ch0 \
+    --modes FAST_RUN \
+    --n-runs 200 \
+    --output-dir results/graph_optimization \
+    --plot \
+    --plot-dir docs/assets/plots/graph_optimization
+```
+
+## Run through the Benchmark Matrix Runner
+
+```bash
+pixi run python -m src.run_all_benchmarks \
+    --workspaces \
+        inputs/1ch_bkgRooExp_sigGauss_shapeFloat_npOn_constrGauss_yield1x.json \
+        inputs/3ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
+        inputs/5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json \
+        inputs/10ch_bkgRooExp_sigGeneric_shapeFloat_npOff_constrGauss_yield1x.json \
+        inputs/30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
+    --benchmarks graph_optimization \
+    --targets L_ch0 \
+    --modes FAST_RUN \
+    --n-runs 200 \
+    --plot
+```
+
+---
+
+# Command-line Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | Workspace files to benchmark. |
+| `--targets` | Model targets passed to `Workspace.model(...)`. |
+| `--modes` | PyTensor compilation modes. |
+| `--n-runs` | Number of repeated optimization measurements. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison plots. |
+| `--plot-dir` | Directory for generated figures. |
+
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
+
+---
+
+# Generated Outputs
+
+The benchmark produces
+
+```text
+results/
+└── graph_optimization/
+    └── graph_optimization_result.json
+```
+
+and, when plotting is enabled,
+
+```text
+docs/
+└── assets/
+    └── plots/
+        └── graph_optimization/
+            ├── graph_optimization_wall_time.png
+            ├── graph_optimization_current_rss_delta.png
+            └── graph_optimization_peak_rss_delta.png
+```
+
+The report structure and output conventions are documented in **Benchmark Results**.
+
+---
+
+# Results
+
+## Wall-Time Comparison
 
 ![Graph optimization wall time](../assets/plots/graph_optimization/graph_optimization_wall_time.png)
 
-The optimization stage remains well below one second for every tested workspace.
+Graph optimization completes in approximately **390–663 ms** across the benchmark workspace collection.
+
+All benchmark workspaces complete optimization in well under one second, indicating that symbolic graph rewriting introduces only moderate overhead before compilation.
 
 ---
 
-### Current RSS increase
-
-Graph optimization increases resident memory by approximately **15–16 MB**.
-
-| Workspace | Current RSS increase |
-|-----------|---------------------:|
-| 1-channel | **15.910 MB** |
-| 3-channel | **15.199 MB** |
-| 5-channel | **15.320 MB** |
-| 10-channel | **14.668 MB** |
-| 30-channel | **16.438 MB** |
+## Current RSS Memory
 
 ![Graph optimization current RSS](../assets/plots/graph_optimization/graph_optimization_current_rss_delta.png)
 
-Memory usage is highly consistent across all benchmark configurations.
+Graph optimization increases resident memory by approximately **15–16 MB** across all benchmark workspaces.
+
+The memory footprint is highly consistent regardless of model complexity.
 
 ---
 
-### Peak RSS increase
-
-Peak RSS closely matches the current RSS increase, indicating that graph optimization introduces almost no temporary memory overhead.
-
-| Workspace | Peak RSS increase |
-|-----------|------------------:|
-| 1-channel | **15.609 MB** |
-| 3-channel | **15.133 MB** |
-| 5-channel | **15.258 MB** |
-| 10-channel | **14.535 MB** |
-| 30-channel | **16.410 MB** |
+## Peak RSS Memory
 
 ![Graph optimization peak RSS](../assets/plots/graph_optimization/graph_optimization_peak_rss_delta.png)
 
-The difference between current and peak RSS remains below **0.4 MB** for every benchmark.
+Peak RSS closely follows current RSS, differing by less than **0.4 MB** for every benchmark workspace.
+
+This indicates that graph optimization performs very few large temporary allocations.
 
 ---
 
-## Graph validation
+## Graph Validation
 
-Besides timing and memory, the benchmark validates that optimization successfully rewrites the symbolic graph.
+Besides timing and memory measurements, the benchmark validates the optimized graph by reporting
 
-For every workspace it reports:
+- graph inputs;
+- graph outputs;
+- ApplyNodes before optimization;
+- ApplyNodes after optimization.
 
-- graph inputs,
-- graph outputs,
-- ApplyNodes before optimization,
-- ApplyNodes after optimization,
-- reduction in ApplyNodes.
-
-Across the benchmark suite, optimization consistently removes a substantial number of ApplyNodes before compilation, demonstrating that the optimizer effectively simplifies the computation graph.
+Across the benchmark dataset, optimization consistently reduces the number of ApplyNodes before compilation, demonstrating that the optimizer successfully simplifies the symbolic computation graph.
 
 ---
 
-## Summary
+# Implementation Notes
 
-The graph optimization benchmark shows that PyTensor efficiently simplifies symbolic computation graphs while introducing only moderate memory overhead.
+The benchmark includes several implementation choices that improve measurement quality.
 
-Across all benchmark workspaces:
+- Workspace loading is excluded from the reported timings.
+- Model creation, symbolic graph construction, and `FunctionGraph` creation are treated as setup.
+- Each benchmark optimizes a freshly constructed graph.
+- Graph validation is performed before results are recorded.
 
-- graph optimization completes in **390–663 ms**;
-- current RSS increases by approximately **15–16 MB**;
-- peak RSS is nearly identical to current RSS;
-- optimization consistently reduces graph complexity before compilation.
+The general benchmark methodology is documented in **Benchmark Methodology**.
 
-These results indicate that graph optimization is an inexpensive preprocessing stage that prepares the computation graph for efficient compilation.
+---
+
+# Limitations
+
+This benchmark measures only symbolic graph optimization.
+
+It does **not** measure
+
+- workspace loading;
+- model creation;
+- symbolic graph construction;
+- graph compilation;
+- compiled evaluation;
+- PDF evaluation;
+- likelihood evaluation.
+
+These workflow stages are benchmarked separately.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Log-Probability Construction**
+- **Log-Probability Compilation**
+- **Compiled Evaluation**
+- **Benchmark Methodology**
+- **Benchmark Results**
+- **Workspace Lifecycle**

@@ -1,35 +1,36 @@
 # Benchmark Runner
 
-The **Benchmark Runner** provides the common execution infrastructure used throughout the PyHS3 Benchmarks repository.
+On this page, you will learn the role of the **Benchmark Runner** and how it coordinates benchmark execution across the repository.
 
-Rather than executing benchmark suites independently, the benchmark runner coordinates benchmark execution, manages benchmark campaigns, collects results, and optionally generates visualizations. This shared infrastructure ensures that all benchmark suites follow the same execution model, produce consistent outputs, and can be executed together as part of large-scale performance studies.
+The Benchmark Runner provides the shared execution infrastructure used by all benchmark suites. Rather than performing benchmark measurements itself, it orchestrates benchmark execution, coordinates benchmark campaigns, and ensures that benchmark suites follow a consistent execution model.
 
-The benchmark runner is implemented in `src/run_all_benchmarks.py`.
+The runner is implemented in
+
+```text
+src/run_all_benchmarks.py
+```
 
 ---
 
 # Purpose
 
-The repository contains many benchmark suites that evaluate different stages of the PyHS3 statistical inference workflow.
+The repository contains many benchmark suites targeting different stages of the statistical inference workflow.
 
-Although each benchmark measures a different operation, they all share the same high-level execution pattern.
+Instead of each benchmark implementing its own execution infrastructure, the Benchmark Runner provides a common framework for
 
-The benchmark runner exists to provide a single interface for
-
-- executing multiple benchmark suites;
-- managing collections of benchmark workspaces;
 - coordinating benchmark execution;
+- managing benchmark campaigns;
+- sharing benchmark configuration;
 - collecting benchmark outputs;
-- generating benchmark summaries;
-- producing publication-quality plots.
+- generating campaign summaries.
 
-Without a shared runner, every benchmark would need to implement its own execution logic, output management, and reporting infrastructure.
+This shared infrastructure keeps benchmark implementations focused on measurement rather than execution management.
 
 ---
 
 # Execution Model
 
-The benchmark runner follows a simple execution model.
+Every benchmark campaign follows the same high-level execution flow.
 
 ```text
 Benchmark Configuration
@@ -53,148 +54,76 @@ Generate Summary
 Generate Plots (optional)
 ```
 
-Each benchmark executes independently while the runner manages the overall benchmark campaign.
+The Benchmark Runner coordinates this workflow while allowing each benchmark suite to execute independently.
 
 ---
 
 # Benchmark Campaigns
 
-A benchmark campaign consists of
+A benchmark campaign combines
 
 - one or more benchmark suites;
 - one or more benchmark workspaces;
 - a shared execution configuration.
 
-For example,
+Using a single configuration across an entire campaign ensures that benchmark results remain directly comparable across benchmark suites and workspace collections.
 
-```text
-Benchmarks
-    Workspace Loading
-    Model Creation
-    PDF Evaluation
-
-Workspaces
-    1-channel
-    5-channel
-    30-channel
-```
-
-The benchmark runner automatically executes every requested benchmark for every selected workspace.
-
-Using the same benchmark configuration throughout the campaign ensures that benchmark results remain directly comparable.
+For practical examples of configuring and executing benchmark campaigns, see **Benchmark Matrix Runner**.
 
 ---
 
-# Workspace Management
+# Workspace Coordination
 
-The benchmark runner manages benchmark workspaces centrally.
+The Benchmark Runner provides every benchmark with the same workspace collection.
 
-Each benchmark receives the same workspace collection, avoiding inconsistencies between benchmark suites.
+This guarantees that benchmark suites operate on consistent benchmark inputs, simplifying comparison across workflow stages and scalability studies.
 
-This approach provides
-
-- reproducible benchmark campaigns;
-- consistent benchmark inputs;
-- straightforward scalability studies;
-- comparable performance measurements.
+Details on workspace discovery, filtering, and selection are documented in **Benchmark Matrix Runner**.
 
 ---
 
 # Result Collection
 
-After each benchmark completes, the runner collects the generated benchmark reports.
+Each benchmark remains responsible for generating its own benchmark report.
 
-Individual benchmark outputs remain independent and are stored within their corresponding result directories.
+The Benchmark Runner collects these independent outputs into a single benchmark campaign while preserving the separation between benchmark suites.
 
-The runner additionally produces a benchmark campaign summary describing
-
-- executed benchmark suites;
-- processed benchmark workspaces;
-- execution status;
-- generated result locations.
-
-This summary provides a convenient overview of the entire benchmark campaign.
+Generated reports and figures are documented in **Outputs**.
 
 ---
 
-# Plot Generation
+# Plot Coordination
 
-When plotting is enabled, benchmark figures are generated from the produced benchmark reports.
+The Benchmark Runner coordinates figure generation after benchmark execution completes.
 
-The runner coordinates plot generation but does not perform any numerical measurements itself.
+Benchmark measurements and visualization remain separate processes, allowing plots to be regenerated without repeating benchmark execution.
 
-Separating measurement from visualization provides several advantages.
-
-- Benchmark execution remains deterministic.
-- Figures can be regenerated without rerunning benchmarks.
-- Plotting improvements do not require repeating expensive benchmark campaigns.
+See **Outputs** for generated artifacts and **Benchmark Methodology** for the measurement strategy.
 
 ---
 
-# Error Handling
+# Error Isolation
 
-Benchmark failures are isolated.
+Benchmark suites execute independently.
 
-If one benchmark encounters an error, previously completed benchmark results remain available.
+If one benchmark fails, completed benchmark results remain available while failures are recorded as part of the benchmark campaign summary.
 
-Whenever possible, the runner records benchmark status together with diagnostic information so that failed benchmark executions can be investigated without repeating the complete benchmark campaign.
-
-This behavior is particularly useful during benchmark development and large performance studies.
-
----
-
-# Why Use the Benchmark Runner?
-
-Individual benchmark modules are useful during development and debugging.
-
-For routine performance evaluation, however, the benchmark runner provides significant advantages.
-
-- A single command executes complete benchmark campaigns.
-- Benchmark configuration remains consistent across benchmark suites.
-- Outputs follow a common directory structure.
-- Result aggregation is performed automatically.
-- Plot generation is integrated into the execution workflow.
-
-This shared infrastructure greatly simplifies repository maintenance while ensuring consistent benchmark execution.
+This design simplifies debugging and allows long-running benchmark campaigns to continue whenever possible.
 
 ---
 
 # Relationship to Individual Benchmarks
 
-The benchmark runner orchestrates benchmark execution but does not replace individual benchmark implementations.
+Individual benchmark implementations and the Benchmark Runner have different responsibilities.
 
-Each benchmark remains responsible for
+| Individual Benchmark | Benchmark Runner |
+|----------------------|------------------|
+| Performs the measured computation | Coordinates benchmark execution |
+| Collects benchmark statistics | Manages benchmark campaigns |
+| Generates benchmark reports | Collects campaign outputs |
+| Implements benchmark-specific logic | Provides shared execution infrastructure |
 
-- performing the measured computation;
-- collecting benchmark statistics;
-- validating benchmark outputs;
-- generating its own benchmark report.
-
-The benchmark runner coordinates these independent components into a single, reproducible workflow.
-
----
-
-# Typical Development Workflow
-
-During development, benchmark implementations are usually executed directly until they behave as expected.
-
-```text
-Develop Benchmark
-        │
-        ▼
-Run Individual Benchmark
-        │
-        ▼
-Inspect Results
-        │
-        ▼
-Register with Benchmark Runner
-        │
-        ▼
-Execute Benchmark Campaign
-```
-
-This iterative workflow simplifies development while ensuring that newly implemented benchmarks integrate naturally with the rest of the repository.
+This separation keeps benchmark implementations simple while allowing the repository to scale to many benchmark suites.
 
 ---
 
@@ -202,8 +131,8 @@ This iterative workflow simplifies development while ensuring that newly impleme
 
 See also
 
-- **Benchmark Workflow** for the benchmark execution lifecycle.
-- **Workspace Lifecycle** for the lifecycle of benchmark workspaces.
-- **Benchmark Methodology** for the measurement strategy used throughout the repository.
-- **Benchmark Results** for the generated reports and benchmark artifacts.
-- **Development** for extending the benchmark suite.
+- **Benchmark Matrix Runner**
+- **Benchmark Methodology**
+- **Outputs**
+- **Development**
+- **Repository Structure**

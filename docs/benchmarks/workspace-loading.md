@@ -1,25 +1,25 @@
 # Workspace Loading
 
+On this page, you will learn what the **Workspace Loading** benchmark measures, how to run it, and how to interpret its results.
+
 The **Workspace Loading** benchmark measures the time and memory required to deserialize an HS3 workspace into an in-memory `Workspace` object.
 
-Unlike the subsequent workflow benchmarks, this benchmark isolates only the workspace loading stage. It does **not** include model creation, graph construction, graph optimization, compilation, likelihood evaluation, or fitting.
-
-This benchmark is particularly useful for measuring startup overhead, comparing workspace designs, and detecting performance regressions in HS3 deserialization.
+Unlike later workflow benchmarks, it measures only the deserialization stage. Model creation, graph construction, compilation, numerical evaluation, and fitting are benchmarked separately.
 
 ---
 
-# What is Measured?
+# What This Benchmark Measures
 
 For each workspace, the benchmark reports
 
 - mean wall time;
 - median wall time;
-- standard deviation of repeated measurements;
+- standard deviation;
 - current RSS memory increase;
 - peak RSS memory increase;
-- workspace validation summary.
+- workspace validation status.
 
-Wall-time measurements are obtained from repeated executions, while memory measurements are collected from a single clean workspace load.
+Timing statistics are collected over repeated executions, while memory measurements are obtained from a clean workspace load. Details of the measurement methodology are described in **Benchmark Methodology**.
 
 ---
 
@@ -52,25 +52,25 @@ JSON Report
 Comparison Plots (optional)
 ```
 
-Each workspace is benchmarked in an independent Python process to minimize interference from previous executions and improve measurement reproducibility.
+Each workspace is benchmarked independently to minimize interference between benchmark runs.
 
 ---
 
-# When Should This Benchmark Be Used?
+# When to Use This Benchmark
 
-This benchmark is appropriate when you want to
+This benchmark is useful for
 
-- compare loading performance across multiple HS3 workspaces;
-- evaluate workspace startup overhead;
-- measure memory consumption during deserialization;
-- detect loading performance regressions;
-- compare workspaces of different complexity.
+- comparing workspace loading performance;
+- measuring startup overhead;
+- evaluating memory consumption during deserialization;
+- detecting loading regressions;
+- comparing workspaces of different complexity.
 
 ---
 
 # Running the Benchmark
 
-## Run the benchmark directly
+## Run directly
 
 ```bash
 pixi run python -m src.run_workspace_loading \
@@ -86,7 +86,7 @@ pixi run python -m src.run_workspace_loading \
     --plot-dir docs/assets/plots/workspace_loading
 ```
 
-## Run through the benchmark runner
+## Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -103,34 +103,25 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
----
-
 # Command-line Arguments
 
-The benchmark supports the following command-line arguments.
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | One or more workspace files to benchmark. |
+| `--n-runs` | Number of repeated timing measurements. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison plots. |
+| `--plot-dir` | Directory for generated figures. |
+| `--plot-name` | Wall-time plot filename. |
 
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Multiple workspaces are benchmarked independently and compared in the generated summary and plots. |
-| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated timing measurements performed for each workspace. Larger values improve the stability of timing statistics at the cost of longer benchmark execution. |
-| `--output-dir` | `Path` | `results/workspace_loading/` | Directory where the benchmark JSON results will be written. The directory is created automatically if it does not already exist. |
-| `--output-name` | `str` | `workspace_loading_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots after the benchmark finishes. Plots are created only when at least two workspaces complete successfully. |
-| `--plot-dir` | `Path` | `docs/assets/plots/workspace_loading/` | Directory where generated plots will be saved. |
-| `--plot-name` | `str` | `workspace_loading_wall_time.png` | Filename of the wall-time comparison plot. Additional memory plots are generated automatically using standard filenames. |
-
-## Notes
-
-- At least one workspace must be provided.
-- `--n-runs` must be greater than or equal to **1**.
-- The `--plot` flag has no effect when fewer than two workspaces are benchmarked successfully.
-- Each workspace is benchmarked in a separate Python process to improve measurement reproducibility.
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
 
 ---
 
 # Generated Outputs
 
-The benchmark generates
+The benchmark produces
 
 ```text
 results/
@@ -150,83 +141,60 @@ docs/
             └── workspace_loading_peak_rss_delta.png
 ```
 
----
-
-# JSON Output
-
-Each workspace entry contains benchmark metadata together with timing, memory, and validation information.
-
-Typical fields include
-
-| Field | Description |
-|---------|-------------|
-| `workspace` | Input workspace filename |
-| `status` | Benchmark execution status |
-| `wall_time_seconds_mean` | Mean loading time |
-| `wall_time_seconds_median` | Median loading time |
-| `wall_time_seconds_std` | Standard deviation of repeated measurements |
-| `current_rss_delta_mb` | Increase in resident memory after loading |
-| `peak_rss_delta_mb` | Maximum resident memory increase during loading |
-| `validation` | Workspace validation summary |
+The report structure and output conventions are documented in **Benchmark Results**.
 
 ---
 
-# Wall-Time Comparison
+# Results
+
+## Wall-Time Comparison
 
 ![Workspace loading wall time](../assets/plots/workspace_loading/workspace_loading_wall_time.png)
 
-The wall-time comparison plot shows the average workspace loading time for each benchmark workspace.
+The wall-time comparison shows the average loading time for each benchmark workspace.
 
-Error bars represent one standard deviation across repeated measurements.
-
-For the example benchmark workspaces:
+For the example benchmark dataset,
 
 - the single-channel workspace loads in approximately **2.6 ms**;
-- the 3-channel workspace loads in approximately **3.4 ms**;
-- the 5- and 10-channel workspaces require approximately **5–6 ms**;
-- the 30-channel workspace requires approximately **15 ms**.
+- the 3-channel workspace in approximately **3.4 ms**;
+- the 5- and 10-channel workspaces in approximately **5–6 ms**;
+- the 30-channel workspace in approximately **15 ms**.
 
-As expected, loading time increases with workspace complexity because larger workspaces contain more statistical objects that must be reconstructed during deserialization.
+Loading time increases with workspace complexity because larger workspaces contain more statistical objects that must be reconstructed during deserialization.
 
-Although the larger workspaces exhibit higher standard deviations, their median execution times remain considerably lower, indicating that occasional slow executions dominate the observed variability.
+Error bars represent one standard deviation across repeated benchmark executions.
 
 ---
 
-# Peak RSS Memory
+## Peak RSS Memory
 
 ![Peak RSS memory](../assets/plots/workspace_loading/workspace_loading_peak_rss_delta.png)
 
 Peak RSS measures the maximum resident memory reached while loading each workspace.
 
-The benchmark shows a gradual increase from approximately **2.3 MB** for the smallest workspaces to roughly **3.5 MB** for the largest benchmark workspace.
-
-This increase reflects the temporary memory required while reconstructing larger statistical models.
+The benchmark shows a gradual increase from approximately **2.3 MB** for the smallest workspace to roughly **3.5 MB** for the largest benchmark workspace, reflecting the additional temporary memory required to reconstruct larger statistical models.
 
 ---
 
-# Current RSS Memory
+## Current RSS Memory
 
 ![Current RSS memory](../assets/plots/workspace_loading/workspace_loading_current_rss_delta.png)
 
-Current RSS measures the resident memory immediately after the workspace has been loaded successfully.
+Current RSS measures resident memory immediately after successful loading.
 
-The values closely follow the peak RSS measurements, indicating that most allocated memory remains associated with the loaded workspace rather than temporary intermediate allocations.
+The close agreement between current and peak RSS indicates that most allocated memory remains associated with the loaded workspace rather than temporary intermediate allocations.
 
 ---
 
-# Implementation Details
+# Implementation Notes
 
-Several implementation decisions improve benchmark reproducibility.
+The benchmark includes several implementation choices that improve measurement quality.
 
-- Timing measurements are separated from memory measurements.
-- Memory usage is measured from a single clean workspace load.
-- Timing statistics are collected over repeated executions.
-- Garbage collection is performed before measuring memory.
-- Each workspace is benchmarked in a fresh Python process.
-- Loaded workspaces are validated before benchmark results are recorded.
-- Comparison plots are generated only when at least two benchmark results are available.
+- Each workspace is benchmarked in a separate Python process.
+- Workspace validation is performed before results are recorded.
+- Timing and memory measurements are collected independently.
 
-These design choices minimize measurement noise and improve reproducibility across benchmark campaigns.
+The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
@@ -237,14 +205,14 @@ This benchmark measures only HS3 workspace deserialization.
 It does **not** measure
 
 - model creation;
-- computational graph construction;
+- graph construction;
 - graph optimization;
 - compilation;
 - probability density evaluation;
 - likelihood evaluation;
 - fitting.
 
-These workflow stages are covered by dedicated benchmarks documented elsewhere in the repository.
+These stages are covered by dedicated benchmark pages.
 
 ---
 
@@ -253,6 +221,7 @@ These workflow stages are covered by dedicated benchmarks documented elsewhere i
 See also
 
 - **Benchmark Methodology**
-- **Benchmark Suite**
 - **Benchmark Results**
+- **Benchmark Matrix Runner**
+- **Workspace Lifecycle**
 - **Model Creation**

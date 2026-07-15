@@ -1,27 +1,29 @@
 # Benchmark Overview
 
-## Overview
+On this page, you will learn how to generate high-level summary figures that combine results from multiple benchmark suites into a single performance overview.
 
-`plot_benchmark_overview.py` generates high-level summary figures from
-the benchmark matrix produced by `run_all_benchmarks.py`. Rather than
-re-running benchmarks, it collects benchmark outputs from
-`results/benchmark_matrix`, extracts the metrics of interest, and
-produces publication-ready summary plots.
+Unlike individual benchmark pages, the Benchmark Overview does not execute benchmarks. Instead, it collects existing benchmark reports and generates publication-ready summary figures for comparing workflow stages, memory usage, and cross-framework performance.
 
-The script provides a unified view of:
+---
 
--   overall benchmark performance;
--   timing breakdown by benchmark stage;
--   memory usage by benchmark stage;
--   cross-framework scalar PDF comparisons;
--   cross-framework pointwise ΔNLL comparisons;
--   cross-framework HistFactory likelihood comparisons.
+# Overview
 
-------------------------------------------------------------------------
+The overview generator reads benchmark reports produced by the benchmark suite and creates a unified collection of summary plots.
+
+The generated figures provide
+
+- overall benchmark performance;
+- timing breakdown by workflow stage;
+- memory usage by workflow stage;
+- cross-framework scalar PDF comparisons;
+- cross-framework pointwise ΔNLL comparisons;
+- cross-framework HistFactory likelihood comparisons.
+
+---
 
 # Workflow
 
-``` text
+```text
 run_all_benchmarks.py
         │
         ▼
@@ -31,174 +33,166 @@ results/benchmark_matrix/
 plot_benchmark_overview.py
         │
         ▼
-docs/assets/images/plots/benchmark_overview/
+docs/assets/plots/benchmark_overview/
 ```
 
-The plotting script automatically discovers benchmark outputs and skips
-unavailable benchmarks, allowing the overview to remain valid even when
-only a subset of the benchmark suite has been executed.
+The overview generator uses existing benchmark reports and never reruns benchmark measurements.
 
-------------------------------------------------------------------------
+---
 
-# Command line interface
+# Running the Overview Generator
 
-``` bash
+```bash
 pixi run python -m src.plot_benchmark_overview \
     --results-dir results/benchmark_matrix \
-    --plot-dir docs/assets/images/plots/benchmark_overview \
+    --plot-dir docs/assets/plots/benchmark_overview \
     --plots all
 ```
 
-## Arguments
+---
 
-  Argument          Description
-  ----------------- -------------------------------------------------------
-  `--results-dir`   Root directory containing benchmark results.
-  `--plot-dir`      Output directory for generated figures.
-  `--plots`         Comma-separated list of overview figures to generate.
+# Command-line Arguments
 
-------------------------------------------------------------------------
+| Argument | Description |
+|----------|-------------|
+| `--results-dir` | Directory containing benchmark reports. |
+| `--plot-dir` | Directory where generated figures are written. |
+| `--plots` | Comma-separated list of overview plot groups to generate. |
 
-# Supported plot groups
+---
 
--   performance_summary
--   stage_timing
--   stage_memory
--   cross_framework_summary
+# Supported Plot Groups
 
-`cross_framework_summary` produces three figures:
+The overview generator supports the following plot groups.
 
-1.  Cross-framework Scalar PDF summary
-2.  Cross-framework Pointwise NLL summary
-3.  Cross-framework HistFactory likelihood summary
+- `performance_summary`
+- `stage_timing`
+- `stage_memory`
+- `cross_framework_summary`
 
-------------------------------------------------------------------------
+The `cross_framework_summary` group produces
 
-# Automatically discovered benchmark outputs
+1. Cross-Framework Scalar PDF Summary
+2. Cross-Framework Pointwise ΔNLL Summary
+3. Cross-Framework HistFactory Likelihood Summary
 
-The script searches the benchmark matrix and loads metrics from
-benchmark JSON files, including runtime, peak memory, compiled
-evaluation latency, PDF evaluation, ΔNLL scan timings, and
-cross-framework validation results.
+---
 
-Missing benchmarks are ignored rather than treated as errors.
+# Results
 
-------------------------------------------------------------------------
-
-# Generated figures
-
-## 1. Benchmark performance summary
+## Benchmark Performance Summary
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_performance_summary.png)
 
-This dashboard provides a compact comparison of the principal
-performance metrics across the benchmark suite:
+This dashboard provides a high-level comparison of the principal performance metrics across the benchmark suite.
 
--   setup time;
--   compiled evaluation latency;
--   PDF evaluation latency;
--   scalar cross-framework PDF evaluation;
--   NLL scan latency;
--   cross-framework ΔNLL evaluation.
+It summarizes
 
-It is intended as the first high-level performance overview.
+- workflow setup time;
+- compiled evaluation latency;
+- PDF evaluation latency;
+- scalar cross-framework PDF evaluation;
+- NLL scan latency;
+- cross-framework ΔNLL evaluation.
 
-------------------------------------------------------------------------
+This figure is intended as the primary overview of benchmark performance.
 
-## 2. Stage timing breakdown
+---
+
+## Stage Timing Breakdown
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_stage_timing.png)
 
-Shows the contribution of each benchmark stage:
+This figure compares execution time across the principal workflow stages:
 
--   workspace loading;
--   model creation;
--   log-probability construction;
--   log-probability compilation;
--   compiled evaluation;
--   PDF evaluation;
--   NLL scan.
+- workspace loading;
+- model creation;
+- log-probability construction;
+- log-probability compilation;
+- compiled evaluation;
+- PDF evaluation;
+- NLL scan.
 
-This figure identifies which stages dominate total runtime.
+It highlights which stages contribute most to the total execution time.
 
-------------------------------------------------------------------------
+---
 
-## 3. Stage memory breakdown
+## Stage Memory Breakdown
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_stage_memory.png)
 
-Displays peak RSS growth attributed to each benchmark stage.
+This figure compares peak RSS memory usage across workflow stages.
 
-Compilation is typically the dominant memory consumer.
+Compilation is typically the largest contributor to memory consumption.
 
-------------------------------------------------------------------------
+---
 
-## 4. Cross-framework Scalar PDF summary
+## Cross-Framework Scalar PDF Summary
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_scalar_pdf.png)
 
-Compares scalar PDF evaluation latency across supported frameworks
-(PyHS3, RooFit, and other available engines).
+This figure compares scalar PDF evaluation latency across supported statistical frameworks.
 
-This benchmark measures a single PDF evaluation and is independent of
-likelihood scans.
+It focuses on individual PDF evaluations and does not include likelihood scans.
 
-------------------------------------------------------------------------
+---
 
-## 5. Cross-framework Pointwise NLL summary
+## Cross-Framework Pointwise ΔNLL Summary
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_pointwise_nll.png)
 
-Compares complete pointwise NLL evaluations.
+This figure compares complete pointwise negative log-likelihood evaluations for a single parameter point.
 
-Unlike scalar PDF evaluation, this benchmark evaluates the entire
-negative log-likelihood for one parameter point.
+Unlike scalar PDF evaluation, it measures the complete likelihood computation.
 
-------------------------------------------------------------------------
+---
 
-## 6. Cross-framework HistFactory likelihood summary
+## Cross-Framework HistFactory Likelihood Summary
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_histfactory_likelihood.png)
 
-Summarizes the paired HistFactory benchmark introduced for
-engine-to-engine comparison between PyHS3 and pyhf.
+This figure summarizes paired HistFactory benchmarks comparing equivalent statistical models implemented in PyHS3 and pyhf.
 
-Characteristics:
+The benchmark uses
 
--   identical statistical models;
--   identical expected event counts;
--   ΔNLL agreement validated numerically;
--   warm steady-state evaluation only;
--   apples-to-apples engine comparison.
+- identical statistical models;
+- identical expected event counts;
+- validated numerical agreement;
+- warm steady-state evaluation.
 
-This benchmark intentionally uses simple paired HistFactory models and
-should not be interpreted as a replacement for the RooFit/xRooFit
-benchmarks, which evaluate more complex workspaces.
+Because these benchmarks use simplified paired HistFactory models, they should not be interpreted as replacements for the RooFit-based cross-framework benchmarks.
 
-------------------------------------------------------------------------
+---
 
-# Internal architecture
+# When to Use the Benchmark Overview
 
-The overview generator performs four steps:
+The overview figures are particularly useful for
 
-1.  Discover benchmark outputs.
-2.  Parse benchmark-specific JSON formats.
-3.  Convert metrics into a common internal representation.
-4.  Produce publication-quality figures.
+- summarizing benchmark campaigns;
+- comparing workflow stages;
+- identifying performance bottlenecks;
+- presenting benchmark results;
+- tracking performance changes over time.
 
-Adding a new benchmark generally requires only extending the parser and
-registering its metrics.
+---
 
-------------------------------------------------------------------------
+# Limitations
 
-# Notes
+The overview generator aggregates existing benchmark reports and never executes benchmarks itself.
 
--   The overview aggregates existing benchmark outputs and never
-    executes benchmarks.
--   Missing benchmark results are skipped automatically.
--   Cross-framework figures intentionally summarize different benchmark
-    families and should not be interpreted as a single ranking across
-    incompatible statistical models.
--   HistFactory comparisons are limited to paired compatible models,
-    while RooFit comparisons evaluate substantially more complex
-    workspaces.
+If benchmark reports are unavailable, the corresponding figures are skipped automatically.
+
+Cross-framework figures summarize different benchmark families and should therefore be interpreted within their respective benchmarking contexts rather than as a single overall framework ranking.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Benchmark Results**
+- **Benchmark Matrix Runner**
+- **Benchmark Methodology**
+- **Workspace Loading**
+- **PDF Evaluation**
+- **Cross-Framework Benchmarks**

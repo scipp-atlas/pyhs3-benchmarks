@@ -1,252 +1,150 @@
 # Cross-Framework Binned Likelihood Benchmark
 
-## Overview
+On this page, you will learn how PyHS3 and pyhf are compared using statistically equivalent HistFactory models and how to interpret the benchmark results.
 
-This benchmark compares **PyHS3** and **pyhf** on statistically equivalent HistFactory likelihood models.
+The **Cross-Framework Binned Likelihood** benchmark compares equivalent HistFactory likelihood models implemented in **PyHS3** and **pyhf**.
 
-Unlike the RooFit and xRooFit benchmarks, which operate on complex analysis workspaces, this benchmark intentionally uses **minimal paired HistFactory JSON models** that can be represented identically by both frameworks. The goal is to isolate the performance of the likelihood evaluation engines themselves rather than differences in workspace representations or statistical models.
-
-The benchmark therefore provides a genuine **apples-to-apples** and **engine-to-engine** comparison between PyHS3 and pyhf.
-
-The benchmark evaluates
-
-- numerical agreement;
-- workspace/model construction;
-- first (cold) evaluation;
-- warm (steady-state) likelihood evaluation;
-- scaling with increasing numbers of histogram bins.
+Unlike the RooFit and xRooFit benchmarks, which evaluate complex analysis workspaces, this benchmark uses paired HistFactory models that both frameworks can represent identically. This enables a direct engine-to-engine comparison with validated numerical agreement.
 
 ---
 
-# Benchmark philosophy
+# Benchmark Philosophy
 
-This benchmark follows four principles.
+The benchmark follows four principles.
 
-1. **Identical statistical model**
+- Both frameworks evaluate the same statistical model.
+- The same parameter values are evaluated in both frameworks.
+- Numerical agreement is verified before performance is compared.
+- Construction, first evaluation, and warm evaluation are measured independently.
 
-   Both frameworks evaluate exactly the same HistFactory model.
-
-2. **Identical parameter scan**
-
-   The same POI (μ) values are evaluated in both frameworks.
-
-3. **Numerical validation before timing**
-
-   Timing comparisons are only interpreted after verifying that both engines compute the same statistical quantities.
-
-4. **Separated timing phases**
-
-   Construction, first evaluation, and steady-state execution are measured independently.
-
-This separation prevents initialization costs from being confused with the cost of likelihood evaluation.
+These principles ensure that observed performance differences reflect implementation rather than benchmark setup.
 
 ---
 
-# Benchmark workspaces
+# Benchmark Dataset
 
-Two paired HistFactory workspaces are used.
+The benchmark uses two paired HistFactory models generated from equivalent statistical configurations.
 
 | Workspace | Description |
 |-----------|-------------|
-| correlated-background | Background normalization uncertainty shared across the model |
-| uncorrelated-background | Independent background normalization uncertainties |
+| `correlated-background` | Background normalization uncertainty shared across the model |
+| `uncorrelated-background` | Independent background normalization uncertainties |
 
-Both originate from the official PyHS3 HistFactory test suite.
+Each benchmark dataset includes
 
-Each workspace exists as
+- a HistFactory JSON workspace for **pyhf**;
+- an equivalent HS3 workspace for **PyHS3**.
 
-- HistFactory JSON (pyhf)
-- equivalent HS3 JSON (PyHS3)
-
-allowing both frameworks to evaluate exactly the same statistical model.
+The benchmark workspace collection is documented in **Benchmark Workspaces**.
 
 ---
 
-# Model structure
+# Benchmark Workflow
 
-Each workspace contains
+```text
+HistFactory Workspace
+        │
+        ▼
+Workspace / Model Construction
+        │
+        ▼
+Numerical Validation
+        │
+        ▼
+First Evaluation
+        │
+        ▼
+Repeated Evaluation
+        │
+        ├── Timing
+        ├── Memory
+        └── Scaling
+        │
+        ▼
+Comparison Plots
+```
 
-- one channel;
-- signal sample;
-- background sample;
-- observed histogram;
-- parameter of interest (μ);
-- HistFactory normalization modifiers.
-
-No custom probability distributions are required.
-
-Because the models are intentionally simple, they can be represented identically in both frameworks without introducing approximation or conversion differences.
+Construction, cold-start execution, and warm execution are benchmarked independently.
 
 ---
 
-# Numerical validation
+# Numerical Validation
 
-Before comparing runtime, numerical agreement is verified.
+Performance comparisons are interpreted only after numerical agreement has been verified.
 
 The benchmark compares
 
 - expected event counts;
-- ΔNLL profile;
-- likelihood minimum;
+- ΔNLL profiles;
+- likelihood minima;
 - residual constant offsets.
-
-Absolute NLL values are **not** compared directly because independent implementations may differ by an additive normalization constant.
-
-Instead,
-
-\[
-\Delta\mathrm{NLL}
-=
-\mathrm{NLL}
--
-\min(\mathrm{NLL})
-\]
-
-is compared between engines.
-
-Residual plots additionally verify that any remaining differences are consistent with floating-point precision.
 
 ---
 
-## Representative ΔNLL profile
+# Results
 
-This figure shows the ΔNLL profile for one representative workspace.
+## Representative ΔNLL Profile
 
-Both curves overlap across the complete parameter scan, demonstrating that PyHS3 and pyhf evaluate the same statistical likelihood.
+This figure shows a representative ΔNLL profile for one benchmark workspace.
+
+The two curves overlap throughout the scan, demonstrating that PyHS3 and pyhf evaluate the same statistical likelihood.
 
 ![](../assets/plots/cross_binned_likelihood/representative_delta_nll.png)
 
 ---
 
-## Numerical agreement summary
+## Numerical Agreement Summary
 
-The benchmark summarizes the maximum observed numerical differences across both paired workspaces.
+This figure summarizes the largest observed numerical differences across both benchmark workspaces.
 
-Expected event counts agree exactly.
-
-Maximum ΔNLL differences and residual constant offsets remain at floating-point precision, confirming numerical equivalence between both implementations.
+Expected event counts agree exactly, while ΔNLL differences remain at floating-point precision.
 
 ![](../assets/plots/cross_binned_likelihood/numerical_agreement_summary.png)
 
 ---
 
-# Timing methodology
+## Timing Breakdown
 
-Runtime measurements are divided into three independent phases.
+Construction, first evaluation, and warm evaluation are reported separately.
 
-## Workspace / model construction
-
-Measures
-
-- JSON loading;
-- workspace construction;
-- model creation.
-
-This phase is intentionally excluded from steady-state performance measurements.
-
----
-
-## First evaluation
-
-Measures the first likelihood evaluation immediately after model construction.
-
-For PyHS3 this includes lazy PyTensor compilation.
-
-For pyhf (NumPy backend) this corresponds to the first execution after workspace construction.
-
----
-
-## Warm function call
-
-Measures repeated likelihood evaluations after initialization.
-
-Median runtime over repeated evaluations is reported.
-
-This represents the actual steady-state engine performance.
-
----
-
-## Timing breakdown
-
-The figure below separates construction, initialization, and warm execution.
-
-This avoids conflating compilation costs with likelihood evaluation performance.
+This separation avoids conflating initialization costs with steady-state likelihood evaluation.
 
 ![](../assets/plots/cross_binned_likelihood/timing_phases.png)
 
 ---
 
-# Scaling benchmark
+## Scaling with Histogram Size
 
-To study algorithmic behaviour, the benchmark increases the number of histogram bins while preserving the statistical model.
+The benchmark evaluates warm likelihood performance while increasing the number of histogram bins.
 
-Each larger workspace is generated by replicating histogram bins while maintaining identical statistical content.
+For the current benchmark configuration, PyHS3 reaches non-finite likelihood values beginning at **256 bins**, producing the termination point shown below.
 
-Warm likelihood evaluation is then measured as a function of the number of bins.
-
-The benchmark therefore evaluates computational scaling independently of model complexity.
-
----
-
-## Warm function-call scaling
-
-The scaling benchmark reports warm likelihood evaluation versus the number of histogram bins.
-
-PyHS3 and pyhf are evaluated using the same replicated HistFactory models.
-
-For the current benchmark configuration, PyHS3 reaches non-finite likelihood values beginning at **256 bins**, producing the marked termination point shown below.
-
-This limitation is explicitly reported rather than silently omitting measurements.
+This behavior is reported explicitly rather than omitted from the benchmark results.
 
 ![](../assets/plots/cross_binned_likelihood/warm_function_call_vs_number_of_bins.png)
 
 ---
 
-# Benchmark outputs
+# Key Findings
 
-The benchmark produces
+The benchmark demonstrates that
 
-| Output | Description |
-|---------|-------------|
-| `representative_delta_nll.png` | Representative ΔNLL comparison between PyHS3 and pyhf |
-| `numerical_agreement_summary.png` | Maximum numerical differences across paired models |
-| `timing_phases.png` | Construction, first evaluation, and warm execution timing |
-| `warm_function_call_vs_number_of_bins.png` | Scaling of steady-state likelihood evaluation |
+- PyHS3 and pyhf evaluate statistically equivalent HistFactory models;
+- ΔNLL agreement is maintained at floating-point precision;
+- construction, initialization, and steady-state execution exhibit different performance characteristics;
+- scaling with histogram size can be studied independently of model complexity.
 
 ---
 
-# Interpretation
+# Relation to RooFit Benchmarks
 
-This benchmark intentionally measures **engine performance**, not framework capabilities.
+This benchmark should not be interpreted as a direct ranking against the RooFit or xRooFit benchmarks.
 
-Both engines evaluate statistically identical HistFactory models under identical parameter scans.
+The RooFit benchmarks evaluate complex analysis workspaces and complete statistical workflows.
 
-Consequently, observed runtime differences can be interpreted as differences in likelihood evaluation implementations rather than differences in statistical modelling.
+By contrast, the Cross-Framework Binned Likelihood benchmark focuses on simple paired HistFactory models that both PyHS3 and pyhf can represent identically.
 
-This benchmark therefore provides the primary **engine-to-engine comparison** between PyHS3 and pyhf.
-
----
-
-# Relation to the RooFit benchmarks
-
-The RooFit and xRooFit benchmarks contained in this repository evaluate substantially more complex analysis workspaces.
-
-Those benchmarks answer different questions, including
-
-- workspace construction;
-- fitting workflows;
-- large analysis models.
-
-By contrast, this benchmark intentionally focuses on simple paired HistFactory models that can be represented identically by both PyHS3 and pyhf.
-
-Consequently, the pyhf results **must not** be interpreted as a direct ranking against RooFit or xRooFit benchmarks.
-
-Instead,
-
-- **Cross-Framework Binned Likelihood** validates engine-level agreement between PyHS3 and pyhf;
-- **RooFit/xRooFit benchmarks** evaluate performance on complex analysis workspaces.
-
-These benchmark families should therefore be interpreted independently.
+The two benchmark families therefore answer different performance questions and should be interpreted independently.
 
 ---
 
@@ -258,6 +156,17 @@ Current limitations include
 - no minimization benchmark;
 - no fitting benchmark;
 - no JAX backend comparison;
-- scaling currently limited by numerical underflow in PyHS3 for extremely large replicated models.
+- numerical underflow in PyHS3 for extremely large replicated models.
 
-Despite these limitations, the benchmark provides a reproducible, numerically validated, apples-to-apples comparison of likelihood evaluation between PyHS3 and pyhf.
+Despite these limitations, the benchmark provides a reproducible, numerically validated engine-to-engine comparison between PyHS3 and pyhf.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Cross-Framework Benchmarks**
+- **Benchmark Methodology**
+- **Benchmark Workspaces**
+- **Benchmark Results**

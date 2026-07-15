@@ -1,37 +1,83 @@
-# Log Probability Compilation
+# Log-Probability Compilation
 
-This benchmark measures the cost of compiling an already constructed `log_prob` graph into an executable JAX function. Unlike the log probability construction benchmark, model creation and graph construction are performed beforehand and are excluded from the measured region.
+On this page, you will learn what the **Log-Probability Compilation** benchmark measures, how to run it, and how to interpret its results.
 
-The benchmark reports:
+The **Log-Probability Compilation** benchmark measures the time and memory required to compile an already constructed symbolic log-probability graph into an executable JAX function.
 
-- Wall time required to compile the computation graph.
-- Current RSS increase during compilation.
-- Peak RSS increase during compilation.
-- Validation that the compiled graph executes successfully.
+Workspace loading, model creation, and symbolic graph construction are treated as setup steps and are excluded from the reported measurements. Numerical evaluation is benchmarked separately.
 
 ---
 
-## What is measured?
+# What This Benchmark Measures
 
-The measured operation is equivalent to:
+The benchmark measures only the execution of
 
 ```python
 compiled = compile_log_prob(log_prob)
 ```
 
-The following steps are **not** included in the measured time:
+For each benchmark configuration, it reports
 
-- loading the workspace,
-- creating the statistical model,
-- constructing `model.log_prob`.
+- mean wall time;
+- median wall time;
+- standard deviation;
+- current RSS memory increase;
+- peak RSS memory increase;
+- compilation validation status.
 
-Each timing iteration rebuilds the model and `log_prob` before starting the timer, ensuring that only compilation is measured. The implementation also validates that the compiled graph executes successfully and returns a finite value after compilation.
+The benchmark measures JAX compilation only. Symbolic graph construction and numerical execution are intentionally excluded.
+
+Details of the measurement methodology are described in **Benchmark Methodology**.
 
 ---
 
-## Running the benchmark
+# Benchmark Workflow
 
-Run the benchmark directly:
+```text
+Workspace
+      │
+      ▼
+Workspace.load(...)
+      │
+      ▼
+Workspace.model(...)
+      │
+      ▼
+model.log_prob
+      │
+      ▼
+compile_log_prob(...)
+      │
+      ├────────► Compilation Validation
+      ├────────► Timing Statistics
+      └────────► Memory Statistics
+      │
+      ▼
+JSON Report
+      │
+      ▼
+Comparison Plots (optional)
+```
+
+Only JAX compilation contributes to the reported benchmark results.
+
+---
+
+# When to Use This Benchmark
+
+This benchmark is useful for
+
+- measuring JAX compilation overhead;
+- comparing compilation performance across benchmark workspaces;
+- evaluating memory usage during compilation;
+- detecting compilation regressions;
+- separating compilation costs from graph construction and execution.
+
+---
+
+# Running the Benchmark
+
+## Run directly
 
 ```bash
 pixi run python -m src.run_log_prob_compilation \
@@ -49,7 +95,7 @@ pixi run python -m src.run_log_prob_compilation \
     --plot-dir docs/assets/plots/log_prob_compilation
 ```
 
-or execute it together with the benchmark runner:
+## Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -68,62 +114,119 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
----
+# Command-line Arguments
 
-## Command-line Arguments
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | Workspace files to benchmark. |
+| `--targets` | Model targets passed to `Workspace.model(...)`. |
+| `--modes` | PyTensor compilation modes. |
+| `--n-runs` | Number of repeated compilation measurements. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison plots. |
+| `--plot-dir` | Directory for generated figures. |
 
-The benchmark supports the following command-line arguments.
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
-| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used when constructing the statistical model. |
-| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
-| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated graph compilation timing measurements for each workspace/target/mode combination. |
-| `--output-dir` | `Path` | `results/log_prob_compilation/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `log_prob_compilation_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
-| `--plot-dir` | `Path` | `docs/assets/plots/log_prob_compilation/` | Directory where generated benchmark plots will be stored. |
-
-## Notes
-
-- At least one workspace, target, and compilation mode must be provided.
-- A separate benchmark is executed for every combination of workspace, target, and compilation mode.
-- `--n-runs` must be greater than or equal to **1**.
-- Workspace loading, model creation, and symbolic log-probability construction are treated as setup steps and are excluded from the reported timing measurements.
-- Each timing iteration rebuilds the model and symbolic graph before compiling it, ensuring that only JAX compilation is measured.
-- After compilation, the benchmark validates that the compiled graph executes successfully and produces a finite numerical result.
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
 
 ---
 
-## Results
+# Generated Outputs
 
-### Wall time
+The benchmark produces
+
+```text
+results/
+└── log_prob_compilation/
+    └── log_prob_compilation_result.json
+```
+
+and, when plotting is enabled,
+
+```text
+docs/
+└── assets/
+    └── plots/
+        └── log_prob_compilation/
+            ├── log_prob_compilation_wall_time.png
+            ├── log_prob_compilation_current_rss_delta.png
+            └── log_prob_compilation_peak_rss_delta.png
+```
+
+The report structure and output conventions are documented in **Benchmark Results**.
+
+---
+
+# Results
+
+## Wall-Time Comparison
 
 ![Log probability compilation wall time](../assets/plots/log_prob_compilation/log_prob_compilation_wall_time.png)
 
-Compilation requires several hundred milliseconds depending on the workspace. The fastest observed configuration is the 10-channel model without nuisance parameters (~398 ms), while the 1-channel workspace requires about 680 ms. The remaining workspaces compile in approximately 535–585 ms.
+Compilation requires approximately **0.40–0.68 s** across the benchmark workspace collection.
+
+The fastest observed configuration is the **10-channel** workspace without nuisance parameters (~398 ms), while the single-channel benchmark requires approximately **680 ms**. The remaining workspaces compile in roughly **535–585 ms**.
+
+Compared with symbolic graph construction, compilation is substantially more expensive because JAX transforms the symbolic graph into executable machine code.
 
 ---
 
-### Current RSS increase
+## Current RSS Memory
 
 ![Log probability compilation current RSS](../assets/plots/log_prob_compilation/log_prob_compilation_current_rss_delta.png)
 
-Compilation consistently allocates roughly **143–146 MB** of additional resident memory regardless of workspace complexity.
+Compilation consistently allocates approximately **143–146 MB** of additional resident memory.
+
+The memory footprint is largely independent of workspace complexity, indicating that compilation overhead is dominated by the compilation process itself.
 
 ---
 
-### Peak RSS increase
+## Peak RSS Memory
 
 ![Log probability compilation peak RSS](../assets/plots/log_prob_compilation/log_prob_compilation_peak_rss_delta.png)
 
-Peak memory follows the same pattern as current RSS, remaining close to **143–146 MB** for every tested workspace.
+Peak RSS closely follows the current RSS measurements.
+
+The benchmark shows a nearly constant compilation memory footprint across all benchmark workspaces.
 
 ---
 
-## Summary
+# Implementation Notes
 
-The benchmark shows that JAX compilation has an almost constant memory footprint across the tested workspaces. Around **145 MB** of temporary memory is required during compilation independent of the statistical model size.
+The benchmark includes several implementation choices that improve measurement quality.
 
-Compilation latency varies between roughly **0.40 s** and **0.68 s**. The fastest configuration is the 10-channel model without nuisance parameters, while the smallest workspace requires the longest compilation time. Overall, compilation cost is dominated more by graph structure than by workspace size, and memory usage remains stable across all tested configurations. The benchmark also verifies that every compiled graph executes successfully and produces a finite result.
+- Workspace loading is excluded from the reported timings.
+- Model creation and symbolic graph construction are treated as setup steps.
+- Each timing iteration compiles a freshly constructed graph.
+- The compiled function is validated before results are recorded.
+
+The general benchmark methodology is documented in **Benchmark Methodology**.
+
+---
+
+# Limitations
+
+This benchmark measures only JAX compilation of the symbolic log-probability graph.
+
+It does **not** measure
+
+- workspace loading;
+- model creation;
+- symbolic graph construction;
+- compiled execution;
+- PDF evaluation;
+- likelihood evaluation.
+
+These workflow stages are benchmarked separately.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Log-Probability Construction**
+- **Compiled Evaluation**
+- **Benchmark Methodology**
+- **Benchmark Results**
+- **Workspace Lifecycle**

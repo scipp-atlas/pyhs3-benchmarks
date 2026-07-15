@@ -1,91 +1,83 @@
 # PyHS3 Benchmarks
 
-Welcome to the documentation for **PyHS3 Benchmarks**, a benchmarking and validation framework for the PyHS3 ecosystem.
+On this page, you will learn what **PyHS3 Benchmarks** provides, how the documentation is organized, and how to run your first benchmark.
 
-The repository provides a reproducible environment for measuring the performance of statistical inference workflows built on HS3 workspaces. It combines stage-by-stage performance benchmarking, cross-framework numerical validation, automated reporting, and publication-quality visualizations in a single benchmarking suite.
+**PyHS3 Benchmarks** is a benchmarking and validation framework for the PyHS3 ecosystem. It provides a reproducible environment for evaluating statistical inference workflows built on HS3 workspaces through workflow benchmarks, cross-framework validation, automated reporting, and publication-quality visualizations.
 
-PyHS3 Benchmarks is designed for both **development** and **research**, making it possible to
+The project helps you
 
-- profile every major stage of the statistical model lifecycle;
-- identify computational bottlenecks;
-- measure runtime and memory consumption;
-- compare multiple statistical frameworks using equivalent benchmark inputs;
-- validate numerical agreement between implementations;
-- monitor performance regressions across repository revisions.
+-   identify computational bottlenecks;
+-   measure runtime and memory consumption;
+-   compare statistical frameworks using equivalent benchmark inputs;
+-   validate numerical agreement between implementations;
+-   monitor performance regressions across repository revisions.
+
+For details on how benchmarks are executed and measured, see **Benchmark Methodology**.
 
 ---
 
 # Key Features
 
-The benchmarking framework provides:
+PyHS3 Benchmarks provides
 
-- **Workflow benchmarks** covering the complete HS3 model lifecycle, from workspace loading to compiled likelihood evaluation.
-- **Cross-framework comparisons** between PyHS3 and other statistical inference frameworks using apples-to-apples benchmark methodology.
-- **Automated benchmark execution** through a unified benchmark runner.
-- **Structured JSON reports** suitable for downstream analysis and regression tracking.
-- **Publication-quality plots** generated directly from benchmark results.
-- **Scalable benchmark campaigns** supporting collections of benchmark workspaces with varying model complexity.
+-   **Workflow benchmarks** covering the HS3 model lifecycle, from workspace loading to compiled likelihood evaluation.
+-   **Cross-framework comparisons** between PyHS3 and other statistical inference frameworks.
+-   **Automated benchmark execution** through a shared benchmark runner.
+-   **Structured JSON reports** for downstream analysis and regression tracking.
+-   **Publication-quality plots** generated directly from benchmark results.
+-   **Scalable benchmark campaigns** using benchmark workspaces with varying model complexity.
 
 ---
 
 # Documentation Guide
 
-The documentation is organized into several sections.
-
 ## Getting Started
 
 Start here if you are new to the project.
 
-Learn how to install the repository, execute your first benchmark, and understand the generated outputs.
+This section explains how to install the project, run your first benchmark, and understand the repository layout.
 
 Recommended reading:
 
-- Getting Started
-- Installation
-- Repository Structure
+-   Getting Started
+-   Installation
+-   Repository Structure
 
 ---
 
 ## Benchmark Suite
 
-The benchmark suite measures the complete statistical model lifecycle, including
+Browse the benchmark documentation for individual workflow stages, including
 
-- workspace loading;
-- model creation;
-- log-probability construction;
-- graph optimization;
-- compilation;
-- compiled evaluation;
-- PDF evaluation;
-- NLL scans;
-- memory and scalability analysis.
+-   workspace loading;
+-   model creation;
+-   log-probability construction;
+-   graph optimization;
+-   compilation;
+-   compiled evaluation;
+-   PDF evaluation;
+-   NLL scans;
+-   memory and scalability analysis.
 
-Each benchmark documents its methodology, execution procedure, generated outputs, and interpretation of the results.
+Each page focuses on a single benchmark, while the shared methodology is documented separately.
 
 ---
 
 ## Cross-Framework Validation
 
-Cross-framework benchmarks compare PyHS3 with other statistical inference frameworks while ensuring that identical statistical models, datasets, and benchmark configurations are used.
+Cross-framework benchmarks compare equivalent statistical computations across supported frameworks.
 
 Current comparisons include
 
-- PyHS3 vs RooFit:
-      - scalar PDF evaluation;
-      - ΔNLL scans
+-   PyHS3 vs RooFit
+-   scalar PDF evaluation;
+-   ΔNLL scans.
 
 ---
 
 ## Benchmark Workspaces
 
-The repository uses a common benchmark workspace collection across nearly all benchmark suites.
-
-This section explains
-
-- workspace naming conventions;
-- benchmark workspace collections;
-- model complexity;
-- ROOT counterparts used for cross-framework validation.
+This section documents the benchmark workspaces used throughout the repository, including workspace collections, naming conventions, model complexity, and ROOT counterparts used for cross-framework validation.
 
 ---
 
@@ -93,24 +85,24 @@ This section explains
 
 Benchmark execution produces
 
-- structured JSON reports;
-- benchmark summaries;
-- publication-quality figures;
-- overview reports for complete benchmark campaigns.
+-   structured JSON reports;
+-   benchmark summaries;
+-   publication-quality figures;
+-   overview reports for complete benchmark campaigns.
 
-These outputs provide the basis for performance analysis, numerical validation, and long-term regression tracking.
+See the **Outputs** page for details on generated artifacts.
 
 ---
 
 ## Development
 
-Contributor documentation includes
+Contributor documentation covers
 
-- benchmark implementation guidelines;
-- benchmark methodology;
-- matrix runner architecture;
-- repository organization;
-- extension of existing benchmark suites.
+-   benchmark implementation;
+-   repository organization;
+-   benchmark matrix runner;
+-   testing;
+-   profiling.
 
 ---
 
@@ -118,7 +110,7 @@ Contributor documentation includes
 
 The benchmarking pipeline follows the complete lifecycle of an HS3 statistical model.
 
-```text
+``` text
 HS3 Workspace
       │
       ▼
@@ -151,7 +143,7 @@ Compiled Evaluation
       └──────────────► Cross-Framework Benchmarks
 ```
 
-Each benchmark isolates one stage of this workflow whenever possible, making it easier to identify performance bottlenecks and evaluate optimization strategies.
+Each benchmark focuses on one stage of this workflow. The complete measurement strategy is described in **Benchmark Methodology**.
 
 ---
 
@@ -159,20 +151,18 @@ Each benchmark isolates one stage of this workflow whenever possible, making it 
 
 Install the project:
 
-```bash
+``` bash
 pixi install
 ```
 
-Run a workflow benchmark:
+Run your first benchmark:
 
-```bash
+``` bash
 pixi run python -m src.run_workspace_loading \
     --workspaces \
         inputs/1ch_bkgRooExp_sigGauss_shapeFloat_npOn_constrGauss_yield1x.json \
-        inputs/5ch_bkgRooExp_sigGeneric_shapeFloat_npOn_constrGauss_yield10x.json \
-        inputs/30ch_bkgGenPoly_sigGeneric_shapeFloat_npOn_constrGauss_yield1x.json \
     --n-runs 10 \
     --plot
 ```
 
-Continue with the **Getting Started** guide for a complete introduction to the benchmarking workflow.
+Continue with **Getting Started** for installation details, benchmark configuration, and additional examples.

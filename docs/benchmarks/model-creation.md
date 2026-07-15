@@ -1,34 +1,34 @@
 # Model Creation
 
+On this page, you will learn what the **Model Creation** benchmark measures, how to run it, and how to interpret its results.
+
 The **Model Creation** benchmark measures the time and memory required to construct a PyHS3 `Model` object from an already loaded HS3 workspace.
 
-Unlike the Workspace Loading benchmark, this benchmark excludes workspace deserialization and measures only the cost of calling `Workspace.model(...)`. This stage constructs the statistical model that is subsequently used for graph construction, compilation, likelihood evaluation, and fitting.
-
-Model creation is one of the most important initialization steps in the PyHS3 workflow because every subsequent operation depends on the generated model.
+Unlike the **Workspace Loading** benchmark, workspace deserialization is excluded from the reported measurements. This benchmark measures only the cost of calling `Workspace.model(...)`, which prepares the statistical model for subsequent graph construction, compilation, likelihood evaluation, and fitting.
 
 ---
 
-# What is Measured?
+# What This Benchmark Measures
 
-For each benchmark workspace, the benchmark reports
+For each benchmark configuration, the benchmark reports
 
 - mean wall time;
 - median wall time;
-- standard deviation across repeated measurements;
+- standard deviation;
 - current RSS memory increase;
 - peak RSS memory increase;
-- basic model validation.
+- model validation status.
 
-Workspace loading is intentionally excluded from all measurements.
+Workspace loading is treated as a setup step and is excluded from all reported measurements.
+
+Details of the measurement methodology are described in **Benchmark Methodology**.
 
 ---
 
 # Benchmark Workflow
 
-For every workspace, the benchmark performs the following steps.
-
 ```text
-HS3 Workspace
+Workspace
       │
       ▼
 Workspace.load(...)
@@ -37,9 +37,7 @@ Workspace.load(...)
 Workspace.model(...)
       │
       ├────────► Model Validation
-      │
       ├────────► Timing Statistics
-      │
       └────────► Memory Statistics
       │
       ▼
@@ -49,27 +47,25 @@ JSON Report
 Comparison Plots (optional)
 ```
 
-The workspace is loaded once before benchmarking begins. Repeated timing measurements include only model creation.
-
-Memory measurements are collected from a single isolated model creation to avoid reporting accumulated memory from multiple PyTensor graphs.
+The workspace is loaded once before benchmarking begins. Only model construction is included in the reported timings.
 
 ---
 
-# When Should This Benchmark Be Used?
+# When to Use This Benchmark
 
 This benchmark is useful for
 
-- measuring statistical model construction overhead;
-- comparing model initialization across different workspaces;
+- measuring model construction overhead;
+- comparing initialization performance across workspaces;
 - evaluating scaling with model complexity;
-- detecting regressions in model creation performance;
-- estimating memory consumption before graph construction.
+- detecting performance regressions;
+- estimating memory requirements before graph construction.
 
 ---
 
 # Running the Benchmark
 
-## Run the benchmark directly
+## Run directly
 
 ```bash
 pixi run python -m src.run_model_creation \
@@ -87,7 +83,7 @@ pixi run python -m src.run_model_creation \
     --plot-dir docs/assets/plots/model_creation
 ```
 
-## Run through the benchmark runner
+## Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -106,32 +102,21 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
----
-
 # Command-line Arguments
 
-The benchmark supports the following command-line arguments.
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | Workspace files to benchmark. |
+| `--targets` | Model targets passed to `Workspace.model(...)`. |
+| `--modes` | PyTensor compilation modes. |
+| `--n-runs` | Number of repeated timing measurements. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison plots. |
+| `--plot-dir` | Directory for generated figures. |
+| `--plot-name` | Filename of the wall-time comparison plot. |
 
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is loaded once before model creation is measured. |
-| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more workspace targets (for example, analysis or likelihood names) passed to `Workspace.model(...)`. A separate benchmark is executed for each target. |
-| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes passed to `Workspace.model(...)`. Each mode is benchmarked independently. |
-| `--n-runs` | `int` | `DEFAULT_N_RUNS` | Number of repeated model creation timing measurements for each workspace/target/mode combination. Larger values improve the stability of timing statistics. |
-| `--output-dir` | `Path` | `results/model_creation/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `model_creation_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. Plots are created only when at least two successful benchmark results are available. |
-| `--plot-dir` | `Path` | `docs/assets/plots/model_creation/` | Directory where generated comparison plots will be stored. |
-| `--plot-name` | `str` | `model_creation_wall_time.png` | Filename of the wall-time comparison plot. Memory plots are generated automatically using standard filenames. |
-
-## Notes
-
-- At least one workspace must be provided.
-- `--targets` accepts one or more model targets. A separate benchmark is executed for every workspace–target combination.
-- `--modes` accepts one or more PyTensor compilation modes. Every workspace, target, and mode combination is benchmarked independently.
-- `--n-runs` must be greater than or equal to **1**.
-- The benchmark loads each workspace once and excludes workspace loading from all reported timing measurements.
-- The `--plot` flag has no effect when fewer than two successful benchmark results are available.
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
 
 ---
 
@@ -157,105 +142,57 @@ docs/
             └── model_creation_peak_rss_delta.png
 ```
 
----
-
-# JSON Output
-
-Each benchmark result contains
-
-| Field | Description |
-|---------|-------------|
-| `workspace` | Input workspace filename |
-| `target` | Requested model target |
-| `mode` | PyTensor compilation mode |
-| `status` | Benchmark execution status |
-| `wall_time_seconds_mean` | Mean model creation time |
-| `wall_time_seconds_median` | Median model creation time |
-| `wall_time_seconds_std` | Standard deviation |
-| `current_rss_delta_mb` | Resident memory increase |
-| `peak_rss_delta_mb` | Peak resident memory increase |
-| `model_type` | Constructed model type |
+The report structure and output conventions are documented in **Benchmark Results**.
 
 ---
 
-# Wall-Time Comparison
+# Results
+
+## Wall-Time Comparison
 
 ![Model creation wall time](../assets/plots/model_creation/model_creation_wall_time.png)
 
-The wall-time benchmark measures the time required to construct a `Model` object from an already loaded workspace.
+This benchmark measures the time required to construct a `Model` object from an already loaded workspace.
 
-For the benchmark workspaces, model creation scales approximately as follows:
+Model creation scales from approximately **122 ms** for the single-channel workspace to approximately **3.26 s** for the 30-channel benchmark workspace.
 
-| Workspace | Mean wall time |
-|-----------|---------------:|
-| 1-channel | ~122 ms |
-| 3-channel | ~333 ms |
-| 5-channel | ~545 ms |
-| 10-channel | ~1.10 s |
-| 30-channel | ~3.26 s |
+Compared with workspace loading, this stage is substantially more expensive because PyHS3 constructs the complete symbolic statistical model before later workflow stages.
 
-The benchmark demonstrates that model creation is substantially more expensive than workspace loading because PyHS3 constructs the complete symbolic statistical model during this stage.
-
-The growth is approximately proportional to workspace complexity, although larger workspaces require disproportionately more computation as the computational graph becomes increasingly complex.
-
-The 10-channel workspace exhibits noticeably larger timing variability than the other benchmark workspaces. Inspection of the timing samples shows several unusually slow executions that increase the measured standard deviation, while the median remains close to the typical execution time. The 30-channel workspace, despite requiring substantially longer execution time, shows relatively stable measurements across repeated runs.
+Execution time generally increases with workspace complexity, although larger workspaces exhibit greater variability due to the increased complexity of the generated computational graph.
 
 ---
 
-# Peak RSS Memory
+## Peak RSS Memory
 
 ![Peak RSS memory](../assets/plots/model_creation/model_creation_peak_rss_delta.png)
 
 Peak RSS measures the maximum resident memory reached during model construction.
 
-Memory usage increases steadily with workspace complexity:
-
-| Workspace | Peak RSS delta |
-|-----------|---------------:|
-| 1-channel | ~0.38 MB |
-| 3-channel | ~1.25 MB |
-| 5-channel | ~1.88 MB |
-| 10-channel | ~3.88 MB |
-| 30-channel | ~12.84 MB |
-
-Compared with workspace loading, model creation requires substantially more temporary memory because symbolic graphs, parameters, and intermediate computational structures are constructed during this stage.
+Memory usage increases steadily with workspace complexity, reflecting the additional symbolic graphs, parameters, and intermediate structures created while building the statistical model.
 
 ---
 
-# Current RSS Memory
+## Current RSS Memory
 
 ![Current RSS memory](../assets/plots/model_creation/model_creation_current_rss_delta.png)
 
-Current RSS measures the resident memory immediately after model creation has completed.
+Current RSS measures resident memory immediately after model creation completes.
 
-The measurements closely follow the peak RSS values:
-
-| Workspace | Current RSS delta |
-|-----------|------------------:|
-| 1-channel | ~0.46 MB |
-| 3-channel | ~1.13 MB |
-| 5-channel | ~1.94 MB |
-| 10-channel | ~3.65 MB |
-| 30-channel | ~12.91 MB |
-
-The similarity between current and peak RSS indicates that most allocated memory belongs to the constructed statistical model rather than temporary allocations that are released immediately after construction.
+The close agreement between current and peak RSS indicates that most allocated memory belongs to the constructed model rather than temporary allocations released after construction.
 
 ---
 
-# Implementation Details
+# Implementation Notes
 
-Several implementation choices improve measurement reproducibility.
+The benchmark includes several implementation choices that improve measurement quality.
 
-- Workspace loading is excluded from all measurements.
-- Memory is measured using a single isolated model construction.
-- Timing statistics are collected independently from memory measurements.
-- Each timing measurement creates a fresh model.
-- Garbage collection is performed between timing iterations.
-- Every benchmark is executed in a separate Python process.
-- Successfully created models are validated before benchmark results are recorded.
-- Comparison plots are generated only when multiple successful benchmark results are available.
+- Workspace loading is excluded from the reported timings.
+- Timing and memory measurements are collected independently.
+- Each timing measurement constructs a fresh model.
+- Memory measurements use isolated model construction.
+- Model validation is performed before results are recorded.
 
-These design choices minimize interference between repeated runs and produce stable benchmark results across different systems.
+The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
@@ -263,10 +200,10 @@ These design choices minimize interference between repeated runs and produce sta
 
 This benchmark measures only statistical model construction.
 
-It does **not** include
+It does **not** measure
 
 - workspace loading;
-- log-probability graph construction;
+- log-probability construction;
 - graph canonicalization;
 - graph optimization;
 - graph compilation;
@@ -274,7 +211,7 @@ It does **not** include
 - PDF evaluation;
 - fitting.
 
-These workflow stages are measured by dedicated benchmarks documented elsewhere in this guide.
+These workflow stages are benchmarked separately.
 
 ---
 
@@ -286,3 +223,4 @@ See also
 - **Log-Probability Construction**
 - **Benchmark Methodology**
 - **Benchmark Results**
+- **Workspace Lifecycle**

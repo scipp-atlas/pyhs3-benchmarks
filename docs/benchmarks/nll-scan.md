@@ -1,36 +1,84 @@
 # NLL Scan
 
-The NLL scan benchmark measures the performance of evaluating a negative log-likelihood over a parameter scan.
+On this page, you will learn what the **NLL Scan** benchmark measures, how to run it, and how to interpret its results.
 
-Unlike the PDF evaluation benchmark, this benchmark repeatedly evaluates the compiled log-probability while varying a single parameter of interest (`mu_sig`) across a predefined scan range.
+The **NLL Scan** benchmark measures the performance of evaluating a compiled negative log-likelihood over a parameter scan.
 
-For each workspace and scan resolution, the benchmark measures
+Unlike the **PDF Evaluation** benchmark, which repeatedly evaluates a single probability density, this benchmark measures repeated evaluations of the compiled log-probability while varying one parameter of interest (`mu_sig`) across a predefined scan range.
+
+---
+
+# What This Benchmark Measures
+
+For each benchmark configuration, the benchmark reports
 
 - total scan runtime;
 - runtime per scan point;
-- current RSS increase;
-- peak RSS increase;
-- validation of the produced NLL curve.
+- current RSS memory increase;
+- peak RSS memory increase;
+- numerical validation status.
+
+The benchmark also verifies that
+
+- every NLL value is finite;
+- the requested number of scan points is produced;
+- the minimum NLL value is identified successfully.
+
+Details of the measurement methodology are described in **Benchmark Methodology**.
 
 ---
 
-# What is measured
+# Benchmark Workflow
 
-For each benchmark run, the following operations are performed:
+```text
+Workspace
+      │
+      ▼
+Load Workspace
+      │
+      ▼
+Create Model
+      │
+      ▼
+Compile Log-Probability
+      │
+      ▼
+Generate Scan Points
+      │
+      ▼
+Evaluate NLL
+      │
+      ├────────► Runtime
+      ├────────► Runtime per Point
+      ├────────► Memory
+      └────────► Validation
+      │
+      ▼
+JSON Report
+      │
+      ▼
+Comparison Plots (optional)
+```
 
-1. load the workspace;
-2. construct the statistical model;
-3. build and compile the log-probability graph;
-4. generate uniformly spaced scan points;
-5. evaluate the NLL at every scan point.
-
-The benchmark reports only the scan performance after compilation.
+Workspace loading, model construction, and graph compilation are setup stages and are excluded from the reported scan timing.
 
 ---
 
-# Running the benchmark
+# When to Use This Benchmark
 
-## Individual benchmark
+This benchmark is useful for
+
+- evaluating likelihood scan performance;
+- studying scaling with scan resolution;
+- measuring runtime per scan point;
+- detecting performance regressions;
+- evaluating memory usage during parameter scans.
+
+---
+
+# Running the Benchmark
+
+## Run directly
 
 ```bash
 pixi run python -m src.run_nll_scan \
@@ -51,7 +99,7 @@ pixi run python -m src.run_nll_scan \
     --plot-dir docs/assets/plots/nll_scan
 ```
 
-## Using the benchmark runner
+## Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -73,107 +121,127 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
----
-
 # Command-line Arguments
 
-The benchmark supports the following command-line arguments.
+| Argument | Description |
+|----------|-------------|
+| `--workspaces` | Workspace files to benchmark. |
+| `--targets` | Model targets used for the scan. |
+| `--modes` | PyTensor compilation modes. |
+| `--scan-parameter` | Parameter varied during the scan. |
+| `--scan-min` | Lower bound of the scan range. |
+| `--scan-max` | Upper bound of the scan range. |
+| `--n-scan-points` | Numbers of scan points to benchmark. |
+| `--output-dir` | Directory for benchmark reports. |
+| `--output-name` | Output JSON filename. |
+| `--plot` | Generate comparison plots. |
+| `--plot-dir` | Directory for generated figures. |
 
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--workspaces` | `Path ...` | `DEFAULT_WORKSPACE` | One or more HS3 workspace JSON files to benchmark. Each workspace is benchmarked independently. |
-| `--targets` | `str ...` | `DEFAULT_TARGET` | One or more model targets (for example, analysis or likelihood names) used to construct the statistical model before performing the scan. |
-| `--modes` | `str ...` | `DEFAULT_MODE` | One or more PyTensor compilation modes used when building the compiled log-probability function. |
-| `--scan-parameter` | `str` | `mu_sig` | Name of the model parameter to scan. Its value is varied uniformly across the specified scan range while all other parameters remain fixed. |
-| `--scan-min` | `float` | `0.0` | Lower bound of the scan range (inclusive). |
-| `--scan-max` | `float` | `5.0` | Upper bound of the scan range (inclusive). Must be greater than `--scan-min`. |
-| `--n-scan-points` | `int ...` | `101` | Number of uniformly spaced scan points. A separate benchmark is executed for each specified scan resolution. |
-| `--output-dir` | `Path` | `results/nll_scan/` | Directory where the benchmark JSON results will be written. |
-| `--output-name` | `str` | `nll_scan_result.json` | Name of the JSON file containing the benchmark results. |
-| `--plot` | flag | disabled | Generate comparison plots after the benchmark completes. |
-| `--plot-dir` | `Path` | `docs/assets/plots/nll_scan/` | Directory where generated benchmark plots will be stored. |
-
-## Notes
-
-- At least one workspace, target, mode, and scan resolution must be provided.
-- A separate benchmark is executed for every combination of workspace, target, mode, and number of scan points.
-- `--scan-min` must be smaller than `--scan-max`.
-- Every value supplied to `--n-scan-points` must be at least **2**.
-- Workspace loading, model construction, log-probability graph creation, and graph compilation are treated as setup steps and are excluded from the reported scan timing.
-- The benchmark measures only repeated evaluations of the compiled log-probability across the requested parameter grid.
+Common benchmark arguments and execution behavior are described in **Benchmark Methodology**.
 
 ---
 
-# Benchmark outputs
+# Generated Outputs
 
 The benchmark produces
 
-- total scan runtime;
-- runtime per scan point;
-- current RSS increase;
-- peak RSS increase;
-- validation information;
-- JSON result file;
-- optional plots.
+```text
+results/
+└── nll_scan/
+    └── nll_scan_result.json
+```
+
+and, when plotting is enabled,
+
+```text
+docs/
+└── assets/
+    └── plots/
+        └── nll_scan/
+```
+
+The report structure and output conventions are documented in **Benchmark Results**.
 
 ---
 
-# Validation
+# Results
 
-Each benchmark run verifies that
-
-- all computed NLL values are finite;
-- the requested number of scan points is produced;
-- the minimum NLL value is successfully identified;
-- the corresponding scan parameter value is reported;
-- the complete scan values and NLL values are stored in the output JSON.
-
----
-
-# Example results
-
-## Total runtime
+## Total Runtime
 
 ![](../assets/plots/nll_scan/nll_scan_total_runtime.png)
 
-As expected, the total runtime scales approximately linearly with the number of scan points since every additional point requires one additional evaluation of the compiled likelihood.
+Total runtime scales approximately linearly with the number of scan points because each additional point requires one additional evaluation of the compiled likelihood.
 
-The benchmark demonstrates stable scaling across all tested workspaces, with the largest scans requiring proportionally longer execution times while preserving predictable performance characteristics.
+The benchmark demonstrates predictable scaling across all benchmark workspaces.
 
 ---
 
-## Runtime per scan point
+## Runtime per Scan Point
 
 ![](../assets/plots/nll_scan/nll_scan_runtime_per_point.png)
 
-The runtime per scan point remains nearly constant over several orders of magnitude in scan size.
+Runtime per scan point remains nearly constant over several orders of magnitude in scan size.
 
-This indicates that the computational cost of evaluating an individual likelihood point is essentially independent of the total scan length, confirming good scaling of the evaluation pipeline.
+This indicates that the computational cost of evaluating a single likelihood point is largely independent of the total scan length.
 
 ---
 
-## Current RSS increase
+## Current RSS Memory
 
 ![](../assets/plots/nll_scan/nll_scan_current_rss_delta.png)
 
-For small scans, essentially no additional memory is allocated.
+Current RSS shows little additional memory usage for small scans.
 
-Beginning around 1000 scan points, several workspaces allocate a few additional megabytes while constructing larger scan outputs, after which memory usage remains relatively stable.
+Memory increases become noticeable only for very large scan configurations due to larger output arrays.
 
 ---
 
-## Peak RSS increase
+## Peak RSS Memory
 
 ![](../assets/plots/nll_scan/nll_scan_peak_rss_delta.png)
 
-Peak RSS follows the same behavior as the current RSS measurements.
+Peak RSS closely follows the behavior of current RSS.
 
-Most workspaces exhibit negligible peak memory growth for small scans, with only moderate increases appearing for the largest scan configurations.
+Even for the largest scans, memory growth remains modest relative to the overall workload.
 
 ---
 
-# Interpretation
+# Implementation Notes
 
-The benchmark shows that NLL scanning is computationally well behaved.
+The benchmark includes several implementation choices that improve measurement quality.
 
-The runtime grows linearly with the number of scan points, while the cost per evaluation remains nearly constant across different scan sizes. Memory usage is minimal for small scans and increases only modestly for very large scans, making the implementation suitable for large-scale likelihood scans.
+- Workspace loading is excluded from the reported timings.
+- Model construction and graph compilation are treated as setup.
+- Only repeated evaluations of the compiled likelihood are measured.
+- Numerical validation is performed before results are recorded.
+
+The general benchmark methodology is documented in **Benchmark Methodology**.
+
+---
+
+# Limitations
+
+This benchmark measures only repeated evaluation of a compiled negative log-likelihood across a parameter scan.
+
+It does **not** measure
+
+- workspace loading;
+- model creation;
+- graph construction;
+- graph optimization;
+- graph compilation.
+
+These stages are benchmarked separately.
+
+---
+
+# Related Documentation
+
+See also
+
+- **Benchmark Methodology**
+- **Benchmark Results**
+- **Benchmark Matrix Runner**
+- **Workspace Lifecycle**
+- **Compiled Evaluation**
+- **PDF Evaluation**
