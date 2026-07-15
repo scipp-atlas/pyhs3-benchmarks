@@ -50,18 +50,26 @@ nav = [
     { "HistFactory Likelihood" = "cross-framework/binned-likelihood.md" },
   ] },
 
-  { "Development" = "development.md" },
-
-  { "API" = "api.md" },
-
-  { "Benchmark Matrix Runner" = "benchmark-matrix-runner.md" },
-
-  { "Profiling with Scalene" = "scalene-profiling.md" },
-
-  { "Testing" = "tests.md" }
+  { "Development" = [
+    { "Developer Guide" = "development.md" },
+    { "API" = "api.md" },
+    { "Benchmark Matrix Runner" = "benchmark-matrix-runner.md" },
+    { "Profiling with Scalene" = "scalene-profiling.md" },
+    { "Testing" = "tests.md" }
+  ] }
 ]
 
 [project.theme]
 features = [
-  "navigation.path"
+  "navigation.path",
+  "navigation.sections",
+  "navigation.expand",
+  "navigation.tracking",
+  "navigation.top",
+  "toc.follow"
 ]
+
+[project.markdown_extensions.toc]
+title = "On this page"
+permalink = true
+toc_depth = 3
