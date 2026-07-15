@@ -309,7 +309,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir", type=Path, default=Path("results/benchmark_matrix")
     )
-    parser.add_argument("--plot-dir", type=Path, default=Path("plots/benchmark_matrix"))
+    parser.add_argument("--plot-dir", type=Path, default=Path("docs/assets/plots/"))
     parser.add_argument("--report-name", default="matrix_summary.json")
 
     parser.add_argument("--plot", action="store_true")
