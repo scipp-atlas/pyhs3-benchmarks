@@ -6,13 +6,13 @@ Rather than describing benchmark execution, this page focuses on the evolution o
 
 ---
 
-# Lifecycle Overview
+## Lifecycle Overview
 
 Each stage transforms the workspace into a richer internal representation that can be reused by subsequent stages.
 
 ---
 
-# Stage 1 — Workspace Loading
+## Stage 1 — Workspace Loading
 
 The lifecycle begins with a serialized HS3 workspace stored as JSON.
 
@@ -20,7 +20,7 @@ During this stage the workspace is read from disk and converted into an in-memor
 
 ---
 
-# Stage 2 — Model Creation
+## Stage 2 — Model Creation
 
 The workspace is transformed into a collection of statistical model objects.
 
@@ -28,7 +28,7 @@ Parameters, observables, probability density functions, and model components are
 
 ---
 
-# Stage 3 — Log-Probability Construction
+## Stage 3 — Log-Probability Construction
 
 The statistical model is converted into a symbolic log-probability graph.
 
@@ -36,7 +36,7 @@ Instead of performing numerical evaluation immediately, this stage builds a comp
 
 ---
 
-# Stage 4 — Graph Canonicalization
+## Stage 4 — Graph Canonicalization
 
 The symbolic graph is rewritten into a canonical representation.
 
@@ -44,7 +44,7 @@ This normalization step provides a consistent graph structure independent of how
 
 ---
 
-# Stage 5 — Graph Optimization
+## Stage 5 — Graph Optimization
 
 The canonical graph is simplified before numerical execution.
 
@@ -52,7 +52,7 @@ Expression simplification and elimination of redundant computations prepare the 
 
 ---
 
-# Stage 6 — Compilation
+## Stage 6 — Compilation
 
 The optimized graph is compiled into an executable representation.
 
@@ -60,7 +60,7 @@ Compilation converts the symbolic computation into a form that can be evaluated 
 
 ---
 
-# Stage 7 — Numerical Evaluation
+## Stage 7 — Numerical Evaluation
 
 Once compilation is complete, the model can be evaluated efficiently.
 
@@ -76,7 +76,7 @@ These analyses all reuse the same compiled statistical model.
 
 ---
 
-# Why the Lifecycle Matters
+## Why the Lifecycle Matters
 
 Representing the workflow as a sequence of independent transformations provides several advantages.
 
@@ -89,7 +89,7 @@ This layered design simplifies both optimization and maintenance of the statisti
 
 ---
 
-# Relationship to Benchmark Suites
+## Relationship to Benchmark Suites
 
 Many benchmark suites measure the performance of one lifecycle stage.
 
@@ -108,7 +108,7 @@ This mapping allows individual stages of the workspace lifecycle to be evaluated
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

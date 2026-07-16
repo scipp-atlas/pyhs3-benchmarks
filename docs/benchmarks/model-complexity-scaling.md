@@ -8,7 +8,7 @@ Unlike the individual benchmark pages, this benchmark focuses on overall scaling
 
 ---
 
-# Benchmark Dataset
+## Benchmark Dataset
 
 The benchmark uses the nominal benchmark workspace collection.
 
@@ -32,7 +32,7 @@ The benchmark executes the complete workflow
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 For each workspace, the benchmark compares
 
@@ -46,7 +46,7 @@ The measurement methodology is described in **Benchmark Methodology**.
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
 ```bash
 pixi run python -m src.run_model_complexity_scaling \
@@ -61,7 +61,7 @@ pixi run python -m src.run_model_complexity_scaling \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -85,9 +85,9 @@ Common benchmark arguments are documented in **Benchmark Methodology**.
 
 ---
 
-# Results
+## Results
 
-## Total Setup Time
+### Total Setup Time
 
 ![Total setup time](../assets/plots/model_complexity_scaling/model_complexity_total_setup_time.png)
 
@@ -102,7 +102,7 @@ Initialization cost increases steadily with workspace complexity because larger 
 
 ---
 
-## Compiled Evaluation Time
+### Compiled Evaluation Time
 
 ![Compiled evaluation time](../assets/plots/model_complexity_scaling/model_complexity_compiled_evaluation_time.png)
 
@@ -112,7 +112,7 @@ This indicates that, once compilation has completed, evaluation performance is o
 
 ---
 
-## PDF Evaluation Time
+### PDF Evaluation Time
 
 ![PDF evaluation time](../assets/plots/model_complexity_scaling/model_complexity_pdf_evaluation_time.png)
 
@@ -122,7 +122,7 @@ The small variation indicates that individual PDF evaluations contribute little 
 
 ---
 
-## NLL Scan Time
+### NLL Scan Time
 
 ![NLL scan time](../assets/plots/model_complexity_scaling/model_complexity_nll_scan_time.png)
 
@@ -132,7 +132,7 @@ The benchmark shows that likelihood evaluation scales well after model compilati
 
 ---
 
-## Peak Memory Usage
+### Peak Memory Usage
 
 ![Peak RSS delta](../assets/plots/model_complexity_scaling/model_complexity_peak_rss_delta.png)
 
@@ -142,7 +142,7 @@ Most memory allocation occurs during graph compilation, while increasing workspa
 
 ---
 
-# Key Observations
+## Key Observations
 
 The benchmark highlights several important characteristics of the current implementation.
 
@@ -154,7 +154,7 @@ The benchmark highlights several important characteristics of the current implem
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark summarizes scaling trends across representative benchmark workspaces.
 
@@ -164,7 +164,7 @@ For stage-specific performance measurements, see the corresponding benchmark pag
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

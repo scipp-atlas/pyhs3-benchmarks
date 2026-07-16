@@ -6,7 +6,7 @@ The benchmark matrix runner is the recommended entry point for running reproduci
 
 ---
 
-# Overview
+## Overview
 
 The benchmark matrix runner
 
@@ -22,7 +22,7 @@ For details on how benchmarks are measured and validated, see **Benchmark Method
 
 ---
 
-# Supported Benchmark Categories
+## Supported Benchmark Categories
 
 The runner supports the following benchmark categories.
 
@@ -39,7 +39,7 @@ Available benchmark suites are registered internally through `BenchmarkSpec`.
 
 ---
 
-# Benchmark Registry
+## Benchmark Registry
 
 Each benchmark is registered through a `BenchmarkSpec` entry defining
 
@@ -55,7 +55,7 @@ The registry allows the runner to build the correct command automatically for ev
 
 ---
 
-# Execution Modes
+## Execution Modes
 
 Benchmark suites are executed using one of four execution modes.
 
@@ -70,7 +70,7 @@ The execution mode determines how benchmark commands are constructed and schedul
 
 ---
 
-# Workspace Discovery
+## Workspace Discovery
 
 By default, benchmark workspaces are discovered automatically from `inputs/`.
 
@@ -87,7 +87,7 @@ Only JSON workspaces participate in the workspace matrix.
 
 ---
 
-# Benchmark Selection
+## Benchmark Selection
 
 Run selected benchmark suites:
 
@@ -111,7 +111,7 @@ Exclude benchmarks from a larger selection:
 
 ---
 
-# Common Usage
+## Common Usage
 
 Run all benchmarks:
 
@@ -140,7 +140,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Benchmark-Specific Options
+## Benchmark-Specific Options
 
 Some benchmark suites accept additional benchmark-specific options.
 
@@ -155,7 +155,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Automatic ROOT Pairing
+## Automatic ROOT Pairing
 
 Benchmarks requiring ROOT workspaces automatically search for matching ROOT counterparts.
 
@@ -165,11 +165,11 @@ Benchmarks without matching ROOT workspaces are skipped and recorded in the camp
 
 ---
 
-# Output Organization
+## Output Organization
 
 The matrix runner organizes benchmark results, logs, and figures using a consistent directory structure.
 
-## Workspace-based benchmarks
+### Workspace-based benchmarks
 
 ```text
 results/benchmark_matrix/
@@ -188,7 +188,7 @@ plots/benchmark_matrix/
         └── repeat_000/
 ```
 
-## Run-once benchmarks
+### Run-once benchmarks
 
 ```text
 results/benchmark_matrix/
@@ -211,7 +211,7 @@ Batch plotting runs also use the `global` directory while generating comparison 
 
 ---
 
-# Execution Logs
+## Execution Logs
 
 Each benchmark subprocess produces
 
@@ -222,7 +222,7 @@ The runner also records the executed command and execution status for every benc
 
 ---
 
-# Campaign Summary
+## Campaign Summary
 
 After each campaign, the runner updates
 
@@ -240,7 +240,7 @@ failed_summary.txt
 
 ---
 
-# Failure Handling
+## Failure Handling
 
 Large benchmark campaigns are supported through
 
@@ -252,7 +252,7 @@ These options simplify debugging, validation, and long-running benchmark executi
 
 ---
 
-# Why Use the Matrix Runner?
+## Why Use the Matrix Runner?
 
 The benchmark matrix runner provides
 
@@ -269,7 +269,7 @@ For repository-wide benchmark campaigns, it is the recommended execution interfa
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

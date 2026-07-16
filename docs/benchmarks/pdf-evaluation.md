@@ -8,7 +8,7 @@ Unlike earlier workflow benchmarks, this benchmark evaluates an already construc
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 For every benchmark configuration, the benchmark reports
 
@@ -28,7 +28,7 @@ Details of the measurement methodology are described in **Benchmark Methodology*
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -64,7 +64,7 @@ Comparison Plots (optional)
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -76,9 +76,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_pdf_evaluation \
@@ -97,7 +97,7 @@ pixi run python -m src.run_pdf_evaluation \
     --plot-dir docs/assets/plots/pdf_evaluation
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -113,7 +113,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -131,7 +131,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -154,9 +154,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Cold-Start Time
+### Cold-Start Time
 
 Shows the execution time of the first `model.pdf(...)` evaluation.
 
@@ -166,7 +166,7 @@ The first evaluation includes initialization overhead that is not present during
 
 ---
 
-## Average Warm Evaluation Time
+### Average Warm Evaluation Time
 
 ![Average warm evaluation time](../assets/plots/pdf_evaluation/pdf_evaluation_average_time_lines.png)
 
@@ -174,7 +174,7 @@ This plot reports the average execution time after the initial evaluation, provi
 
 ---
 
-## Warm Throughput
+### Warm Throughput
 
 ![Warm throughput](../assets/plots/pdf_evaluation/pdf_evaluation_throughput_lines.png)
 
@@ -184,7 +184,7 @@ Higher throughput indicates more efficient repeated inference.
 
 ---
 
-## Current RSS Memory
+### Current RSS Memory
 
 ![Current RSS delta](../assets/plots/pdf_evaluation/pdf_evaluation_current_rss_delta_grouped.png)
 
@@ -194,7 +194,7 @@ The figure is generated only when at least one benchmark exhibits a measurable R
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -207,7 +207,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only repeated PDF evaluation.
 
@@ -224,7 +224,7 @@ These stages are benchmarked separately.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

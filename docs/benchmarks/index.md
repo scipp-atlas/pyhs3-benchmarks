@@ -8,29 +8,29 @@ All benchmarks follow the common methodology described in **Benchmark Methodolog
 
 ---
 
-# Benchmark Categories
+## Benchmark Categories
 
 The documentation is organized into three main sections.
 
-## Workflow Benchmarks
+### Workflow Benchmarks
 
 Workflow benchmarks measure individual stages of the PyHS3 execution pipeline.
 
 Each benchmark isolates one workflow stage, making it possible to understand initialization costs, execution performance, memory usage, and scalability independently.
 
-## Cross-Framework Benchmarks
+### Cross-Framework Benchmarks
 
 Cross-framework benchmarks compare PyHS3 with equivalent implementations in other statistical frameworks.
 
 These benchmarks evaluate both numerical agreement and execution performance using equivalent statistical models.
 
-## Benchmark Results
+### Benchmark Results
 
 Benchmark reports can be combined into summary figures that compare workflow stages, memory usage, scalability, and cross-framework performance.
 
 ---
 
-# Benchmark Pipeline
+## Benchmark Pipeline
 
 The workflow benchmarks follow the statistical model lifecycle.
 
@@ -71,7 +71,7 @@ Each workflow stage has a dedicated benchmark page describing what is measured, 
 
 ---
 
-# Workflow Benchmarks
+## Workflow Benchmarks
 
 | Benchmark | Purpose |
 |------------|---------|
@@ -89,7 +89,7 @@ Each workflow stage has a dedicated benchmark page describing what is measured, 
 
 ---
 
-# Cross-Framework Benchmarks
+## Cross-Framework Benchmarks
 
 | Benchmark | Purpose |
 |------------|---------|
@@ -102,7 +102,7 @@ Each workflow stage has a dedicated benchmark page describing what is measured, 
 
 ---
 
-# Running Benchmarks
+## Running Benchmarks
 
 Benchmark campaigns are typically executed using the Benchmark Matrix Runner.
 
@@ -136,7 +136,7 @@ Additional execution options are documented in **Benchmark Matrix Runner**.
 
 ---
 
-# Where to Go Next
+## Where to Go Next
 
 Continue with the following documentation sections:
 

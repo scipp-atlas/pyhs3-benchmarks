@@ -8,7 +8,7 @@ Unlike the workflow benchmarks, which measure individual stages of the PyHS3 exe
 
 ---
 
-# Apples-to-Apples Methodology
+## Apples-to-Apples Methodology
 
 Meaningful framework comparisons require every implementation to evaluate the same mathematical problem.
 
@@ -25,7 +25,7 @@ This minimizes differences unrelated to framework implementation and ensures tha
 
 ---
 
-# Common Benchmark Dataset
+## Common Benchmark Dataset
 
 All cross-framework benchmarks use statistically equivalent benchmark workspaces generated with the `workspace-scripts` repository.
 
@@ -33,7 +33,7 @@ The complete workspace collection is documented in **Benchmark Workspaces**.
 
 ---
 
-# Execution Engines
+## Execution Engines
 
 Depending on the benchmark, one or more of the following execution engines are compared.
 
@@ -49,7 +49,7 @@ Not every benchmark includes every execution engine.
 
 ---
 
-# Benchmark Categories
+## Benchmark Categories
 
 The benchmark suite covers four complementary comparison types.
 
@@ -62,9 +62,9 @@ Together these benchmarks evaluate both numerical agreement and execution perfor
 
 ---
 
-# Available Benchmarks
+## Available Benchmarks
 
-## Scalar PDF Evaluation
+### Scalar PDF Evaluation
 
 Compares scalar probability density evaluation across PyHS3 and RooFit.
 
@@ -78,7 +78,7 @@ Measures
 
 ---
 
-## ΔNLL Benchmark
+### ΔNLL Benchmark
 
 Compares equivalent negative log-likelihood evaluation across statistically equivalent models.
 
@@ -91,7 +91,7 @@ Measures
 
 ---
 
-## xRooFit Benchmark
+### xRooFit Benchmark
 
 Compares complete likelihood evaluation workflows between PyHS3 and xRooFit.
 
@@ -105,7 +105,7 @@ Measures
 
 ---
 
-## Cross-Framework Binned Likelihood
+### Cross-Framework Binned Likelihood
 
 Compares equivalent HistFactory models implemented in PyHS3 and pyhf.
 
@@ -118,7 +118,7 @@ Measures
 
 ---
 
-# Numerical Validation
+## Numerical Validation
 
 Performance comparisons are interpreted only after numerical agreement has been verified.
 
@@ -132,7 +132,7 @@ Depending on the benchmark, validation includes
 
 ---
 
-# Why These Benchmarks Matter
+## Why These Benchmarks Matter
 
 Cross-framework benchmarks
 
@@ -144,7 +144,7 @@ Cross-framework benchmarks
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

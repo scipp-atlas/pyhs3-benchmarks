@@ -8,7 +8,7 @@ Workspace loading, model creation, and symbolic graph construction are treated a
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 The benchmark measures only the execution of
 
@@ -31,7 +31,7 @@ Details of the measurement methodology are described in **Benchmark Methodology*
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -63,7 +63,7 @@ Only JAX compilation contributes to the reported benchmark results.
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -75,9 +75,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_log_prob_compilation \
@@ -95,7 +95,7 @@ pixi run python -m src.run_log_prob_compilation \
     --plot-dir docs/assets/plots/log_prob_compilation
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -114,7 +114,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -131,7 +131,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -157,9 +157,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Wall-Time Comparison
+### Wall-Time Comparison
 
 ![Log probability compilation wall time](../assets/plots/log_prob_compilation/log_prob_compilation_wall_time.png)
 
@@ -171,7 +171,7 @@ Compared with symbolic graph construction, compilation is substantially more exp
 
 ---
 
-## Current RSS Memory
+### Current RSS Memory
 
 ![Log probability compilation current RSS](../assets/plots/log_prob_compilation/log_prob_compilation_current_rss_delta.png)
 
@@ -181,7 +181,7 @@ The memory footprint is largely independent of workspace complexity, indicating 
 
 ---
 
-## Peak RSS Memory
+### Peak RSS Memory
 
 ![Log probability compilation peak RSS](../assets/plots/log_prob_compilation/log_prob_compilation_peak_rss_delta.png)
 
@@ -191,7 +191,7 @@ The benchmark shows a nearly constant compilation memory footprint across all be
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -204,7 +204,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only JAX compilation of the symbolic log-probability graph.
 
@@ -221,7 +221,7 @@ These workflow stages are benchmarked separately.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

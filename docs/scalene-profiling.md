@@ -6,7 +6,7 @@ While benchmarking measures **how fast** a benchmark executes, profiling explain
 
 ---
 
-# Why Scalene?
+## Why Scalene?
 
 PyHS3 Benchmarks combines Python orchestration with numerical libraries such as
 
@@ -29,7 +29,7 @@ This makes it easier to identify whether a performance bottleneck originates in 
 
 ---
 
-# Typical Use Cases
+## Typical Use Cases
 
 Within this repository, Scalene is primarily used to
 
@@ -43,7 +43,7 @@ Benchmark reports and publication-quality figures are produced by the benchmarki
 
 ---
 
-# Running Scalene
+## Running Scalene
 
 Any benchmark can be profiled using Scalene.
 
@@ -67,7 +67,7 @@ After execution, Scalene automatically generates an HTML report that can be expl
 
 ---
 
-# Typical Profiling Workflow
+## Typical Profiling Workflow
 
 A common optimization workflow is
 
@@ -82,7 +82,7 @@ This workflow separates **performance measurement** from **performance diagnosis
 
 ---
 
-# Understanding the Output
+## Understanding the Output
 
 Scalene reports several useful performance metrics.
 
@@ -99,7 +99,7 @@ Together, these metrics provide a detailed view of CPU and memory behavior durin
 
 ---
 
-# JSON Output
+## JSON Output
 
 Scalene profiles are commonly stored under
 
@@ -120,7 +120,7 @@ Because profiles are stored in JSON format, they can be archived, compared acros
 
 ---
 
-# When Should Scalene Be Used?
+## When Should Scalene Be Used?
 
 Scalene is particularly useful when
 
@@ -133,7 +133,7 @@ Routine benchmark execution does **not** require Scalene. It is intended as a de
 
 ---
 
-# Benchmarking vs Profiling
+## Benchmarking vs Profiling
 
 Although closely related, benchmarking and profiling answer different questions.
 
@@ -148,7 +148,7 @@ See **Benchmark Methodology** for details on how benchmark measurements are coll
 
 ---
 
-# Further Reading
+## Further Reading
 
 For installation instructions, advanced usage, and additional examples, see the official **Scalene** repository:
 
@@ -156,7 +156,7 @@ https://github.com/plasma-umass/scalene
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

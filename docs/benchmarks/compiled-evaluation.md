@@ -8,7 +8,7 @@ Unlike **Log-Probability Compilation**, this benchmark excludes workspace loadin
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 For each benchmark configuration, the benchmark reports
 
@@ -24,7 +24,7 @@ Details of the measurement methodology are described in **Benchmark Methodology*
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -60,7 +60,7 @@ Only execution of the compiled graph contributes to the reported benchmark resul
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -72,9 +72,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_compiled_evaluation \
@@ -92,7 +92,7 @@ pixi run python -m src.run_compiled_evaluation \
     --plot-dir docs/assets/plots/compiled_evaluation
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -111,7 +111,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -128,7 +128,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -155,9 +155,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Average Evaluation Time
+### Average Evaluation Time
 
 ![Compiled evaluation average wall time](../assets/plots/compiled_evaluation/compiled_evaluation_average_time.png)
 
@@ -167,7 +167,7 @@ At very large evaluation counts (10,000 evaluations), execution time increases s
 
 ---
 
-## Evaluation Throughput
+### Evaluation Throughput
 
 ![Compiled evaluation throughput](../assets/plots/compiled_evaluation/compiled_evaluation_throughput.png)
 
@@ -177,7 +177,7 @@ The **10-channel** workspace without nuisance parameters achieves the highest th
 
 ---
 
-## Memory Usage
+### Memory Usage
 
 Current RSS and peak RSS remain effectively unchanged during repeated compiled graph evaluation.
 
@@ -185,7 +185,7 @@ This demonstrates that executing an already compiled graph introduces no measura
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -198,7 +198,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only repeated execution of an already compiled log-probability graph.
 
@@ -216,7 +216,7 @@ These workflow stages are benchmarked separately.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

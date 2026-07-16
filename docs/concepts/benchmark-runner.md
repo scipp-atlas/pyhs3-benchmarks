@@ -12,7 +12,7 @@ src/run_all_benchmarks.py
 
 ---
 
-# Purpose
+## Purpose
 
 The repository contains many benchmark suites targeting different stages of the statistical inference workflow.
 
@@ -28,7 +28,7 @@ This shared infrastructure keeps benchmark implementations focused on measuremen
 
 ---
 
-# Execution Model
+## Execution Model
 
 Every benchmark campaign follows the same high-level execution flow.
 
@@ -58,7 +58,7 @@ The Benchmark Runner coordinates this workflow while allowing each benchmark sui
 
 ---
 
-# Benchmark Campaigns
+## Benchmark Campaigns
 
 A benchmark campaign combines
 
@@ -72,7 +72,7 @@ For practical examples of configuring and executing benchmark campaigns, see **B
 
 ---
 
-# Workspace Coordination
+## Workspace Coordination
 
 The Benchmark Runner provides every benchmark with the same workspace collection.
 
@@ -82,7 +82,7 @@ Details on workspace discovery, filtering, and selection are documented in **Ben
 
 ---
 
-# Result Collection
+## Result Collection
 
 Each benchmark remains responsible for generating its own benchmark report.
 
@@ -92,7 +92,7 @@ Generated reports and figures are documented in **Outputs**.
 
 ---
 
-# Plot Coordination
+## Plot Coordination
 
 The Benchmark Runner coordinates figure generation after benchmark execution completes.
 
@@ -102,7 +102,7 @@ See **Outputs** for generated artifacts and **Benchmark Methodology** for the me
 
 ---
 
-# Error Isolation
+## Error Isolation
 
 Benchmark suites execute independently.
 
@@ -112,7 +112,7 @@ This design simplifies debugging and allows long-running benchmark campaigns to 
 
 ---
 
-# Relationship to Individual Benchmarks
+## Relationship to Individual Benchmarks
 
 Individual benchmark implementations and the Benchmark Runner have different responsibilities.
 
@@ -127,7 +127,7 @@ This separation keeps benchmark implementations simple while allowing the reposi
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

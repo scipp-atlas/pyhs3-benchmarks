@@ -6,7 +6,7 @@ This guide assumes that the project has already been installed. If not, begin wi
 
 ---
 
-# Typical Benchmark Workflow
+## Typical Benchmark Workflow
 
 A typical benchmarking session consists of four stages.
 
@@ -27,7 +27,7 @@ This workflow provides the quickest way to become familiar with the repository b
 
 ---
 
-# Running Your First Benchmark
+## Running Your First Benchmark
 
 The recommended first benchmark is **Workspace Loading**, which measures the cost of loading HS3 workspaces before any statistical models are constructed.
 
@@ -49,7 +49,7 @@ For details on what this benchmark measures, see **Workspace Loading**.
 
 ---
 
-# Running Multiple Benchmarks
+## Running Multiple Benchmarks
 
 Once you are familiar with individual benchmark suites, you can execute several benchmarks in a single run.
 
@@ -73,7 +73,7 @@ For additional execution modes and campaign management, see **Benchmark Matrix R
 
 ---
 
-# Running the Complete Benchmark Suite
+## Running the Complete Benchmark Suite
 
 To execute every available workflow benchmark for the selected workspaces, run
 
@@ -92,7 +92,7 @@ This approach is recommended for complete benchmark campaigns and performance re
 
 ---
 
-# Understanding the Generated Outputs
+## Understanding the Generated Outputs
 
 Benchmark execution produces structured JSON reports together with benchmark plots.
 
@@ -118,7 +118,7 @@ See **Outputs** for a complete description of generated reports and figures.
 
 ---
 
-# Where to Go Next
+## Where to Go Next
 
 After successfully running your first benchmark, the following pages provide a natural next step:
 

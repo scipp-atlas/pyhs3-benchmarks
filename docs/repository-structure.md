@@ -16,7 +16,7 @@ tests/       Automated tests
 
 ---
 
-# Repository Layout
+## Repository Layout
 
 ```text
 pyhs3-benchmarks/
@@ -37,7 +37,7 @@ The repository separates source code, benchmark inputs, generated outputs, and d
 
 ---
 
-# Source Code
+## Source Code
 
 ```text
 src/
@@ -69,7 +69,7 @@ Most benchmark suites are implemented as standalone executable modules while sha
 
 ---
 
-# Benchmark Inputs
+## Benchmark Inputs
 
 ```text
 inputs/
@@ -90,7 +90,7 @@ For details about available benchmark workspaces, see **Benchmark Workspaces**.
 
 ---
 
-# Benchmark Results
+## Benchmark Results
 
 ```text
 results/
@@ -109,7 +109,7 @@ See **Outputs** for the complete report format and generated artifacts.
 
 ---
 
-# Documentation
+## Documentation
 
 ```text
 docs/
@@ -133,7 +133,7 @@ to keep documentation synchronized with benchmark outputs.
 
 ---
 
-# Tests
+## Tests
 
 ```text
 tests/
@@ -151,7 +151,7 @@ See **Development** for contributor guidelines and testing recommendations.
 
 ---
 
-# Repository Design
+## Repository Design
 
 The repository follows a modular organization.
 
@@ -167,7 +167,7 @@ This separation simplifies maintenance while making the repository easier to ext
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

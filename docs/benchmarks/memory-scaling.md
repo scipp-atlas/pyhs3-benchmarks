@@ -6,7 +6,7 @@ The **Memory Scaling** benchmark measures memory consumption for each major work
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 For each workflow stage, the benchmark reports
 
@@ -29,7 +29,7 @@ Measurement methodology and execution strategy are described in **Benchmark Meth
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -57,7 +57,7 @@ Each workflow stage executes in a separate Python process to isolate its memory 
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -69,9 +69,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_memory_scaling \
@@ -89,7 +89,7 @@ pixi run python -m src.run_memory_scaling \
     --plot-dir docs/assets/plots/memory_scaling
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -109,7 +109,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -133,7 +133,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -156,9 +156,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Current RSS Increase
+### Current RSS Increase
 
 ![](../assets/plots/memory_scaling/memory_scaling_current_rss_delta.png)
 
@@ -168,7 +168,7 @@ The dominant allocation occurs during **Log-Probability Compilation**, where JAX
 
 ---
 
-## Peak RSS Increase
+### Peak RSS Increase
 
 ![](../assets/plots/memory_scaling/memory_scaling_peak_rss_delta.png)
 
@@ -178,7 +178,7 @@ Again, compilation is responsible for nearly all additional memory allocation, w
 
 ---
 
-## Peak RSS After Each Workflow Stage
+### Peak RSS After Each Workflow Stage
 
 ![](../assets/plots/memory_scaling/memory_scaling_peak_rss_after.png)
 
@@ -188,7 +188,7 @@ Subsequent compiled evaluations, PDF evaluations, and NLL scans reuse the compil
 
 ---
 
-# Key Observations
+## Key Observations
 
 The benchmark highlights several important characteristics of the current implementation.
 
@@ -199,7 +199,7 @@ The benchmark highlights several important characteristics of the current implem
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures memory usage for individual workflow stages executed in isolation.
 
@@ -207,7 +207,7 @@ It is intended for comparative analysis of memory behavior rather than detailed 
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

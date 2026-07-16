@@ -8,7 +8,7 @@ Unlike the RooFit and xRooFit benchmarks, which evaluate complex analysis worksp
 
 ---
 
-# Benchmark Philosophy
+## Benchmark Philosophy
 
 The benchmark follows four principles.
 
@@ -21,7 +21,7 @@ These principles ensure that observed performance differences reflect implementa
 
 ---
 
-# Benchmark Dataset
+## Benchmark Dataset
 
 The benchmark uses two paired HistFactory models generated from equivalent statistical configurations.
 
@@ -39,7 +39,7 @@ The benchmark workspace collection is documented in **Benchmark Workspaces**.
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 HistFactory Workspace
@@ -68,7 +68,7 @@ Construction, cold-start execution, and warm execution are benchmarked independe
 
 ---
 
-# Numerical Validation
+## Numerical Validation
 
 Performance comparisons are interpreted only after numerical agreement has been verified.
 
@@ -81,9 +81,9 @@ The benchmark compares
 
 ---
 
-# Results
+## Results
 
-## Representative ΔNLL Profile
+### Representative ΔNLL Profile
 
 This figure shows a representative ΔNLL profile for one benchmark workspace.
 
@@ -93,7 +93,7 @@ The two curves overlap throughout the scan, demonstrating that PyHS3 and pyhf ev
 
 ---
 
-## Numerical Agreement Summary
+### Numerical Agreement Summary
 
 This figure summarizes the largest observed numerical differences across both benchmark workspaces.
 
@@ -103,7 +103,7 @@ Expected event counts agree exactly, while ΔNLL differences remain at floating-
 
 ---
 
-## Timing Breakdown
+### Timing Breakdown
 
 Construction, first evaluation, and warm evaluation are reported separately.
 
@@ -113,7 +113,7 @@ This separation avoids conflating initialization costs with steady-state likelih
 
 ---
 
-## Scaling with Histogram Size
+### Scaling with Histogram Size
 
 The benchmark evaluates warm likelihood performance while increasing the number of histogram bins.
 
@@ -125,7 +125,7 @@ This behavior is reported explicitly rather than omitted from the benchmark resu
 
 ---
 
-# Key Findings
+## Key Findings
 
 The benchmark demonstrates that
 
@@ -136,7 +136,7 @@ The benchmark demonstrates that
 
 ---
 
-# Relation to RooFit Benchmarks
+## Relation to RooFit Benchmarks
 
 This benchmark should not be interpreted as a direct ranking against the RooFit or xRooFit benchmarks.
 
@@ -148,7 +148,7 @@ The two benchmark families therefore answer different performance questions and 
 
 ---
 
-# Limitations
+## Limitations
 
 Current limitations include
 
@@ -162,7 +162,7 @@ Despite these limitations, the benchmark provides a reproducible, numerically va
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

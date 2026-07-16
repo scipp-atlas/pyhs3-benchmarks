@@ -6,7 +6,7 @@ PyHS3 Benchmarks uses **Pixi** to provide a reproducible software environment wi
 
 ---
 
-# Prerequisites
+## Prerequisites
 
 Before installing the repository, ensure that the following tools are available.
 
@@ -17,7 +17,7 @@ All Python packages and project dependencies are installed automatically by Pixi
 
 ---
 
-# Installation Overview
+## Installation Overview
 
 Installing the repository consists of four steps.
 
@@ -28,7 +28,7 @@ Installing the repository consists of four steps.
 
 ---
 
-# Clone the Repository
+## Clone the Repository
 
 Clone the repository from GitHub.
 
@@ -40,7 +40,7 @@ cd pyhs3-benchmarks
 
 ---
 
-# Create the Benchmark Environment
+## Create the Benchmark Environment
 
 Create the project environment.
 
@@ -60,7 +60,7 @@ The environment is managed entirely by Pixi, ensuring that benchmark results are
 
 ---
 
-# Verify the Installation
+## Verify the Installation
 
 Run a simple benchmark to verify that the environment was created successfully.
 
@@ -80,7 +80,7 @@ For details on benchmark execution, see **Getting Started**.
 
 ---
 
-# Verify the Benchmark Runner
+## Verify the Benchmark Runner
 
 After confirming that an individual benchmark executes correctly, verify the benchmark runner.
 
@@ -101,7 +101,7 @@ For advanced execution modes, see **Benchmark Matrix Runner**.
 
 ---
 
-# Expected Output
+## Expected Output
 
 A successful installation produces benchmark reports similar to
 
@@ -125,7 +125,7 @@ See **Outputs** for a complete description of generated reports and figures.
 
 ---
 
-# Updating the Environment
+## Updating the Environment
 
 If project dependencies change, synchronize the local environment.
 
@@ -137,15 +137,15 @@ Pixi automatically updates the environment to match the repository configuration
 
 ---
 
-# Troubleshooting
+## Troubleshooting
 
-## Pixi is not installed
+### Pixi is not installed
 
 Install Pixi before creating the project environment.
 
 ---
 
-## Installation fails
+### Installation fails
 
 Run
 
@@ -157,7 +157,7 @@ again to ensure that all required dependencies have been installed successfully.
 
 ---
 
-## Benchmark execution fails
+### Benchmark execution fails
 
 Verify that
 
@@ -169,7 +169,7 @@ If problems persist, verify that the repository was cloned correctly and that th
 
 ---
 
-# Next Steps
+## Next Steps
 
 Your benchmarking environment is now ready.
 

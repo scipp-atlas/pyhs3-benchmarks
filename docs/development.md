@@ -6,7 +6,7 @@ The repository is built around a modular benchmarking architecture where benchma
 
 ---
 
-# Development Principles
+## Development Principles
 
 Development follows a few simple principles.
 
@@ -19,7 +19,7 @@ For details on benchmark execution and measurement, see **Benchmark Methodology*
 
 ---
 
-# Repository Architecture
+## Repository Architecture
 
 Most benchmark implementations follow the same execution model.
 
@@ -43,7 +43,7 @@ Each benchmark is implemented as an executable Python module while sharing commo
 
 ---
 
-# Implementing a New Benchmark
+## Implementing a New Benchmark
 
 A new benchmark typically consists of
 
@@ -58,7 +58,7 @@ Whenever possible, benchmark implementations should reuse the existing infrastru
 
 ---
 
-# Registering a Benchmark
+## Registering a Benchmark
 
 To make a benchmark available through the benchmark matrix runner,
 
@@ -70,7 +70,7 @@ Once registered, the benchmark can be executed individually or as part of a benc
 
 ---
 
-# Benchmark Outputs
+## Benchmark Outputs
 
 Benchmark implementations should generate structured JSON reports as the canonical benchmark output.
 
@@ -85,7 +85,7 @@ See **Outputs** for the report format and generated artifacts.
 
 ---
 
-# Plot Generation
+## Plot Generation
 
 Plots should be generated from benchmark reports rather than directly from benchmark execution.
 
@@ -97,7 +97,7 @@ This allows
 
 ---
 
-# Testing
+## Testing
 
 Every benchmark should include automated tests covering
 
@@ -110,7 +110,7 @@ Shared infrastructure should be tested independently whenever possible.
 
 ---
 
-# Documentation
+## Documentation
 
 Every benchmark should include corresponding user-facing documentation that is consistent with the repository documentation style.
 
@@ -123,7 +123,7 @@ Documentation should clearly describe
 
 ---
 
-# Typical Development Workflow
+## Typical Development Workflow
 
 Most development follows the same sequence.
 
@@ -150,7 +150,7 @@ This workflow keeps benchmark implementations, generated outputs, and documentat
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

@@ -6,7 +6,7 @@ The project includes automated tests covering benchmark execution, shared infras
 
 ---
 
-# Running the Test Suite
+## Running the Test Suite
 
 Run the complete test suite with
 
@@ -22,7 +22,7 @@ pixi run pytest
 
 ---
 
-# Measuring Test Coverage
+## Measuring Test Coverage
 
 Generate a terminal coverage report:
 
@@ -53,7 +53,7 @@ htmlcov/
 
 ---
 
-# Running Individual Test Files
+## Running Individual Test Files
 
 Benchmark test modules can be executed independently.
 
@@ -73,7 +73,7 @@ The same pattern applies to all benchmark-specific test modules.
 
 ---
 
-# Running Individual Tests
+## Running Individual Tests
 
 Execute a single test using either a name filter
 
@@ -92,7 +92,7 @@ pixi run pytest \
 
 ---
 
-# Test Organization
+## Test Organization
 
 The test suite mirrors the structure of the benchmark implementations.
 
@@ -127,7 +127,7 @@ Benchmark tests typically cover
 
 ---
 
-# Mock-Based Testing
+## Mock-Based Testing
 
 Most unit tests rely on lightweight mocks rather than real HS3 workspaces.
 
@@ -142,7 +142,7 @@ Integration tests using real benchmark workspaces are kept to a minimum.
 
 ---
 
-# Development Checks
+## Development Checks
 
 Before opening a pull request, run
 
@@ -184,7 +184,7 @@ pixi run pre-commit
 
 ---
 
-# Continuous Integration
+## Continuous Integration
 
 The GitHub Actions workflow automatically validates the repository for every push and pull request.
 
@@ -204,7 +204,7 @@ locally before submitting changes is strongly recommended.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

@@ -8,7 +8,7 @@ Unlike the **Scalar PDF Evaluation** benchmark, which isolates evaluation of a s
 
 ---
 
-# Benchmark Goals
+## Benchmark Goals
 
 The benchmark is designed to
 
@@ -22,39 +22,7 @@ The benchmark provides an engine-to-engine comparison whenever equivalent statis
 
 ---
 
-# Statistical Quantity
-
-For every scan point
-
-\[
-\mu_i
-\]
-
-the benchmark evaluates
-
-\[
-\mathrm{NLL}(\mu_i)
-=
--\sum_k \log p(x_k|\mu_i)
-\]
-
-using the same observed dataset in every framework.
-
-Performance comparisons use
-
-\[
-\Delta\mathrm{NLL}
-=
-\mathrm{NLL}
--
-\min(\mathrm{NLL})
-\]
-
-rather than the absolute NLL value, removing constant normalization offsets and enabling direct comparison between implementations.
-
----
-
-# Execution Engines
+## Execution Engines
 
 The benchmark compares the following execution engines.
 
@@ -73,11 +41,11 @@ Whenever possible, all engines use
 
 ---
 
-# Benchmark Categories
+## Benchmark Categories
 
 Two complementary benchmark strategies are provided.
 
-## Point-by-Point ΔNLL Evaluation
+### Point-by-Point ΔNLL Evaluation
 
 Each framework evaluates one complete likelihood value for every parameter point.
 
@@ -92,7 +60,7 @@ It provides the primary apples-to-apples comparison across execution engines.
 
 ---
 
-## Batched Full-Dataset Evaluation
+### Batched Full-Dataset Evaluation
 
 PyHS3 additionally evaluates the complete observable array using its native vectorized execution model.
 
@@ -100,7 +68,7 @@ Because RooFit does not provide an equivalent execution strategy, this benchmark
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -129,7 +97,7 @@ Each execution engine runs in an isolated subprocess to ensure reproducible timi
 
 ---
 
-# Numerical Validation
+## Numerical Validation
 
 Performance comparisons are interpreted only after numerical agreement has been verified.
 
@@ -144,9 +112,9 @@ Only validated benchmark runs should be interpreted as meaningful performance co
 
 ---
 
-# Results
+## Results
 
-## Point-by-Point ΔNLL Agreement
+### Point-by-Point ΔNLL Agreement
 
 ![](../assets/plots/cross_nll/cross_nll_scan_agreement.png)
 
@@ -154,7 +122,7 @@ The ΔNLL profiles produced by every execution engine overlap within numerical t
 
 ---
 
-## Steady-State Runtime
+### Steady-State Runtime
 
 ![](../assets/plots/cross_nll/cross_nll_steady_state_runtime.png)
 
@@ -164,7 +132,7 @@ Both point-by-point and batched execution are shown separately.
 
 ---
 
-## Cold-Start versus Steady-State
+### Cold-Start versus Steady-State
 
 ![](../assets/plots/cross_nll/cross_nll_end_to_end_vs_steady.png)
 
@@ -174,7 +142,7 @@ Steady-state measures only repeated likelihood evaluation after initialization.
 
 ---
 
-## Compiled Execution Lifecycle
+### Compiled Execution Lifecycle
 
 ![](../assets/plots/cross_nll/cross_nll_compiled_lifecycle.png)
 
@@ -189,7 +157,7 @@ It illustrates where startup time is spent before compiled execution reaches ste
 
 ---
 
-## Memory Profile
+### Memory Profile
 
 ![](../assets/plots/cross_nll/cross_nll_memory_profile.png)
 
@@ -197,7 +165,7 @@ Current RSS and peak RSS are measured inside isolated subprocesses to provide di
 
 ---
 
-# Key Findings
+## Key Findings
 
 The benchmark demonstrates that
 
@@ -208,7 +176,7 @@ The benchmark demonstrates that
 
 ---
 
-# Limitations
+## Limitations
 
 The benchmark intentionally reports two complementary execution strategies.
 
@@ -217,7 +185,7 @@ The benchmark intentionally reports two complementary execution strategies.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

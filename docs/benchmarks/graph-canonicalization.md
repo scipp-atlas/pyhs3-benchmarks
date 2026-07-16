@@ -8,7 +8,7 @@ Workspace loading, model creation, symbolic log-probability construction, and `F
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 The benchmark measures only the execution of the PyTensor `canonicalize` rewrite database.
 
@@ -34,7 +34,7 @@ Details of the measurement methodology are described in **Benchmark Methodology*
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -69,7 +69,7 @@ Only graph canonicalization contributes to the reported benchmark results.
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -81,9 +81,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_graph_canonicalization \
@@ -101,7 +101,7 @@ pixi run python -m src.run_graph_canonicalization \
     --plot-dir docs/assets/plots/graph_canonicalization
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -120,7 +120,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -137,7 +137,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -163,9 +163,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Wall-Time Comparison
+### Wall-Time Comparison
 
 ![Graph canonicalization wall time](../assets/plots/graph_canonicalization/graph_canonicalization_wall_time.png)
 
@@ -175,7 +175,7 @@ The **10-channel** workspace is the fastest because disabling nuisance parameter
 
 ---
 
-## Current RSS Memory
+### Current RSS Memory
 
 ![Current RSS](../assets/plots/graph_canonicalization/graph_canonicalization_current_rss_delta.png)
 
@@ -185,7 +185,7 @@ The memory footprint remains stable regardless of workspace complexity.
 
 ---
 
-## Peak RSS Memory
+### Peak RSS Memory
 
 ![Peak RSS](../assets/plots/graph_canonicalization/graph_canonicalization_peak_rss_delta.png)
 
@@ -195,7 +195,7 @@ The benchmark shows very little temporary memory allocation during canonicalizat
 
 ---
 
-## Graph Simplification
+### Graph Simplification
 
 Canonicalization also validates that the symbolic graph becomes substantially simpler after applying the rewrite rules.
 
@@ -211,7 +211,7 @@ Across the benchmark dataset, approximately **half of the ApplyNodes** are remov
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -224,7 +224,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only symbolic graph canonicalization.
 
@@ -243,7 +243,7 @@ These workflow stages are benchmarked separately.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

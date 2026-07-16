@@ -8,7 +8,7 @@ Unlike the **Cross-Framework ΔNLL Benchmark**, which measures complete likeliho
 
 ---
 
-# Benchmark Goals
+## Benchmark Goals
 
 The benchmark is designed to
 
@@ -21,7 +21,7 @@ Because only a single PDF evaluation is measured, this benchmark provides the lo
 
 ---
 
-# Execution Engines
+## Execution Engines
 
 The benchmark compares the following execution engines.
 
@@ -40,7 +40,7 @@ All execution engines evaluate
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -70,11 +70,11 @@ Each execution engine runs in an isolated subprocess to ensure reproducible timi
 
 ---
 
-# Input Modes
+## Input Modes
 
 Two observable input modes are supported.
 
-## Varying Observable
+### Varying Observable
 
 The observable changes before every scalar PDF evaluation.
 
@@ -82,7 +82,7 @@ This mode represents the typical workload encountered during likelihood scans an
 
 ---
 
-## Fixed Observable
+### Fixed Observable
 
 The observable remains unchanged throughout the benchmark.
 
@@ -90,7 +90,7 @@ This mode is intended only for investigating framework-specific caching behaviou
 
 ---
 
-# Numerical Validation
+## Numerical Validation
 
 Performance comparisons are interpreted only after numerical agreement has been verified.
 
@@ -105,9 +105,9 @@ Only benchmark runs satisfying these tolerances should be interpreted as meaning
 
 ---
 
-# Results
+## Results
 
-## Startup versus Steady-State Latency
+### Startup versus Steady-State Latency
 
 ![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_latency.png)
 
@@ -117,7 +117,7 @@ Steady-state measures only repeated scalar PDF evaluation after initialization.
 
 ---
 
-## Scalar PDF Execution Time
+### Scalar PDF Execution Time
 
 ![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_time_per_value.png)
 
@@ -125,7 +125,7 @@ This figure reports the median execution time for a single scalar PDF evaluation
 
 ---
 
-## Evaluation Throughput
+### Evaluation Throughput
 
 ![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_throughput.png)
 
@@ -133,7 +133,7 @@ Throughput measures the sustained number of scalar PDF evaluations performed per
 
 ---
 
-## Memory Profile
+### Memory Profile
 
 ![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_memory.png)
 
@@ -141,7 +141,7 @@ Current RSS and peak RSS are measured inside isolated subprocesses to provide di
 
 ---
 
-## Numerical Agreement
+### Numerical Agreement
 
 ![](../assets/plots/cross_scalar_pdf/scalar_pdf_varying_numerical_agreement.png)
 
@@ -151,7 +151,7 @@ Successful validation confirms that all reported performance measurements corres
 
 ---
 
-## Compiled Execution Lifecycle
+### Compiled Execution Lifecycle
 
 ![](../assets/plots/cross_scalar_pdf/scalar_pdf_compiled_lifecycle.png)
 
@@ -166,7 +166,7 @@ It illustrates where startup time is spent before compiled execution reaches ste
 
 ---
 
-# Cache Diagnostic
+## Cache Diagnostic
 
 Equivalent benchmark figures are also generated for the fixed observable mode.
 
@@ -174,7 +174,7 @@ These results are intended only for investigating framework-specific caching beh
 
 ---
 
-# Key Findings
+## Key Findings
 
 The benchmark demonstrates that
 
@@ -185,7 +185,7 @@ The benchmark demonstrates that
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark intentionally isolates scalar PDF evaluation.
 
@@ -200,7 +200,7 @@ For workflow-level comparisons, see the **Cross-Framework ΔNLL Benchmark**.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

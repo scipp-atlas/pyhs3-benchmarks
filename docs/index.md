@@ -16,7 +16,7 @@ For details on how benchmarks are executed and measured, see **Benchmark Methodo
 
 ---
 
-# Key Features
+## Key Features
 
 PyHS3 Benchmarks provides
 
@@ -29,9 +29,9 @@ PyHS3 Benchmarks provides
 
 ---
 
-# Documentation Guide
+## Documentation Guide
 
-## Getting Started
+### Getting Started
 
 Start here if you are new to the project.
 
@@ -45,7 +45,7 @@ Recommended reading:
 
 ---
 
-## Benchmark Suite
+### Benchmark Suite
 
 Browse the benchmark documentation for individual workflow stages, including
 
@@ -63,7 +63,7 @@ Each page focuses on a single benchmark, while the shared methodology is documen
 
 ---
 
-## Cross-Framework Validation
+### Cross-Framework Validation
 
 Cross-framework benchmarks compare equivalent statistical computations across supported frameworks.
 
@@ -75,13 +75,13 @@ Current comparisons include
 
 ---
 
-## Benchmark Workspaces
+### Benchmark Workspaces
 
 This section documents the benchmark workspaces used throughout the repository, including workspace collections, naming conventions, model complexity, and ROOT counterparts used for cross-framework validation.
 
 ---
 
-## Results and Outputs
+### Results and Outputs
 
 Benchmark execution produces
 
@@ -94,7 +94,7 @@ See the **Outputs** page for details on generated artifacts.
 
 ---
 
-## Development
+### Development
 
 Contributor documentation covers
 
@@ -106,7 +106,7 @@ Contributor documentation covers
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 The benchmarking pipeline follows the complete lifecycle of an HS3 statistical model.
 
@@ -147,7 +147,7 @@ Each benchmark focuses on one stage of this workflow. The complete measurement s
 
 ---
 
-# Quick Start
+## Quick Start
 
 Install the project:
 

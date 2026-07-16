@@ -8,7 +8,7 @@ Workspace loading and model creation are treated as setup steps and are excluded
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 The benchmark measures only the execution of
 
@@ -31,7 +31,7 @@ Details of the measurement methodology are described in **Benchmark Methodology*
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -60,7 +60,7 @@ Only symbolic graph construction contributes to the reported benchmark results.
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -72,9 +72,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_log_prob_construction \
@@ -92,7 +92,7 @@ pixi run python -m src.run_log_prob_construction \
     --plot-dir docs/assets/plots/log_prob_construction
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -111,7 +111,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -128,7 +128,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -154,9 +154,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Wall-Time Comparison
+### Wall-Time Comparison
 
 ![](../assets/plots/log_prob_construction/log_prob_construction_wall_time.png)
 
@@ -166,7 +166,7 @@ The observed runtime varies only modestly with workspace complexity, indicating 
 
 ---
 
-## Current RSS Memory
+### Current RSS Memory
 
 ![](../assets/plots/log_prob_construction/log_prob_construction_current_rss_delta.png)
 
@@ -176,7 +176,7 @@ The benchmark demonstrates that symbolic graph construction introduces almost no
 
 ---
 
-## Peak RSS Memory
+### Peak RSS Memory
 
 ![](../assets/plots/log_prob_construction/log_prob_construction_peak_rss_delta.png)
 
@@ -186,7 +186,7 @@ Only the smallest benchmark workspace exhibits a measurable temporary allocation
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -199,7 +199,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only symbolic graph construction.
 
@@ -217,7 +217,7 @@ These workflow stages are benchmarked separately.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

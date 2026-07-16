@@ -6,7 +6,7 @@ Unlike individual benchmark pages, the Benchmark Overview does not execute bench
 
 ---
 
-# Overview
+## Overview
 
 The overview generator reads benchmark reports produced by the benchmark suite and creates a unified collection of summary plots.
 
@@ -21,7 +21,7 @@ The generated figures provide
 
 ---
 
-# Workflow
+## Workflow
 
 ```text
 run_all_benchmarks.py
@@ -40,7 +40,7 @@ The overview generator uses existing benchmark reports and never reruns benchmar
 
 ---
 
-# Running the Overview Generator
+## Running the Overview Generator
 
 ```bash
 pixi run python -m src.plot_benchmark_overview \
@@ -51,7 +51,7 @@ pixi run python -m src.plot_benchmark_overview \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -61,7 +61,7 @@ pixi run python -m src.plot_benchmark_overview \
 
 ---
 
-# Supported Plot Groups
+## Supported Plot Groups
 
 The overview generator supports the following plot groups.
 
@@ -78,9 +78,9 @@ The `cross_framework_summary` group produces
 
 ---
 
-# Results
+## Results
 
-## Benchmark Performance Summary
+### Benchmark Performance Summary
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_performance_summary.png)
 
@@ -99,7 +99,7 @@ This figure is intended as the primary overview of benchmark performance.
 
 ---
 
-## Stage Timing Breakdown
+### Stage Timing Breakdown
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_stage_timing.png)
 
@@ -117,7 +117,7 @@ It highlights which stages contribute most to the total execution time.
 
 ---
 
-## Stage Memory Breakdown
+### Stage Memory Breakdown
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_stage_memory.png)
 
@@ -127,7 +127,7 @@ Compilation is typically the largest contributor to memory consumption.
 
 ---
 
-## Cross-Framework Scalar PDF Summary
+### Cross-Framework Scalar PDF Summary
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_scalar_pdf.png)
 
@@ -137,7 +137,7 @@ It focuses on individual PDF evaluations and does not include likelihood scans.
 
 ---
 
-## Cross-Framework Pointwise ΔNLL Summary
+### Cross-Framework Pointwise ΔNLL Summary
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_pointwise_nll.png)
 
@@ -147,7 +147,7 @@ Unlike scalar PDF evaluation, it measures the complete likelihood computation.
 
 ---
 
-## Cross-Framework HistFactory Likelihood Summary
+### Cross-Framework HistFactory Likelihood Summary
 
 ![](../assets/plots/benchmark_overview/benchmark_overview_cross_framework_histfactory_likelihood.png)
 
@@ -164,7 +164,7 @@ Because these benchmarks use simplified paired HistFactory models, they should n
 
 ---
 
-# When to Use the Benchmark Overview
+## When to Use the Benchmark Overview
 
 The overview figures are particularly useful for
 
@@ -176,7 +176,7 @@ The overview figures are particularly useful for
 
 ---
 
-# Limitations
+## Limitations
 
 The overview generator aggregates existing benchmark reports and never executes benchmarks itself.
 
@@ -186,7 +186,7 @@ Cross-framework figures summarize different benchmark families and should theref
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

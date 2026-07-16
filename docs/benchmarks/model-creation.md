@@ -8,7 +8,7 @@ Unlike the **Workspace Loading** benchmark, workspace deserialization is exclude
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 For each benchmark configuration, the benchmark reports
 
@@ -25,7 +25,7 @@ Details of the measurement methodology are described in **Benchmark Methodology*
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -51,7 +51,7 @@ The workspace is loaded once before benchmarking begins. Only model construction
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -63,9 +63,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_model_creation \
@@ -83,7 +83,7 @@ pixi run python -m src.run_model_creation \
     --plot-dir docs/assets/plots/model_creation
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -102,7 +102,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -120,7 +120,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -146,9 +146,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Wall-Time Comparison
+### Wall-Time Comparison
 
 ![Model creation wall time](../assets/plots/model_creation/model_creation_wall_time.png)
 
@@ -162,7 +162,7 @@ Execution time generally increases with workspace complexity, although larger wo
 
 ---
 
-## Peak RSS Memory
+### Peak RSS Memory
 
 ![Peak RSS memory](../assets/plots/model_creation/model_creation_peak_rss_delta.png)
 
@@ -172,7 +172,7 @@ Memory usage increases steadily with workspace complexity, reflecting the additi
 
 ---
 
-## Current RSS Memory
+### Current RSS Memory
 
 ![Current RSS memory](../assets/plots/model_creation/model_creation_current_rss_delta.png)
 
@@ -182,7 +182,7 @@ The close agreement between current and peak RSS indicates that most allocated m
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -196,7 +196,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only statistical model construction.
 
@@ -215,7 +215,7 @@ These workflow stages are benchmarked separately.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

@@ -8,7 +8,7 @@ Unlike the **Cross-Framework Scalar PDF Evaluation** benchmark, which measures i
 
 ---
 
-# Why xRooFit?
+## Why xRooFit?
 
 xRooFit provides a high-level interface for statistical workflows built on top of RooFit.
 
@@ -22,7 +22,7 @@ https://gitlab.cern.ch/will/xroofit
 
 ---
 
-# Benchmark Goals
+## Benchmark Goals
 
 The benchmark is designed to
 
@@ -33,7 +33,7 @@ The benchmark is designed to
 
 ---
 
-# Execution Engines
+## Execution Engines
 
 The benchmark compares
 
@@ -47,7 +47,7 @@ All engines evaluate statistically equivalent models using identical scan parame
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 HS3 Workspace              ROOT Workspace
@@ -73,7 +73,7 @@ PyHS3                    xRooFit API
 
 ---
 
-# Installation
+## Installation
 
 Clone and build xRooFit.
 
@@ -90,7 +90,7 @@ make -j$(nproc)
 
 ---
 
-# Activating xRooFit
+## Activating xRooFit
 
 Activate the xRooFit environment before running the benchmark.
 
@@ -102,7 +102,7 @@ This step must be repeated for every new terminal session.
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
 ```bash
 pixi run python -m src.run_pyhs3_xroofit_benchmark \
@@ -120,7 +120,7 @@ The benchmark
 
 ---
 
-# Numerical Validation
+## Numerical Validation
 
 Performance comparisons are interpreted only after numerical agreement has been verified.
 
@@ -136,9 +136,9 @@ Validation includes
 
 ---
 
-# Results
+## Results
 
-## ΔNLL Profile
+### ΔNLL Profile
 
 ![](../assets/plots/pyhs3_xroofit_benchmark/delta_nll_profile.png)
 
@@ -146,7 +146,7 @@ Equivalent ΔNLL profiles demonstrate that all execution engines evaluate statis
 
 ---
 
-## Pointwise ΔNLL Differences
+### Pointwise ΔNLL Differences
 
 ![](../assets/plots/pyhs3_xroofit_benchmark/delta_nll_absolute_differences.png)
 
@@ -154,7 +154,7 @@ Pointwise differences quantify numerical agreement between execution engines.
 
 ---
 
-## Steady-State Runtime
+### Steady-State Runtime
 
 ![](../assets/plots/pyhs3_xroofit_benchmark/steady_state_runtime.png)
 
@@ -162,7 +162,7 @@ Steady-state timing compares repeated likelihood evaluation after initialization
 
 ---
 
-## Full ΔNLL Scan Runtime
+### Full ΔNLL Scan Runtime
 
 ![](../assets/plots/pyhs3_xroofit_benchmark/full_scan_runtime.png)
 
@@ -170,7 +170,7 @@ This benchmark measures the runtime of complete likelihood scans under identical
 
 ---
 
-## Setup Breakdown
+### Setup Breakdown
 
 ![](../assets/plots/pyhs3_xroofit_benchmark/timing_phase_breakdown.png)
 
@@ -178,7 +178,7 @@ Initialization is separated into workspace loading, model construction, NLL cons
 
 ---
 
-## Numerical Agreement Summary
+### Numerical Agreement Summary
 
 ![](../assets/plots/pyhs3_xroofit_benchmark/numerical_agreement.png)
 
@@ -186,7 +186,7 @@ The benchmark summarizes maximum ΔNLL differences together with the configured 
 
 ---
 
-# Runtime Verification
+## Runtime Verification
 
 To ensure that the benchmark evaluates the intended interface, runtime metadata verifies that the likelihood is constructed through
 
@@ -198,7 +198,7 @@ rather than directly through RooFit.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark compares equivalent statistical workflows rather than identical internal implementations.
 
@@ -217,7 +217,7 @@ The strongest engine-to-engine comparison is therefore provided by
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

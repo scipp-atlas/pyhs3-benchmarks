@@ -8,7 +8,7 @@ Unlike the **PDF Evaluation** benchmark, which repeatedly evaluates a single pro
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 For each benchmark configuration, the benchmark reports
 
@@ -28,7 +28,7 @@ Details of the measurement methodology are described in **Benchmark Methodology*
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -64,7 +64,7 @@ Workspace loading, model construction, and graph compilation are setup stages an
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -76,9 +76,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_nll_scan \
@@ -99,7 +99,7 @@ pixi run python -m src.run_nll_scan \
     --plot-dir docs/assets/plots/nll_scan
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -121,7 +121,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -141,7 +141,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -164,9 +164,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Total Runtime
+### Total Runtime
 
 ![](../assets/plots/nll_scan/nll_scan_total_runtime.png)
 
@@ -176,7 +176,7 @@ The benchmark demonstrates predictable scaling across all benchmark workspaces.
 
 ---
 
-## Runtime per Scan Point
+### Runtime per Scan Point
 
 ![](../assets/plots/nll_scan/nll_scan_runtime_per_point.png)
 
@@ -186,7 +186,7 @@ This indicates that the computational cost of evaluating a single likelihood poi
 
 ---
 
-## Current RSS Memory
+### Current RSS Memory
 
 ![](../assets/plots/nll_scan/nll_scan_current_rss_delta.png)
 
@@ -196,7 +196,7 @@ Memory increases become noticeable only for very large scan configurations due t
 
 ---
 
-## Peak RSS Memory
+### Peak RSS Memory
 
 ![](../assets/plots/nll_scan/nll_scan_peak_rss_delta.png)
 
@@ -206,7 +206,7 @@ Even for the largest scans, memory growth remains modest relative to the overall
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -219,7 +219,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only repeated evaluation of a compiled negative log-likelihood across a parameter scan.
 
@@ -235,7 +235,7 @@ These stages are benchmarked separately.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

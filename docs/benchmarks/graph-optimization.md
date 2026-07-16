@@ -8,7 +8,7 @@ Workspace loading, model creation, symbolic log-probability construction, and `F
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 The benchmark measures only the execution of the graph optimization stage.
 
@@ -34,7 +34,7 @@ Details of the measurement methodology are described in **Benchmark Methodology*
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 ```text
 Workspace
@@ -69,7 +69,7 @@ Only the optimization pass contributes to the reported benchmark results.
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -81,9 +81,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_graph_optimization \
@@ -101,7 +101,7 @@ pixi run python -m src.run_graph_optimization \
     --plot-dir docs/assets/plots/graph_optimization
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -120,7 +120,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -137,7 +137,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -163,9 +163,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Wall-Time Comparison
+### Wall-Time Comparison
 
 ![Graph optimization wall time](../assets/plots/graph_optimization/graph_optimization_wall_time.png)
 
@@ -175,7 +175,7 @@ All benchmark workspaces complete optimization in well under one second, indicat
 
 ---
 
-## Current RSS Memory
+### Current RSS Memory
 
 ![Graph optimization current RSS](../assets/plots/graph_optimization/graph_optimization_current_rss_delta.png)
 
@@ -185,7 +185,7 @@ The memory footprint is highly consistent regardless of model complexity.
 
 ---
 
-## Peak RSS Memory
+### Peak RSS Memory
 
 ![Graph optimization peak RSS](../assets/plots/graph_optimization/graph_optimization_peak_rss_delta.png)
 
@@ -195,7 +195,7 @@ This indicates that graph optimization performs very few large temporary allocat
 
 ---
 
-## Graph Validation
+### Graph Validation
 
 Besides timing and memory measurements, the benchmark validates the optimized graph by reporting
 
@@ -208,7 +208,7 @@ Across the benchmark dataset, optimization consistently reduces the number of Ap
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -221,7 +221,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only symbolic graph optimization.
 
@@ -239,7 +239,7 @@ These workflow stages are benchmarked separately.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

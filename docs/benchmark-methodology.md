@@ -4,7 +4,7 @@ On this page, you will learn how benchmarks in **PyHS3 Benchmarks** are executed
 
 ---
 
-# Goals
+## Goals
 
 The benchmark suite is designed to
 
@@ -18,11 +18,11 @@ Each benchmark measures one well-defined aspect of the workflow while sharing a 
 
 ---
 
-# Design Principles
+## Design Principles
 
 Every benchmark in this repository follows the same guiding principles.
 
-## Isolation
+### Isolation
 
 Each benchmark isolates a single stage of the statistical workflow, making it easier to identify bottlenecks and evaluate optimization strategies.
 
@@ -33,22 +33,22 @@ For example,
 -   **Compiled Evaluation** measures numerical execution independently of compilation;
 -   **Memory Scaling** isolates memory consumption during selected workflow stages.
 
-## Reproducibility
+### Reproducibility
 
 Benchmark inputs are deterministic. Fixed workspaces, explicit benchmark configurations, and identical inputs across repeated runs ensure that differences primarily reflect implementation changes rather than variations in benchmark data.
 
-## Automation
+### Automation
 
 All benchmark suites run through the shared benchmark runner, which executes benchmarks, collects statistics, generates reports, and produces publication-quality figures using a consistent workflow.
 
-## Extensibility
+### Extensibility
 
 Benchmarks share the same execution model and reporting conventions. Adding a new benchmark typically requires implementing the benchmark,
 registering it with the benchmark runner, and documenting its methodology.
 
 ---
 
-# Benchmark Lifecycle
+## Benchmark Lifecycle
 
 Every benchmark follows the same high-level execution pipeline.
 
@@ -81,20 +81,20 @@ Although individual benchmark suites may omit or extend certain stages, this ove
 
 ---
 
-# Measurement Strategy
+## Measurement Strategy
 
 Performance measurements are collected using a consistent execution strategy.
 
-## Warm-up
+### Warm-up
 
 Some benchmark suites perform one or more warm-up iterations before measurements begin. Warm-up executions are excluded from the reported
 statistics to remove one-time initialization costs such as JIT compilation, graph initialization, cache population, and initial memory allocation.
 
-## Repeated Measurements
+### Repeated Measurements
 
 Timing benchmarks are executed multiple times to reduce measurement noise caused by operating system scheduling, temporary resource contention, cache effects, and background processes.
 
-## Aggregation
+### Aggregation
 
 Repeated measurements are summarized using statistics appropriate for the benchmark, including:
 
@@ -106,7 +106,7 @@ Repeated measurements are summarized using statistics appropriate for the benchm
 
 ---
 
-# Performance Metrics
+## Performance Metrics
 
 Different benchmark suites emphasize different performance characteristics.
 
@@ -123,7 +123,7 @@ Individual benchmark pages describe any benchmark-specific metrics they report.
 
 ---
 
-# Numerical Validation
+## Numerical Validation
 
 Several benchmark suites measure both performance and numerical correctness. Depending on the benchmark, validation may compare:
 
@@ -137,7 +137,7 @@ These checks ensure that performance optimizations preserve the underlying stati
 
 ---
 
-# Cross-Framework Comparisons
+## Cross-Framework Comparisons
 
 Cross-framework benchmarks compare equivalent statistical computations rather than different analysis workflows. Whenever possible, they use identical statistical models, datasets, parameter values, and benchmark configurations so that observed performance differences reflect implementation characteristics rather than benchmark inputs.
 
@@ -145,13 +145,13 @@ Framework-specific assumptions or limitations are documented on the correspondin
 
 ---
 
-# Benchmark Outputs
+## Benchmark Outputs
 
 Each benchmark produces a structured JSON report containing benchmark metadata, execution statistics, benchmark configuration, and validation results where applicable. Most benchmark suites also generate publication-quality figures from these reports. See the **Outputs** page for details.
 
 ---
 
-# Reproducibility Recommendations
+## Reproducibility Recommendations
 
 For meaningful comparisons across benchmark campaigns, it is recommended to
 
@@ -164,7 +164,7 @@ For meaningful comparisons across benchmark campaigns, it is recommended to
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 For additional information, see
 

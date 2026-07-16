@@ -10,7 +10,7 @@ https://github.com/scipp-atlas/workspace-scripts
 
 ---
 
-# Workspace Collection
+## Workspace Collection
 
 The repository uses a curated collection of benchmark workspaces derived from a common statistical model.
 
@@ -29,7 +29,7 @@ The complete catalog of benchmark workspaces, including filenames, supported fra
 
 ---
 
-# Supported Workspace Formats
+## Supported Workspace Formats
 
 The primary benchmark dataset consists of HS3 workspaces stored in
 
@@ -50,7 +50,7 @@ Equivalent workspace formats are generated using the **workspace-scripts** repos
 
 ---
 
-# Where to Go Next
+## Where to Go Next
 
 - **Benchmark Workspaces** — complete workspace catalog and naming convention.
 - **Workspace Lifecycle** — how a workspace is transformed inside PyHS3.

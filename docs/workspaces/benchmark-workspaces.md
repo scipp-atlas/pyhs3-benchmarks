@@ -10,7 +10,7 @@ The repository uses a curated benchmark dataset that serves as the common input 
 
 ---
 
-# Dataset Design
+## Dataset Design
 
 All benchmark workspaces originate from a common baseline statistical model.
 
@@ -20,7 +20,7 @@ For details on how these workspaces are processed inside PyHS3, see **Workspace 
 
 ---
 
-# Nominal Benchmark Workspace Collection
+## Nominal Benchmark Workspace Collection
 
 The table below lists the nominal benchmark workspaces used throughout this documentation and benchmark suite.
 
@@ -38,7 +38,7 @@ Additional workspace variants can be generated with the **workspace-scripts** re
 
 ---
 
-# Additional Workspace Formats
+## Additional Workspace Formats
 
 The primary benchmark dataset consists of HS3 workspaces stored in
 
@@ -61,11 +61,11 @@ When available, equivalent ROOT workspaces are used by the cross-framework bench
 
 ---
 
-# Workspace Variants
+## Workspace Variants
 
 Benchmark workspaces may vary the following model properties.
 
-## Background Models
+### Background Models
 
 | Variant | Description |
 |----------|-------------|
@@ -73,28 +73,28 @@ Benchmark workspaces may vary the following model properties.
 | `bkgGeneric` | Generic exponential background |
 | `bkgGenPoly` | Generic polynomial background |
 
-## Signal Models
+### Signal Models
 
 | Variant | Description |
 |----------|-------------|
 | `sigGauss` | Gaussian signal model |
 | `sigGeneric` | Generic signal implementation |
 
-## Shape Configuration
+### Shape Configuration
 
 | Variant | Description |
 |----------|-------------|
 | `shapeFloat` | Floating signal shape parameters |
 | `shapeFixed` | Fixed signal shape parameters |
 
-## Nuisance Parameters
+### Nuisance Parameters
 
 | Variant | Description |
 |----------|-------------|
 | `npOn` | Nuisance parameter enabled |
 | `npOff` | Nuisance parameter disabled |
 
-## Constraint Models
+### Constraint Models
 
 | Variant | Description |
 |----------|-------------|
@@ -102,7 +102,7 @@ Benchmark workspaces may vary the following model properties.
 | `constrPoisson` | Poisson constraint |
 | `constrNone` | No auxiliary constraint |
 
-## Signal Yield
+### Signal Yield
 
 | Variant | Description |
 |----------|-------------|
@@ -113,7 +113,7 @@ Benchmark workspaces may vary the following model properties.
 
 ---
 
-# Workspace Naming Convention
+## Workspace Naming Convention
 
 Benchmark workspace filenames follow the pattern
 
@@ -141,7 +141,7 @@ is interpreted as
 
 ---
 
-# Using Benchmark Workspaces
+## Using Benchmark Workspaces
 
 Run benchmarks on one or more selected workspaces:
 
@@ -158,7 +158,7 @@ Workspace discovery, filtering, and benchmark campaigns are described in **Bench
 
 ---
 
-# Maintaining the Workspace Catalog
+## Maintaining the Workspace Catalog
 
 Whenever benchmark workspaces are added or updated, the catalog should also be updated.
 
@@ -176,7 +176,7 @@ This table serves as the canonical reference for the nominal benchmark dataset.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

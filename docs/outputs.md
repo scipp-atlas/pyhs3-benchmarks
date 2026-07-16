@@ -6,7 +6,7 @@ Every benchmark produces structured outputs that support performance analysis, n
 
 ---
 
-# Generated Artifacts
+## Generated Artifacts
 
 A benchmark execution typically produces two categories of outputs:
 
@@ -25,7 +25,7 @@ Separating benchmark data from visualizations allows figures to be regenerated w
 
 ---
 
-# Benchmark Reports
+## Benchmark Reports
 
 The primary output of every benchmark is a structured JSON report.
 
@@ -43,7 +43,7 @@ These reports provide the canonical machine-readable representation of benchmark
 
 ---
 
-# Results Directory
+## Results Directory
 
 Benchmark reports are organized by benchmark suite.
 
@@ -71,7 +71,7 @@ Each benchmark stores its outputs independently, allowing benchmark suites to be
 
 ---
 
-# Matrix Summary
+## Matrix Summary
 
 Executing benchmark campaigns with
 
@@ -98,7 +98,7 @@ It serves as the primary summary for complete benchmark campaigns.
 
 ---
 
-# Generated Figures
+## Generated Figures
 
 Most benchmark suites generate publication-quality figures directly from benchmark reports.
 
@@ -129,7 +129,7 @@ Typical figures include
 
 ---
 
-# Benchmark Status
+## Benchmark Status
 
 Every benchmark report records its execution status.
 
@@ -142,7 +142,7 @@ Execution status simplifies debugging while allowing automated tooling to distin
 
 ---
 
-# Interpreting Benchmark Results
+## Interpreting Benchmark Results
 
 Depending on the benchmark, reported metrics may include
 
@@ -157,7 +157,7 @@ See **Benchmark Methodology** for details on how these statistics are collected 
 
 ---
 
-# Reproducibility
+## Reproducibility
 
 Benchmark reports include the benchmark configuration and execution metadata required to reproduce benchmark campaigns under equivalent conditions.
 
@@ -165,7 +165,7 @@ See **Benchmark Methodology** for details on the repository's measurement strate
 
 ---
 
-# Common Use Cases
+## Common Use Cases
 
 Benchmark outputs support many common workflows, including
 
@@ -180,7 +180,7 @@ Because all benchmark suites use the same reporting conventions, these analyses 
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 

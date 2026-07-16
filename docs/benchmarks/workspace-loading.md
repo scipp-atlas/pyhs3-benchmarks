@@ -8,7 +8,7 @@ Unlike later workflow benchmarks, it measures only the deserialization stage. Mo
 
 ---
 
-# What This Benchmark Measures
+## What This Benchmark Measures
 
 For each workspace, the benchmark reports
 
@@ -23,7 +23,7 @@ Timing statistics are collected over repeated executions, while memory measureme
 
 ---
 
-# Benchmark Workflow
+## Benchmark Workflow
 
 For every workspace, the benchmark performs the following steps.
 
@@ -56,7 +56,7 @@ Each workspace is benchmarked independently to minimize interference between ben
 
 ---
 
-# When to Use This Benchmark
+## When to Use This Benchmark
 
 This benchmark is useful for
 
@@ -68,9 +68,9 @@ This benchmark is useful for
 
 ---
 
-# Running the Benchmark
+## Running the Benchmark
 
-## Run directly
+### Run directly
 
 ```bash
 pixi run python -m src.run_workspace_loading \
@@ -86,7 +86,7 @@ pixi run python -m src.run_workspace_loading \
     --plot-dir docs/assets/plots/workspace_loading
 ```
 
-## Run through the Benchmark Matrix Runner
+### Run through the Benchmark Matrix Runner
 
 ```bash
 pixi run python -m src.run_all_benchmarks \
@@ -103,7 +103,7 @@ pixi run python -m src.run_all_benchmarks \
 
 ---
 
-# Command-line Arguments
+## Command-line Arguments
 
 | Argument | Description |
 |----------|-------------|
@@ -119,7 +119,7 @@ Common benchmark arguments and execution behavior are described in **Benchmark M
 
 ---
 
-# Generated Outputs
+## Generated Outputs
 
 The benchmark produces
 
@@ -145,9 +145,9 @@ The report structure and output conventions are documented in **Benchmark Result
 
 ---
 
-# Results
+## Results
 
-## Wall-Time Comparison
+### Wall-Time Comparison
 
 ![Workspace loading wall time](../assets/plots/workspace_loading/workspace_loading_wall_time.png)
 
@@ -166,7 +166,7 @@ Error bars represent one standard deviation across repeated benchmark executions
 
 ---
 
-## Peak RSS Memory
+### Peak RSS Memory
 
 ![Peak RSS memory](../assets/plots/workspace_loading/workspace_loading_peak_rss_delta.png)
 
@@ -176,7 +176,7 @@ The benchmark shows a gradual increase from approximately **2.3 MB** for the sma
 
 ---
 
-## Current RSS Memory
+### Current RSS Memory
 
 ![Current RSS memory](../assets/plots/workspace_loading/workspace_loading_current_rss_delta.png)
 
@@ -186,7 +186,7 @@ The close agreement between current and peak RSS indicates that most allocated m
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 The benchmark includes several implementation choices that improve measurement quality.
 
@@ -198,7 +198,7 @@ The general benchmark methodology is documented in **Benchmark Methodology**.
 
 ---
 
-# Limitations
+## Limitations
 
 This benchmark measures only HS3 workspace deserialization.
 
@@ -216,7 +216,7 @@ These stages are covered by dedicated benchmark pages.
 
 ---
 
-# Related Documentation
+## Related Documentation
 
 See also
 
