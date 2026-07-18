@@ -1,0 +1,14 @@
+PyTensor version: 3.1.2
+mode: Mode
+floatX: float64
+optimizer: o4
+linker: auto
+cxx: /mnt/h/iris-hep/pyhs3-benchmarks/.pixi/envs/default/bin/g++
+compiledir: /home/daryna/.pytensor/compiledir_Linux-6.18-microsoft-standard-WSL2-x86_64-with-glibc2.39-x86_64-3.12.13-64
+allow_gc: True
+exception_verbosity: low
+on_opt_error: warn
+PYTENSOR_FLAGS: not set
+resolved mode class: Mode
+resolved linker: NumbaLinker()
+resolved optimizer: RewriteDatabaseQuery(inc=<pytensor.misc.ordered_set.OrderedSet object at 0x7e2829698b60>,ex=<pytensor.misc.ordered_set.OrderedSet object at 0x7e2829698bc0>,require=<pytensor.misc.ordered_set.OrderedSet object at 0x7e2829698b90>,subquery={},position_cutoff=inf,extra_rewrites=[])

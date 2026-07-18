@@ -57,3 +57,9 @@ reports/*
 
 external/
 site/
+
+profiling/environment/environment-raw.txt
+profiling/environment/pixi-info.txt
+profiling/environment/pixi-packages.txt
+profiling/environment/conda-list.txt
+profiling/environment/python-packages.txt
